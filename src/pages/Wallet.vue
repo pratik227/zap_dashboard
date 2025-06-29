@@ -33,7 +33,7 @@ import {
 } from '../utils/nwcClient.js'
 
 // Dynamically import QrStream to avoid build issues
-const QrStream = defineAsyncComponent(() => import('qrcode-reader-vue3').then(m => m.QrStream))
+const QrStream = defineAsyncComponent(() => import('qrcode-reader-vue3').then(m => m.default))
 
 const { isWalletConnected, activeConnection } = useNostrConnections()
 
