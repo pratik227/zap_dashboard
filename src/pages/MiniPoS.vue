@@ -1,5 +1,5 @@
 <script setup>
-import { IconShoppingCart, IconBolt } from '@iconify-prerendered/vue-tabler'
+import { IconShoppingCart, IconBolt, IconRocket } from '@iconify-prerendered/vue-tabler'
 </script>
 
 <template>
@@ -19,9 +19,13 @@ import { IconShoppingCart, IconBolt } from '@iconify-prerendered/vue-tabler'
       </div>
       <h3 class="text-xl font-semibold text-gray-900 mb-2">Mini Point of Sale</h3>
       <p class="text-gray-600 mb-6">Accept lightning payments for products and services.</p>
+<!--      <button class="btn-primary">-->
+<!--        <IconBolt class="w-4 h-4" />-->
+<!--        Setup PoS-->
+<!--      </button>-->
       <button class="btn-primary">
-        <IconBolt class="w-4 h-4" />
-        Setup PoS
+        <IconRocket class="w-4 h-4" />
+        Coming Soon
       </button>
     </div>
   </div>

@@ -1,5 +1,5 @@
 <script setup>
-import { IconGift, IconTarget } from '@iconify-prerendered/vue-tabler'
+import { IconGift, IconTarget, IconRocket } from '@iconify-prerendered/vue-tabler'
 </script>
 
 <template>
@@ -19,9 +19,13 @@ import { IconGift, IconTarget } from '@iconify-prerendered/vue-tabler'
       </div>
       <h3 class="text-xl font-semibold text-gray-900 mb-2">Donation Campaigns</h3>
       <p class="text-gray-600 mb-6">Set up and track donation goals for your projects.</p>
+<!--      <button class="btn-primary">-->
+<!--        <IconTarget class="w-4 h-4" />-->
+<!--        Create Campaign-->
+<!--      </button>-->
       <button class="btn-primary">
-        <IconTarget class="w-4 h-4" />
-        Create Campaign
+        <IconRocket class="w-4 h-4" />
+        Coming Soon
       </button>
     </div>
   </div>
