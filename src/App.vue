@@ -1,5 +1,5 @@
 <script setup>
-import { ref, provide, watch, onMounted } from 'vue'
+import { ref, provide, watch, onMounted, nextTick } from 'vue'
 import { IconAlertTriangle, IconX } from '@iconify-prerendered/vue-tabler'
 import Sidebar from './components/Sidebar.vue'
 import TopBar from './components/TopBar.vue'
@@ -15,6 +15,7 @@ import Finances from './pages/Finances.vue'
 import Settings from './pages/Settings.vue'
 import NWCConnection from './components/NWCConnection.vue'
 import { useNostrConnections } from './composables/useNostrConnections.js'
+import { useNotifications } from './composables/useNotifications.js'
 
 // Use the Nostr connections composable
 const {
@@ -25,8 +26,17 @@ const {
   isWalletConnected,
   setActiveConnection,
   clearActiveConnection,
-  loadZapData
+  loadZapData,
+  autoReconnect
 } = useNostrConnections()
+
+// Use the notifications composable
+const {
+  handleConnectionSuccess: notifyConnectionSuccess,
+  handleConnectionError: notifyConnectionError,
+  handleZapReceived,
+  handleBalanceChange
+} = useNotifications()
 
 // Global state
 const zapData = ref([])
@@ -42,6 +52,7 @@ const selectedFilters = ref({
 const currentPage = ref('dashboard')
 const showConnectionModal = ref(false)
 const isMobileMenuOpen = ref(false)
+const isRefreshingData = ref(false)
 
 // Provide data to child components
 provide('zapData', zapData)
@@ -73,29 +84,78 @@ const components = {
   settings: Settings
 }
 
-// Load zap data when active connection changes
-const refreshZapData = async () => {
-  if (!activeConnection.value) {
+// Enhanced data refresh function with better error handling
+const refreshZapData = async (force = false) => {
+  if (!activeConnection.value && !force) {
+    console.log('No active connection, clearing zap data')
     zapData.value = []
     return
   }
   
+  if (isRefreshingData.value) {
+    console.log('Data refresh already in progress, skipping...')
+    return
+  }
+  
+  isRefreshingData.value = true
+  
   try {
+    console.log('Refreshing zap data...')
     const data = await loadZapData()
+    
+    // Check for new zaps and trigger notifications
+    if (zapData.value.length > 0 && data.length > zapData.value.length) {
+      const newZaps = data.slice(0, data.length - zapData.value.length)
+      newZaps.forEach(zap => {
+        handleZapReceived(zap)
+      })
+    }
+    
     zapData.value = data
+    console.log('Zap data refreshed successfully:', data.length, 'zaps')
   } catch (error) {
-    console.error('Failed to load zap data:', error)
-    zapData.value = []
+    console.error('Failed to refresh zap data:', error)
+    // Don't clear existing data on error, just log it
+    if (zapData.value.length === 0) {
+      zapData.value = []
+    }
+  } finally {
+    isRefreshingData.value = false
   }
 }
 
-// Watch for active connection changes
-watch(activeConnection, refreshZapData, { immediate: true })
+// Watch for active connection changes with immediate execution
+watch(activeConnection, async (newConnection, oldConnection) => {
+  console.log('Active connection changed:', {
+    old: oldConnection?.name || 'none',
+    new: newConnection?.name || 'none'
+  })
+  
+  if (newConnection) {
+    // Small delay to ensure NWC client is fully initialized
+    await nextTick()
+    setTimeout(() => {
+      refreshZapData(true)
+    }, 500)
+  } else {
+    zapData.value = []
+  }
+}, { immediate: true })
 
-// Check if we need to show connection modal on startup
-onMounted(() => {
+// Enhanced initialization
+onMounted(async () => {
+  console.log('App mounted, checking connection status...')
+  
+  // Check if we need to show connection modal
   if (!isWalletConnected.value) {
+    console.log('No wallet connected, showing connection modal')
     showConnectionModal.value = true
+  } else {
+    console.log('Wallet already connected, refreshing data...')
+    // Give a moment for everything to initialize
+    setTimeout(() => {
+      refreshZapData(true)
+    }, 1000)
   }
 })
 
@@ -105,11 +165,50 @@ const changePage = (page) => {
   isMobileMenuOpen.value = false
 }
 
-// Handle successful connection from modal
-const handleConnectionSuccess = () => {
+// Enhanced connection success handler with notifications
+const handleConnectionSuccess = async () => {
+  console.log('Connection successful, updating UI...')
   showConnectionModal.value = false
-  refreshZapData()
+  
+  // Notify about successful connection
+  if (activeConnection.value) {
+    notifyConnectionSuccess(activeConnection.value.name)
+  }
+  
+  // Wait a moment for the connection to fully establish
+  await nextTick()
+  setTimeout(() => {
+    refreshZapData(true)
+  }, 500)
 }
+
+// Enhanced connection error handler with notifications
+const handleConnectionError = (error) => {
+  console.error('Connection error:', error)
+  notifyConnectionError(error)
+}
+
+// Manual refresh function for user-triggered refreshes
+const handleManualRefresh = async () => {
+  if (!isWalletConnected.value) {
+    console.log('No wallet connected for manual refresh')
+    return
+  }
+  
+  console.log('Manual refresh triggered')
+  await refreshZapData(true)
+}
+
+// Provide manual refresh function to child components
+provide('refreshZapData', handleManualRefresh)
+provide('isRefreshingData', isRefreshingData)
+
+// Watch for connection errors and notify
+watch(connectionError, (error) => {
+  if (error) {
+    handleConnectionError(new Error(error))
+  }
+})
 </script>
 
 <template>
@@ -166,11 +265,13 @@ const handleConnectionSuccess = () => {
           
           <!-- Loading State -->
           <transition name="slide-down">
-            <div v-if="isLoadingConnection" class="mb-4 lg:mb-6">
+            <div v-if="isLoadingConnection || isRefreshingData" class="mb-4 lg:mb-6">
               <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4">
                 <div class="flex items-center space-x-2">
                   <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
-                  <span class="text-blue-800 text-sm sm:text-base">Connecting to wallet...</span>
+                  <span class="text-blue-800 text-sm sm:text-base">
+                    {{ isLoadingConnection ? 'Connecting to wallet...' : 'Refreshing data...' }}
+                  </span>
                 </div>
               </div>
             </div>
@@ -185,11 +286,43 @@ const handleConnectionSuccess = () => {
                     <IconAlertTriangle class="w-5 h-5 text-red-600" />
                     <span class="text-red-800 text-sm sm:text-base">{{ connectionError }}</span>
                   </div>
+                  <div class="flex space-x-2">
+                    <button 
+                      @click="handleManualRefresh"
+                      :disabled="isRefreshingData"
+                      class="btn-secondary text-sm whitespace-nowrap text-blue-600 hover:text-blue-700"
+                    >
+                      Retry
+                    </button>
+                    <button 
+                      @click="showConnectionModal = true"
+                      class="btn-secondary text-sm whitespace-nowrap text-red-600 hover:text-red-700"
+                    >
+                      Reconnect
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </transition>
+          
+          <!-- Data Status Indicator -->
+          <transition name="slide-down">
+            <div v-if="isWalletConnected && zapData.length > 0" class="mb-4 lg:mb-6">
+              <div class="bg-green-50 border border-green-200 rounded-lg p-3 sm:p-4">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div class="flex items-center space-x-2">
+                    <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                    <span class="text-green-800 text-sm sm:text-base">
+                      Connected • {{ zapData.length }} zaps loaded
+                    </span>
+                  </div>
                   <button 
-                    @click="showConnectionModal = true"
-                    class="btn-secondary text-sm whitespace-nowrap text-red-600 hover:text-red-700"
+                    @click="handleManualRefresh"
+                    :disabled="isRefreshingData"
+                    class="btn-secondary text-sm whitespace-nowrap text-green-600 hover:text-green-700"
                   >
-                    Retry Connection
+                    {{ isRefreshingData ? 'Refreshing...' : 'Refresh Data' }}
                   </button>
                 </div>
               </div>
@@ -210,15 +343,16 @@ const handleConnectionSuccess = () => {
         <div class="bg-white rounded-xl p-4 sm:p-6 max-w-md w-full mx-4 transform animate-modal-content">
           <div class="flex justify-between items-center mb-4">
             <h2 class="text-lg sm:text-xl font-bold text-gray-800">Connect Your Wallet</h2>
-<!--            <button -->
-<!--              @click="showConnectionModal = false"-->
-<!--              class="text-gray-500 hover:text-gray-700 p-1 touch-target hover:bg-gray-100 rounded-full transition-all duration-200 hover:scale-110"-->
-<!--            >-->
-<!--              <IconX class="w-5 h-5" />-->
-<!--            </button>-->
+            <button 
+              v-if="isWalletConnected"
+              @click="showConnectionModal = false"
+              class="text-gray-500 hover:text-gray-700 p-1 touch-target hover:bg-gray-100 rounded-full transition-all duration-200 hover:scale-110"
+            >
+              <IconX class="w-5 h-5" />
+            </button>
           </div>
           <NWCConnection @connection-success="handleConnectionSuccess" />
-          <div class="mt-4 flex justify-end">
+          <div v-if="isWalletConnected" class="mt-4 flex justify-end">
             <button 
               @click="showConnectionModal = false"
               class="btn-secondary"

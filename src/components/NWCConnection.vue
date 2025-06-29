@@ -1,6 +1,6 @@
 <script setup>
-import { ref, inject, onMounted } from 'vue'
-import { IconBolt, IconRefresh, IconPlugOff, IconCheck } from '@iconify-prerendered/vue-tabler'
+import { ref, inject, onMounted, watch, computed } from 'vue'
+import { IconBolt, IconRefresh, IconPlugOff, IconCheck, IconAlertCircle } from '@iconify-prerendered/vue-tabler'
 import { useNostrConnections } from '../composables/useNostrConnections.js'
 import nwcLogo from '../assets/nwc-logo.svg'
 
@@ -12,11 +12,13 @@ const {
   connectionError,
   isWalletConnected,
   setActiveConnection,
-  clearActiveConnection
+  clearActiveConnection,
+  autoReconnect
 } = useNostrConnections()
 
 const nwcUrl = ref('')
 const showSuccess = ref(false)
+const localError = ref('')
 
 // Check for stored connection on mount
 onMounted(() => {
@@ -28,48 +30,81 @@ onMounted(() => {
   }
 })
 
-async function connectToWallet() {
-  if (!nwcUrl.value.trim()) {
-    return
-  }
-
-  try {
-    await setActiveConnection(nwcUrl.value.trim())
-    
+// Watch for connection changes
+watch(isWalletConnected, (connected) => {
+  if (connected) {
     showSuccess.value = true
     setTimeout(() => {
       showSuccess.value = false
     }, 3000)
+  }
+})
+
+async function connectToWallet() {
+  if (!nwcUrl.value.trim()) {
+    localError.value = 'Please enter a valid NWC URL'
+    return
+  }
+
+  localError.value = ''
+
+  try {
+    console.log('Attempting to connect wallet...')
+    await setActiveConnection(nwcUrl.value.trim())
+    
+    console.log('Connection successful, showing success message')
+    showSuccess.value = true
+    setTimeout(() => {
+      showSuccess.value = false
+    }, 3000)
+    
+    // Clear the input
+    nwcUrl.value = ''
     
     // Emit success event to parent
     emit('connection-success')
     
   } catch (error) {
     console.error('Connection failed:', error)
+    localError.value = error.message || 'Failed to connect to wallet'
   }
 }
 
 function disconnect() {
+  console.log('Disconnecting wallet...')
   clearActiveConnection()
   nwcUrl.value = ''
   showSuccess.value = false
+  localError.value = ''
 }
 
-async function refreshData() {
+async function refreshConnection() {
   if (!isWalletConnected.value) return
   
   try {
-    // Re-activate current connection to refresh data
-    await setActiveConnection(activeConnection.value.id)
+    console.log('Refreshing connection...')
+    await autoReconnect()
     
     showSuccess.value = true
     setTimeout(() => {
       showSuccess.value = false
     }, 2000)
   } catch (error) {
-    console.error('Failed to refresh data:', error)
+    console.error('Failed to refresh connection:', error)
+    localError.value = 'Failed to refresh connection'
   }
 }
+
+// Clear local error when connection error changes
+watch(connectionError, () => {
+  if (!connectionError.value) {
+    localError.value = ''
+  }
+})
+
+const displayError = computed(() => {
+  return localError.value || connectionError.value
+})
 </script>
 
 <template>
@@ -102,7 +137,7 @@ async function refreshData() {
         <div class="flex items-center space-x-2">
           <IconCheck class="w-4 h-4 text-green-600 success-checkmark" />
           <span class="text-sm text-green-800">
-            {{ isWalletConnected ? 'Wallet connected successfully!' : 'Data refreshed!' }}
+            Wallet connected successfully! Data will refresh automatically.
           </span>
         </div>
       </div>
@@ -119,6 +154,7 @@ async function refreshData() {
           placeholder="nostr+walletconnect://..."
           class="w-full px-3 py-3 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 bg-white/80 backdrop-blur-sm text-base touch-target transition-all duration-200"
           @keyup.enter="connectToWallet"
+          :disabled="isLoadingConnection"
         />
         <p class="text-xs text-gray-500 mt-1">
           Get your NWC URL from your Alby account or other NWC-enabled wallet
@@ -140,8 +176,16 @@ async function refreshData() {
 
       <!-- Error Message -->
       <transition name="error-fade">
-        <div v-if="connectionError" class="p-3 bg-red-50 border border-red-200 rounded-lg error-shake">
-          <p class="text-sm text-red-600">{{ connectionError }}</p>
+        <div v-if="displayError" class="p-3 bg-red-50 border border-red-200 rounded-lg error-shake">
+          <div class="flex items-start space-x-2">
+            <IconAlertCircle class="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <p class="text-sm text-red-600">{{ displayError }}</p>
+              <p class="text-xs text-red-500 mt-1">
+                Make sure your NWC URL is correct and your wallet is online.
+              </p>
+            </div>
+          </div>
         </div>
       </transition>
     </div>
@@ -154,12 +198,12 @@ async function refreshData() {
               {{ activeConnection?.name || 'Connected Wallet' }}
             </p>
             <p class="text-sm text-green-600">
-              Connection active and ready
+              Connection active and ready • Data syncing automatically
             </p>
           </div>
           <div class="flex flex-col sm:flex-row gap-2">
             <button
-              @click="refreshData"
+              @click="refreshConnection"
               :disabled="isLoadingConnection"
               :class="[
                 'btn-secondary text-sm',

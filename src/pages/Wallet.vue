@@ -22,6 +22,7 @@ import {
 } from '@iconify-prerendered/vue-tabler'
 import QRCodeVue3 from 'qrcode-vue3'
 import { useNostrConnections } from '../composables/useNostrConnections.js'
+import { useNotifications } from '../composables/useNotifications.js'
 import { 
   getBalance, 
   getWalletInfo, 
@@ -35,6 +36,7 @@ import {
 const QrStream = defineAsyncComponent(() => import('qrcode-reader-vue3').then(m => m.default))
 
 const { isWalletConnected, activeConnection } = useNostrConnections()
+const { handleZapSent, handlePaymentSuccess, handlePaymentError } = useNotifications()
 
 // State management
 const balance = ref(0)
@@ -278,6 +280,20 @@ const sendPayment = async () => {
     paymentResult.value = result
     paymentStatus.value = 'success'
     
+    // Notify about successful payment
+    handlePaymentSuccess(result)
+    
+    // Also trigger zap sent notification if we can extract amount
+    try {
+      // Try to decode invoice to get amount (simplified)
+      const invoiceAmount = extractAmountFromInvoice(paymentForm.value.invoice)
+      if (invoiceAmount) {
+        handleZapSent({ amount: invoiceAmount })
+      }
+    } catch (err) {
+      console.warn('Could not extract amount from invoice:', err)
+    }
+    
     // Refresh wallet data to show new balance
     await refreshData()
     
@@ -289,10 +305,25 @@ const sendPayment = async () => {
   } catch (err) {
     error.value = 'Payment failed: ' + err.message
     paymentStatus.value = 'error'
+    handlePaymentError(err)
     console.error('Payment error:', err)
   } finally {
     isLoading.value = false
   }
+}
+
+// Simple invoice amount extraction (this is a simplified version)
+const extractAmountFromInvoice = (invoice) => {
+  try {
+    // This is a very basic extraction - in a real app you'd use a proper BOLT11 decoder
+    const match = invoice.match(/lnbc(\d+)/)
+    if (match) {
+      return parseInt(match[1]) * 1000 // Convert to msats
+    }
+  } catch (err) {
+    console.warn('Failed to extract amount from invoice:', err)
+  }
+  return null
 }
 
 // QR Scanner methods

@@ -219,13 +219,18 @@ const topSupportersOption = computed(() => {
         show: false,
         position: 'center'
       },
-      emphasis: {
-        label: {
-          show: true,
-          fontSize: '18',
-          fontWeight: 'bold'
-        }
+      itemStyle: {
+        borderRadius: 10,
+        borderColor: '#fff',
+        borderWidth: 2
       },
+      // emphasis: {
+      //   label: {
+      //     show: true,
+      //     fontSize: '18',
+      //     fontWeight: 'bold'
+      //   }
+      // },
       labelLine: {
         show: false
       },

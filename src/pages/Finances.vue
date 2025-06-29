@@ -1,5 +1,5 @@
 <script setup>
-import { IconWallet, IconChartLine } from '@iconify-prerendered/vue-tabler'
+import { IconWallet, IconChartLine, IconRocket } from '@iconify-prerendered/vue-tabler'
 </script>
 
 <template>
@@ -19,9 +19,13 @@ import { IconWallet, IconChartLine } from '@iconify-prerendered/vue-tabler'
       </div>
       <h3 class="text-xl font-semibold text-gray-900 mb-2">Financial Dashboard</h3>
       <p class="text-gray-600 mb-6">Track your earnings, expenses, and financial metrics.</p>
+<!--      <button class="btn-primary">-->
+<!--        <IconChartLine class="w-4 h-4" />-->
+<!--        View Reports-->
+<!--      </button>-->
       <button class="btn-primary">
-        <IconChartLine class="w-4 h-4" />
-        View Reports
+        <IconRocket class="w-4 h-4" />
+        Coming Soon
       </button>
     </div>
   </div>

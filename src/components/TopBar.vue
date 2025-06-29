@@ -1,6 +1,7 @@
 <script setup>
 import { ref, inject, computed, onMounted, onUnmounted } from 'vue'
-import { IconSearch, IconUpload, IconBolt, IconBell, IconMenu2, IconUser, IconSettings, IconLogout, IconChevronDown } from '@iconify-prerendered/vue-tabler'
+import { IconSearch, IconUpload, IconBolt, IconMenu2, IconUser, IconSettings, IconLogout, IconChevronDown } from '@iconify-prerendered/vue-tabler'
+import NotificationDropdown from './NotificationDropdown.vue'
 
 const zapData = inject('zapData')
 const emit = defineEmits(['show-connection', 'toggle-mobile-menu'])
@@ -18,11 +19,6 @@ const userProfile = ref({
 // Watch for connection status based on zapData
 const hasConnection = computed(() => {
   return localStorage.getItem('nwc_url') !== null
-})
-
-// Get notification count
-const notificationCount = computed(() => {
-  return zapData.value.length > 0 ? Math.min(zapData.value.length, 99) : 0
 })
 
 // Close dropdown when clicking outside
@@ -98,12 +94,6 @@ const handleProfileAction = (action) => {
         
         <!-- Action Buttons -->
         <div class="flex items-center space-x-2">
-          <!-- Export Button - Hidden on mobile -->
-<!--          <button class="btn-secondary text-sm hidden sm:flex hover:shadow-md">-->
-<!--            <IconUpload class="w-4 h-4" />-->
-<!--            <span class="hidden lg:inline">Export</span>-->
-<!--          </button>-->
-          
           <!-- Connection Button -->
           <button 
             @click="emit('show-connection')"
@@ -117,15 +107,7 @@ const handleProfileAction = (action) => {
           </button>
           
           <!-- Notifications -->
-          <button class="p-2 text-gray-500 hover:text-orange-600 relative transition-all duration-200 touch-target hover:bg-orange-50 rounded-lg">
-            <IconBell class="w-5 h-5" />
-            <span 
-              v-if="notificationCount > 0" 
-              class="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-gradient-to-r from-red-400 to-pink-400 rounded-full text-white text-xs font-medium flex items-center justify-center animate-pulse"
-            >
-              {{ notificationCount > 99 ? '99+' : notificationCount }}
-            </span>
-          </button>
+          <NotificationDropdown />
         </div>
         
         <!-- Enhanced Profile Dropdown -->
