@@ -2,13 +2,14 @@
 import { ref } from 'vue'
 import { IconSettings, IconBolt, IconBell, IconShield, IconUser } from '@iconify-prerendered/vue-tabler'
 import SettingsConnections from '../components/SettingsConnections.vue'
+import NotificationSettings from '../components/NotificationSettings.vue'
 
 const activeTab = ref('wallet')
 
 const tabs = [
   { id: 'nostr', label: 'Nostr', icon: IconUser },
   { id: 'wallet', label: 'Wallet', icon: IconBolt },
-  { id: 'alerts', label: 'Alerts', icon: IconBell },
+  { id: 'alerts', label: 'Notifications', icon: IconBell },
   { id: 'privacy', label: 'Privacy', icon: IconShield }
 ]
 </script>
@@ -71,22 +72,9 @@ const tabs = [
           <SettingsConnections />
         </div>
         
-        <!-- Alerts Settings -->
-        <div v-if="activeTab === 'alerts'" class="space-y-6">
-          <div>
-            <h3 class="text-lg font-semibold text-gray-900 mb-2">Notification Preferences</h3>
-            <p class="text-gray-600 text-sm mb-4">Configure how and when you receive notifications</p>
-            
-            <div class="bg-gray-50 rounded-lg p-8 text-center">
-              <IconBell class="w-12 h-12 mx-auto text-gray-400 mb-4" />
-              <h4 class="text-lg font-medium text-gray-900 mb-2">Alert Settings</h4>
-              <p class="text-gray-600 mb-4">Set up notifications for new zaps, milestones, and more.</p>
-              <button class="btn-primary">
-                <IconBell class="w-4 h-4" />
-                Configure Alerts
-              </button>
-            </div>
-          </div>
+        <!-- Notification Settings -->
+        <div v-if="activeTab === 'alerts'">
+          <NotificationSettings />
         </div>
         
         <!-- Privacy Settings -->

@@ -15,6 +15,7 @@ import Finances from './pages/Finances.vue'
 import Settings from './pages/Settings.vue'
 import NWCConnection from './components/NWCConnection.vue'
 import { useNostrConnections } from './composables/useNostrConnections.js'
+import { useNotifications } from './composables/useNotifications.js'
 
 // Use the Nostr connections composable
 const {
@@ -28,6 +29,14 @@ const {
   loadZapData,
   autoReconnect
 } = useNostrConnections()
+
+// Use the notifications composable
+const {
+  handleConnectionSuccess: notifyConnectionSuccess,
+  handleConnectionError: notifyConnectionError,
+  handleZapReceived,
+  handleBalanceChange
+} = useNotifications()
 
 // Global state
 const zapData = ref([])
@@ -93,6 +102,15 @@ const refreshZapData = async (force = false) => {
   try {
     console.log('Refreshing zap data...')
     const data = await loadZapData()
+    
+    // Check for new zaps and trigger notifications
+    if (zapData.value.length > 0 && data.length > zapData.value.length) {
+      const newZaps = data.slice(0, data.length - zapData.value.length)
+      newZaps.forEach(zap => {
+        handleZapReceived(zap)
+      })
+    }
+    
     zapData.value = data
     console.log('Zap data refreshed successfully:', data.length, 'zaps')
   } catch (error) {
@@ -147,16 +165,27 @@ const changePage = (page) => {
   isMobileMenuOpen.value = false
 }
 
-// Enhanced connection success handler
+// Enhanced connection success handler with notifications
 const handleConnectionSuccess = async () => {
   console.log('Connection successful, updating UI...')
   showConnectionModal.value = false
+  
+  // Notify about successful connection
+  if (activeConnection.value) {
+    notifyConnectionSuccess(activeConnection.value.name)
+  }
   
   // Wait a moment for the connection to fully establish
   await nextTick()
   setTimeout(() => {
     refreshZapData(true)
   }, 500)
+}
+
+// Enhanced connection error handler with notifications
+const handleConnectionError = (error) => {
+  console.error('Connection error:', error)
+  notifyConnectionError(error)
 }
 
 // Manual refresh function for user-triggered refreshes
@@ -173,6 +202,13 @@ const handleManualRefresh = async () => {
 // Provide manual refresh function to child components
 provide('refreshZapData', handleManualRefresh)
 provide('isRefreshingData', isRefreshingData)
+
+// Watch for connection errors and notify
+watch(connectionError, (error) => {
+  if (error) {
+    handleConnectionError(new Error(error))
+  }
+})
 </script>
 
 <template>
