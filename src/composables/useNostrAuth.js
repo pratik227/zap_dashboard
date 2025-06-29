@@ -111,14 +111,15 @@ const fetchAndStoreProfile = async (pubkey) => {
 
   try {
     const currentPool = initPool()
+    // Remove the connected status filter - let SimplePool handle connection attempts
     const relayUrls = userRelays.value
-      .filter(relay => relay.read && relay.status === 'connected')
+      .filter(relay => relay.read)
       .map(relay => relay.url)
 
     if (relayUrls.length === 0) {
-      // Fallback to default relays if no connected relays
+      // Fallback to default relays if no read-enabled relays
       const fallbackUrls = DEFAULT_RELAYS.map(relay => relay.url)
-      console.warn('No connected relays, using fallback relays')
+      console.warn('No read-enabled relays, using fallback relays')
       
       const events = await currentPool.list(fallbackUrls, [
         {
@@ -198,7 +199,7 @@ const fetchAndStoreProfile = async (pubkey) => {
   }
 }
 
-// Check relay status
+// Check relay status using SimplePool.subscribe
 const checkRelayStatus = async (url) => {
   const relay = userRelays.value.find(r => r.url === url)
   if (!relay) return
@@ -208,29 +209,46 @@ const checkRelayStatus = async (url) => {
   try {
     const currentPool = initPool()
     
-    // Test connection with a simple subscription
-    const sub = currentPool.sub([url], [{ kinds: [0], limit: 1 }])
+    // Test connection with a simple subscription using SimplePool.subscribe
+    const sub = currentPool.subscribe([url], [{ kinds: [0], limit: 1 }], {
+      onevent: () => {
+        // Got an event, relay is working
+        relay.status = 'connected'
+        sub.close()
+      },
+      oneose: () => {
+        // End of stored events, relay responded
+        relay.status = 'connected'
+        sub.close()
+      }
+    })
     
     return new Promise((resolve) => {
       const timeout = setTimeout(() => {
         relay.status = 'disconnected'
-        sub.unsub()
+        sub.close()
         resolve(false)
       }, 5000) // 5 second timeout
 
-      sub.on('event', () => {
+      // Override the callbacks to handle timeout cleanup
+      const originalOnevent = sub.onevent
+      const originalOneose = sub.oneose
+      
+      sub.onevent = (event) => {
         clearTimeout(timeout)
         relay.status = 'connected'
-        sub.unsub()
+        sub.close()
         resolve(true)
-      })
+        if (originalOnevent) originalOnevent(event)
+      }
 
-      sub.on('eose', () => {
+      sub.oneose = () => {
         clearTimeout(timeout)
         relay.status = 'connected'
-        sub.unsub()
+        sub.close()
         resolve(true)
-      })
+        if (originalOneose) originalOneose()
+      }
     })
   } catch (error) {
     console.error(`Failed to check relay ${url}:`, error)
@@ -316,7 +334,7 @@ const removeRelay = (url) => {
   return true
 }
 
-// Login function
+// Login function with increased timeout
 const login = () => {
   return new Promise((resolve, reject) => {
     isLoading.value = true
@@ -356,7 +374,7 @@ const login = () => {
     // Dispatch login event
     document.dispatchEvent(new Event('nlLaunch'))
     
-    // Timeout after 30 seconds
+    // Increased timeout to 60 seconds for better user experience
     setTimeout(() => {
       if (isLoading.value) {
         document.removeEventListener('nlAuth', handleAuth)
@@ -364,7 +382,7 @@ const login = () => {
         authError.value = 'Login timeout - please try again'
         reject(new Error('Login timeout'))
       }
-    }, 30000)
+    }, 60000) // Increased from 30 to 60 seconds
   })
 }
 
