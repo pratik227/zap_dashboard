@@ -17,9 +17,12 @@ import {
   IconCheckCircle,
   IconAlertCircle,
   IconQrcode,
-  IconScan
+  IconScan,
+  IconCamera,
+  IconCameraOff
 } from '@iconify-prerendered/vue-tabler'
-import QrcodeVue from 'qrcode.vue'
+import { Qrcode } from 'qrcode-vue3'
+import { QrStream } from 'qrcode-reader-vue3'
 import { useNostrConnections } from '../composables/useNostrConnections.js'
 import { 
   getBalance, 
@@ -43,6 +46,7 @@ const error = ref('')
 // Modal states
 const showCreateInvoice = ref(false)
 const showSendPayment = ref(false)
+const showQrScanner = ref(false)
 
 // Invoice creation
 const invoiceForm = ref({
@@ -60,6 +64,10 @@ const paymentForm = ref({
 })
 const paymentStatus = ref('') // success, error, pending
 const paymentResult = ref(null)
+
+// QR Scanner state
+const qrScannerError = ref('')
+const cameraPermission = ref('prompt') // prompt, granted, denied
 
 // Computed properties
 const balanceInSats = computed(() => {
@@ -94,6 +102,7 @@ onMounted(() => {
   if (isWalletConnected.value) {
     loadWalletData()
   }
+  checkCameraPermission()
 })
 
 onUnmounted(() => {
@@ -101,6 +110,20 @@ onUnmounted(() => {
     clearInterval(invoicePolling.value)
   }
 })
+
+// Camera permission check
+const checkCameraPermission = async () => {
+  try {
+    const result = await navigator.permissions.query({ name: 'camera' })
+    cameraPermission.value = result.state
+    
+    result.addEventListener('change', () => {
+      cameraPermission.value = result.state
+    })
+  } catch (error) {
+    console.warn('Camera permission check not supported:', error)
+  }
+}
 
 // Data loading methods
 const loadWalletData = async () => {
@@ -236,6 +259,7 @@ const openSendPayment = () => {
 
 const closeSendPayment = () => {
   showSendPayment.value = false
+  closeQrScanner()
 }
 
 const sendPayment = async () => {
@@ -268,6 +292,52 @@ const sendPayment = async () => {
   } finally {
     isLoading.value = false
   }
+}
+
+// QR Scanner methods
+const openQrScanner = () => {
+  showQrScanner.value = true
+  qrScannerError.value = ''
+}
+
+const closeQrScanner = () => {
+  showQrScanner.value = false
+  qrScannerError.value = ''
+}
+
+const onQrDecode = (decodedString) => {
+  try {
+    // Handle different QR code formats
+    let invoice = decodedString
+    
+    // If it's a lightning: URI, extract the invoice
+    if (decodedString.toLowerCase().startsWith('lightning:')) {
+      invoice = decodedString.substring(10)
+    }
+    
+    // If it's a bitcoin: URI with lightning parameter
+    if (decodedString.toLowerCase().startsWith('bitcoin:') && decodedString.includes('lightning=')) {
+      const lightningMatch = decodedString.match(/lightning=([^&]+)/)
+      if (lightningMatch) {
+        invoice = lightningMatch[1]
+      }
+    }
+    
+    // Validate that it looks like a Lightning invoice
+    if (invoice.toLowerCase().startsWith('lnbc') || invoice.toLowerCase().startsWith('lntb')) {
+      paymentForm.value.invoice = invoice
+      closeQrScanner()
+    } else {
+      qrScannerError.value = 'Invalid Lightning invoice QR code'
+    }
+  } catch (err) {
+    qrScannerError.value = 'Failed to process QR code: ' + err.message
+  }
+}
+
+const onQrError = (error) => {
+  console.error('QR Scanner error:', error)
+  qrScannerError.value = 'Camera error: ' + error.message
 }
 
 // Utility methods
@@ -508,10 +578,12 @@ const truncateInvoice = (invoice, length = 20) => {
             
             <!-- QR Code -->
             <div class="bg-white p-4 rounded-lg border-2 border-gray-200 mb-4 inline-block">
-              <QrcodeVue 
+              <Qrcode 
                 :value="createdInvoice.invoice" 
                 :size="200"
-                level="M"
+                color="#000000"
+                background-color="#ffffff"
+                error-correction-level="M"
               />
             </div>
             
@@ -563,14 +635,23 @@ const truncateInvoice = (invoice, length = 20) => {
         <div v-else class="space-y-4">
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-2">Lightning Invoice</label>
-            <textarea
-              v-model="paymentForm.invoice"
-              placeholder="lnbc1..."
-              rows="4"
-              class="w-full px-3 py-3 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base font-mono text-sm"
-            ></textarea>
+            <div class="relative">
+              <textarea
+                v-model="paymentForm.invoice"
+                placeholder="lnbc1... or scan QR code"
+                rows="4"
+                class="w-full px-3 py-3 pr-12 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base font-mono text-sm"
+              ></textarea>
+              <button
+                @click="openQrScanner"
+                class="absolute top-2 right-2 p-2 text-gray-400 hover:text-orange-600 transition-colors"
+                title="Scan QR Code"
+              >
+                <IconScan class="w-5 h-5" />
+              </button>
+            </div>
             <p class="text-xs text-gray-500 mt-1">
-              Paste the Lightning invoice you want to pay
+              Paste the Lightning invoice or scan QR code
             </p>
           </div>
           
@@ -585,6 +666,76 @@ const truncateInvoice = (invoice, length = 20) => {
           
           <div v-if="paymentStatus === 'error'" class="bg-red-50 border border-red-200 rounded-lg p-3">
             <p class="text-sm text-red-600">{{ error }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- QR Scanner Modal -->
+    <div v-if="showQrScanner" class="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4">
+      <div class="bg-white rounded-xl p-6 max-w-md w-full mx-4">
+        <div class="flex justify-between items-center mb-6">
+          <h3 class="text-lg font-semibold text-gray-900">Scan QR Code</h3>
+          <button @click="closeQrScanner" class="text-gray-500 hover:text-gray-700">
+            <IconX class="w-5 h-5" />
+          </button>
+        </div>
+        
+        <div class="space-y-4">
+          <!-- Camera Permission Check -->
+          <div v-if="cameraPermission === 'denied'" class="text-center py-8">
+            <IconCameraOff class="w-12 h-12 mx-auto text-gray-400 mb-4" />
+            <h4 class="text-lg font-medium text-gray-900 mb-2">Camera Access Denied</h4>
+            <p class="text-gray-600 text-sm mb-4">Please enable camera access to scan QR codes</p>
+            <button @click="closeQrScanner" class="btn-secondary">
+              Close
+            </button>
+          </div>
+          
+          <!-- QR Scanner -->
+          <div v-else class="relative">
+            <div class="bg-black rounded-lg overflow-hidden">
+              <QrStream
+                @decode="onQrDecode"
+                @error="onQrError"
+                class="w-full h-64"
+              />
+            </div>
+            
+            <!-- Scanner Overlay -->
+            <div class="absolute inset-0 pointer-events-none">
+              <div class="w-full h-full border-2 border-orange-400 rounded-lg opacity-50"></div>
+              <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-32 h-32 border-2 border-orange-400 rounded-lg"></div>
+            </div>
+          </div>
+          
+          <!-- Scanner Instructions -->
+          <div class="text-center">
+            <div class="flex items-center justify-center space-x-2 mb-2">
+              <IconCamera class="w-5 h-5 text-orange-600" />
+              <span class="text-sm font-medium text-gray-700">Point camera at QR code</span>
+            </div>
+            <p class="text-xs text-gray-500">
+              Position the Lightning invoice QR code within the frame
+            </p>
+          </div>
+          
+          <!-- Error Message -->
+          <div v-if="qrScannerError" class="bg-red-50 border border-red-200 rounded-lg p-3">
+            <div class="flex items-center space-x-2">
+              <IconAlertCircle class="w-4 h-4 text-red-600" />
+              <span class="text-sm text-red-600">{{ qrScannerError }}</span>
+            </div>
+          </div>
+          
+          <!-- Manual Input Option -->
+          <div class="text-center pt-4 border-t border-gray-200">
+            <button
+              @click="closeQrScanner"
+              class="text-sm text-orange-600 hover:text-orange-700 font-medium"
+            >
+              Enter invoice manually instead
+            </button>
           </div>
         </div>
       </div>
