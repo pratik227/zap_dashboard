@@ -14,9 +14,12 @@ import {
   IconLoader,
   IconCopy,
   IconExternalLink,
-  IconShield
+  IconShield,
+  IconKey,
+  IconGlobe
 } from '@iconify-prerendered/vue-tabler'
 import { useNostrAuth } from '../composables/useNostrAuth.js'
+import * as nip19 from 'nostr-tools/nip19'
 
 const {
   currentUser,
@@ -27,6 +30,8 @@ const {
   isAuthenticated,
   userProfile,
   connectedRelays,
+  readRelays,
+  writeRelays,
   login,
   logout,
   addRelay,
@@ -34,7 +39,8 @@ const {
   checkRelayStatus,
   checkAllRelayStatuses,
   validateRelayUrl,
-  initAuthAndRelays
+  initAuthAndRelays,
+  refreshUserProfile
 } = useNostrAuth()
 
 // Local state
@@ -42,6 +48,7 @@ const newRelayUrl = ref('')
 const addingRelay = ref(false)
 const relayFormError = ref('')
 const copySuccess = ref(false)
+const refreshingProfile = ref(false)
 
 // Initialize on mount
 onMounted(async () => {
@@ -105,6 +112,20 @@ const handleRefreshRelays = async () => {
 // Handle refresh single relay
 const handleRefreshRelay = async (url) => {
   await checkRelayStatus(url)
+}
+
+// Handle refresh profile
+const handleRefreshProfile = async () => {
+  if (!isAuthenticated.value) return
+  
+  refreshingProfile.value = true
+  try {
+    await refreshUserProfile()
+  } catch (error) {
+    console.error('Failed to refresh profile:', error)
+  } finally {
+    refreshingProfile.value = false
+  }
 }
 
 // Copy to clipboard
@@ -172,6 +193,18 @@ const getUserDisplayName = () => {
          currentUser.value?.npub?.substring(0, 12) + '...' ||
          'Anonymous'
 }
+
+// Decode npub for display
+const getShortNpub = () => {
+  if (!currentUser.value?.npub) return ''
+  return currentUser.value.npub.substring(0, 20) + '...'
+}
+
+// Get hex pubkey for display
+const getShortPubkey = () => {
+  if (!currentUser.value?.pubkey) return ''
+  return currentUser.value.pubkey.substring(0, 16) + '...'
+}
 </script>
 
 <template>
@@ -215,47 +248,100 @@ const getUserDisplayName = () => {
       
       <!-- Authenticated -->
       <div v-else class="bg-white rounded-lg border border-gray-200 p-6">
-        <div class="flex items-center justify-between">
-          <div class="flex items-center space-x-4">
+        <div class="flex items-start justify-between">
+          <div class="flex items-start space-x-4 flex-1">
             <img 
               :src="getUserAvatar()" 
               :alt="getUserDisplayName()"
               class="w-16 h-16 rounded-full border-2 border-purple-200"
               @error="$event.target.src = 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'"
             />
-            <div>
+            <div class="flex-1 min-w-0">
               <h4 class="text-lg font-medium text-gray-900">{{ getUserDisplayName() }}</h4>
-              <p v-if="userProfile?.about" class="text-sm text-gray-600 mb-2 max-w-md">
+              <p v-if="userProfile?.about" class="text-sm text-gray-600 mb-3 line-clamp-2">
                 {{ userProfile.about }}
               </p>
-              <div class="flex items-center space-x-2">
-                <code class="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                  {{ currentUser.npub.substring(0, 20) }}...
-                </code>
-                <button
-                  @click="copyToClipboard(currentUser.npub)"
-                  class="text-gray-400 hover:text-gray-600 transition-colors"
-                  title="Copy npub"
-                >
-                  <IconCheck v-if="copySuccess" class="w-3 h-3 text-green-600" />
-                  <IconCopy v-else class="w-3 h-3" />
-                </button>
+              
+              <!-- Profile Details -->
+              <div class="space-y-2">
+                <!-- NPub -->
+                <div class="flex items-center space-x-2">
+                  <IconKey class="w-4 h-4 text-gray-400" />
+                  <code class="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                    {{ getShortNpub() }}
+                  </code>
+                  <button
+                    @click="copyToClipboard(currentUser.npub)"
+                    class="text-gray-400 hover:text-gray-600 transition-colors"
+                    title="Copy npub"
+                  >
+                    <IconCheck v-if="copySuccess" class="w-3 h-3 text-green-600" />
+                    <IconCopy v-else class="w-3 h-3" />
+                  </button>
+                </div>
+                
+                <!-- Hex Pubkey -->
+                <div class="flex items-center space-x-2">
+                  <IconKey class="w-4 h-4 text-gray-400" />
+                  <code class="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                    {{ getShortPubkey() }}
+                  </code>
+                  <button
+                    @click="copyToClipboard(currentUser.pubkey)"
+                    class="text-gray-400 hover:text-gray-600 transition-colors"
+                    title="Copy pubkey"
+                  >
+                    <IconCopy class="w-3 h-3" />
+                  </button>
+                </div>
+                
+                <!-- NIP-05 -->
+                <div v-if="userProfile?.nip05" class="flex items-center space-x-2">
+                  <IconShield class="w-4 h-4 text-green-500" />
+                  <span class="text-xs text-green-600">{{ userProfile.nip05 }}</span>
+                </div>
+                
+                <!-- Website -->
+                <div v-if="userProfile?.website" class="flex items-center space-x-2">
+                  <IconGlobe class="w-4 h-4 text-blue-500" />
+                  <a 
+                    :href="userProfile.website" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    class="text-xs text-blue-600 hover:text-blue-700 hover:underline"
+                  >
+                    {{ userProfile.website }}
+                    <IconExternalLink class="w-3 h-3 inline ml-1" />
+                  </a>
+                </div>
               </div>
             </div>
           </div>
           
-          <div class="flex items-center space-x-2">
+          <div class="flex flex-col space-y-2">
             <div class="text-right">
               <div class="text-sm font-medium text-green-600">Connected</div>
               <div class="text-xs text-gray-500">{{ connectedRelays.length }} relays</div>
             </div>
-            <button
-              @click="handleLogout"
-              class="btn-secondary text-sm text-red-600 hover:text-red-700 hover:bg-red-50"
-            >
-              <IconX class="w-4 h-4" />
-              Logout
-            </button>
+            
+            <div class="flex space-x-2">
+              <button
+                @click="handleRefreshProfile"
+                :disabled="refreshingProfile"
+                class="btn-secondary text-xs"
+                title="Refresh profile"
+              >
+                <IconRefresh :class="['w-3 h-3', refreshingProfile ? 'animate-spin' : '']" />
+              </button>
+              
+              <button
+                @click="handleLogout"
+                class="btn-secondary text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
+              >
+                <IconX class="w-3 h-3" />
+                Logout
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -276,6 +362,26 @@ const getUserDisplayName = () => {
           <IconRefresh :class="['w-4 h-4', isLoading ? 'animate-spin' : '']" />
           Refresh All
         </button>
+      </div>
+      
+      <!-- Relay Stats -->
+      <div class="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
+        <div class="bg-white rounded-lg border border-gray-200 p-4 text-center">
+          <div class="text-2xl font-bold text-gray-900">{{ userRelays.length }}</div>
+          <div class="text-sm text-gray-600">Total Relays</div>
+        </div>
+        <div class="bg-white rounded-lg border border-gray-200 p-4 text-center">
+          <div class="text-2xl font-bold text-green-600">{{ connectedRelays.length }}</div>
+          <div class="text-sm text-gray-600">Connected</div>
+        </div>
+        <div class="bg-white rounded-lg border border-gray-200 p-4 text-center">
+          <div class="text-2xl font-bold text-blue-600">{{ readRelays.length }}</div>
+          <div class="text-sm text-gray-600">Read Enabled</div>
+        </div>
+        <div class="bg-white rounded-lg border border-gray-200 p-4 text-center">
+          <div class="text-2xl font-bold text-purple-600">{{ writeRelays.length }}</div>
+          <div class="text-sm text-gray-600">Write Enabled</div>
+        </div>
       </div>
       
       <!-- Add Relay Form -->
@@ -398,22 +504,6 @@ const getUserDisplayName = () => {
           <span class="text-sm text-red-600">{{ relayError }}</span>
         </div>
       </div>
-      
-      <!-- Relay Stats -->
-      <div class="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div class="bg-white rounded-lg border border-gray-200 p-4 text-center">
-          <div class="text-2xl font-bold text-gray-900">{{ userRelays.length }}</div>
-          <div class="text-sm text-gray-600">Total Relays</div>
-        </div>
-        <div class="bg-white rounded-lg border border-gray-200 p-4 text-center">
-          <div class="text-2xl font-bold text-green-600">{{ connectedRelays.length }}</div>
-          <div class="text-sm text-gray-600">Connected</div>
-        </div>
-        <div class="bg-white rounded-lg border border-gray-200 p-4 text-center">
-          <div class="text-2xl font-bold text-gray-900">{{ userRelays.filter(r => r.write).length }}</div>
-          <div class="text-sm text-gray-600">Write Enabled</div>
-        </div>
-      </div>
     </div>
 
     <!-- Security Notice -->
@@ -430,3 +520,12 @@ const getUserDisplayName = () => {
     </div>
   </div>
 </template>
+
+<style scoped>
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+</style>
