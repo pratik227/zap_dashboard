@@ -128,17 +128,17 @@ const handleRefresh = () => {
         </div>
         
         <!-- Data Status & Refresh (when connected) -->
-        <div v-if="dataStatus.show" class="flex items-center space-x-2 bg-white/80 backdrop-blur-sm border border-green-200/50 rounded-lg px-3 py-2">
-          <div class="flex items-center space-x-2">
-            <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-            <span :class="['text-xs sm:text-sm font-medium', dataStatus.color]">
-              {{ dataStatus.text }}
-            </span>
-          </div>
+        <div v-if="dataStatus.show" class="">
+<!--          <div class="flex items-center space-x-2">-->
+<!--            <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>-->
+<!--            <span :class="['text-xs sm:text-sm font-medium', dataStatus.color]">-->
+<!--              {{ dataStatus.text }}-->
+<!--            </span>-->
+<!--          </div>-->
           <button
             @click="handleRefresh"
             :disabled="isRefreshingData"
-            class="p-1 text-green-600 hover:text-green-700 hover:bg-green-50 rounded transition-all duration-200 touch-target"
+            class="p-1 pl-[11px] text-green-600 hover:text-green-700 hover:bg-green-50 rounded transition-all duration-200 touch-target"
             :title="isRefreshingData ? 'Refreshing...' : 'Refresh data'"
           >
             <IconRefresh :class="['w-4 h-4', isRefreshingData ? 'animate-spin' : '']" />
