@@ -50,6 +50,7 @@ const selectedFilters = ref({
 })
 
 const currentPage = ref('dashboard')
+const activeSettingsTab = ref('nostr')
 const showConnectionModal = ref(false)
 const isMobileMenuOpen = ref(false)
 const isRefreshingData = ref(false)
@@ -60,6 +61,7 @@ provide('selectedTimeRange', selectedTimeRange)
 provide('searchQuery', searchQuery)
 provide('selectedFilters', selectedFilters)
 provide('currentPage', currentPage)
+provide('activeSettingsTab', activeSettingsTab)
 provide('isMobileMenuOpen', isMobileMenuOpen)
 
 // Provide connection management
@@ -159,10 +161,15 @@ onMounted(async () => {
   }
 })
 
-// Close mobile menu when page changes
-const changePage = (page) => {
+// Enhanced page change function to handle tab navigation
+const changePage = (page, tab = null) => {
   currentPage.value = page
   isMobileMenuOpen.value = false
+  
+  // If navigating to settings and a specific tab is provided, set it
+  if (page === 'settings' && tab) {
+    activeSettingsTab.value = tab
+  }
 }
 
 // Enhanced connection success handler with notifications
@@ -309,7 +316,11 @@ watch(connectionError, (error) => {
           
           <!-- Page Content with Transition -->
           <transition name="page-fade" mode="out-in">
-            <component :is="components[currentPage]" :key="currentPage" />
+            <component 
+              :is="components[currentPage]" 
+              :key="currentPage"
+              :initial-tab="currentPage === 'settings' ? activeSettingsTab : undefined"
+            />
           </transition>
         </div>
       </main>

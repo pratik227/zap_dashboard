@@ -1,9 +1,17 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { IconSettings, IconBolt, IconBell, IconShield, IconUser } from '@iconify-prerendered/vue-tabler'
 import SettingsConnections from '../components/SettingsConnections.vue'
 import NotificationSettings from '../components/NotificationSettings.vue'
 import NostrSettings from '../components/NostrSettings.vue'
+
+// Define props to receive the initial tab from parent
+const props = defineProps({
+  initialTab: {
+    type: String,
+    default: 'nostr'
+  }
+})
 
 const activeTab = ref('nostr')
 
@@ -13,6 +21,20 @@ const tabs = [
   { id: 'alerts', label: 'Notifications', icon: IconBell },
   // { id: 'privacy', label: 'Privacy', icon: IconShield }
 ]
+
+// Set initial tab on mount
+onMounted(() => {
+  if (props.initialTab) {
+    activeTab.value = props.initialTab
+  }
+})
+
+// Watch for changes to initialTab prop and update activeTab
+watch(() => props.initialTab, (newTab) => {
+  if (newTab) {
+    activeTab.value = newTab
+  }
+})
 </script>
 
 <template>
