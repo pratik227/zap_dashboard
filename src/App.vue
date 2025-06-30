@@ -306,29 +306,6 @@ watch(connectionError, (error) => {
             </div>
           </transition>
           
-          <!-- Data Status Indicator -->
-          <transition name="slide-down">
-            <div v-if="isWalletConnected && zapData.length > 0" class="mb-4 lg:mb-6">
-              <div class="bg-green-50 border border-green-200 rounded-lg p-3 sm:p-4">
-                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                  <div class="flex items-center space-x-2">
-                    <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                    <span class="text-green-800 text-sm sm:text-base">
-                      Connected • {{ zapData.length }} zaps loaded
-                    </span>
-                  </div>
-                  <button 
-                    @click="handleManualRefresh"
-                    :disabled="isRefreshingData"
-                    class="btn-secondary text-sm whitespace-nowrap text-green-600 hover:text-green-700"
-                  >
-                    {{ isRefreshingData ? 'Refreshing...' : 'Refresh Data' }}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </transition>
-          
           <!-- Page Content with Transition -->
           <transition name="page-fade" mode="out-in">
             <component :is="components[currentPage]" :key="currentPage" />

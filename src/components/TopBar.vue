@@ -1,9 +1,13 @@
 <script setup>
 import { ref, inject, computed, onMounted, onUnmounted } from 'vue'
-import { IconSearch, IconUpload, IconBolt, IconMenu2, IconUser, IconSettings, IconLogout, IconChevronDown } from '@iconify-prerendered/vue-tabler'
+import { IconSearch, IconUpload, IconBolt, IconMenu2, IconUser, IconSettings, IconLogout, IconChevronDown, IconRefresh } from '@iconify-prerendered/vue-tabler'
 import NotificationDropdown from './NotificationDropdown.vue'
 
 const zapData = inject('zapData')
+const isRefreshingData = inject('isRefreshingData')
+const refreshZapData = inject('refreshZapData')
+const isWalletConnected = inject('isWalletConnected')
+
 const emit = defineEmits(['show-connection', 'toggle-mobile-menu'])
 
 const showProfileDropdown = ref(false)
@@ -19,6 +23,31 @@ const userProfile = ref({
 // Watch for connection status based on zapData
 const hasConnection = computed(() => {
   return localStorage.getItem('nwc_url') !== null
+})
+
+// Data status for header display
+const dataStatus = computed(() => {
+  if (!isWalletConnected.value) {
+    return {
+      show: false,
+      text: '',
+      color: ''
+    }
+  }
+  
+  if (zapData.value.length > 0) {
+    return {
+      show: true,
+      text: `${zapData.value.length} zaps loaded`,
+      color: 'text-green-600'
+    }
+  }
+  
+  return {
+    show: true,
+    text: 'No data yet',
+    color: 'text-gray-500'
+  }
 })
 
 // Close dropdown when clicking outside
@@ -58,6 +87,12 @@ const handleProfileAction = (action) => {
       break
   }
 }
+
+const handleRefresh = () => {
+  if (refreshZapData && !isRefreshingData.value) {
+    refreshZapData()
+  }
+}
 </script>
 
 <template>
@@ -81,7 +116,7 @@ const handleProfileAction = (action) => {
       </div>
       
       <!-- Right Side Actions -->
-      <div class="flex items-center space-x-2 sm:space-x-4">
+      <div class="flex items-center space-x-2 sm:space-x-3">
         <!-- Search - Hidden on mobile, shown on tablet+ -->
         <div class="relative hidden md:block">
           <input
@@ -90,6 +125,29 @@ const handleProfileAction = (action) => {
             class="w-48 lg:w-64 pl-10 pr-4 py-2 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 bg-white/80 backdrop-blur-sm transition-all text-sm hover:shadow-sm"
           />
           <IconSearch class="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
+        </div>
+        
+        <!-- Data Status & Refresh (when connected) -->
+        <div v-if="dataStatus.show" class="flex items-center space-x-3">
+<!--          <div class="hidden sm:flex items-center space-x-2">-->
+<!--            <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>-->
+<!--            <span :class="['text-xs font-medium', dataStatus.color]">-->
+<!--              {{ dataStatus.text }}-->
+<!--            </span>-->
+<!--          </div>-->
+          
+          <!-- Refresh Button with Consistent Styling -->
+          <button
+            @click="handleRefresh"
+            :disabled="isRefreshingData"
+            :title="isRefreshingData ? 'Refreshing...' : 'Refresh data'"
+            class="p-2 text-gray-500 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-all duration-200 touch-target group disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <IconRefresh :class="[
+              'w-5 h-5 transition-all duration-200 group-hover:scale-110', 
+              isRefreshingData ? 'animate-spin' : ''
+            ]" />
+          </button>
         </div>
         
         <!-- Action Buttons -->
@@ -106,8 +164,10 @@ const handleProfileAction = (action) => {
             <span class="hidden sm:inline">{{ hasConnection ? 'Connected' : 'Connect' }}</span>
           </button>
           
-          <!-- Notifications -->
-          <NotificationDropdown />
+          <!-- Notifications with Consistent Hover Effect -->
+          <div class="p-2 hover:bg-orange-50 rounded-lg transition-all duration-200 group">
+            <NotificationDropdown />
+          </div>
         </div>
         
         <!-- Enhanced Profile Dropdown -->
@@ -115,7 +175,7 @@ const handleProfileAction = (action) => {
           <!-- Profile Trigger Button -->
           <button 
             @click="toggleProfileDropdown"
-            class="flex items-center space-x-2 sm:space-x-3 p-1 sm:p-2 rounded-lg hover:bg-orange-50 transition-all duration-200 group touch-target"
+            class="flex items-center space-x-2 sm:space-x-3 p-2 rounded-lg hover:bg-orange-50 transition-all duration-200 group touch-target"
           >
             <div class="relative">
               <img 

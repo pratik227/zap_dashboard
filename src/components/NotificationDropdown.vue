@@ -107,13 +107,13 @@ const hasUnread = computed(() => unreadCount.value > 0)
 
 <template>
   <div class="relative" ref="dropdownRef">
-    <!-- Notification Bell Button -->
+    <!-- Notification Bell Button with Consistent Styling -->
     <button 
       @click="toggleDropdown"
-      class="p-2 text-gray-500 hover:text-orange-600 relative transition-all duration-200 touch-target hover:bg-orange-50 rounded-lg group"
+      class="relative text-gray-500 hover:text-orange-600 transition-all duration-200 touch-target group"
     >
       <IconBellRinging v-if="hasUnread" class="w-5 h-5 animate-bounce text-orange-600" />
-      <IconBell v-else class="w-5 h-5 group-hover:scale-110 transition-transform" />
+      <IconBell v-else class="w-5 h-5 group-hover:scale-110 transition-transform duration-200" />
       
       <!-- Unread Count Badge -->
       <span 
