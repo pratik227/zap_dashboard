@@ -166,7 +166,7 @@ const handlePageChange = (pageId) => {
           alt="Bolt Logo" 
           class="w-4 h-4 sm:w-5 sm:h-5 object-contain group-hover:scale-110 transition-transform duration-200"
         />
-        <span class="text-xs sm:text-sm font-medium">Powered by Bolt</span>
+        <span class="text-xs sm:text-sm font-medium">Bolt Inside</span>
       </a>
     </div>
   </div>
