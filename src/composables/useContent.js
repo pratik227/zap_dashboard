@@ -288,7 +288,7 @@ export function useContent() {
     return duplicate
   }
 
-  // Enhanced Nostr publishing functionality with proper relay broadcasting
+  // Enhanced Nostr publishing functionality using correct SimplePool API
   const publishToNostr = async (contentId) => {
     if (!isAuthenticated.value || !window.nostr) {
       throw new Error('Nostr authentication required')
@@ -359,39 +359,23 @@ export function useContent() {
       const pool = new SimplePool()
       
       try {
-        // Publish to all write relays using SimplePool
-        const publishPromises = relayUrls.map(async (relayUrl) => {
-          try {
-            console.log(`Publishing to relay: ${relayUrl}`)
-            
-            // Ensure relay connection and publish
-            await pool.ensureRelay(relayUrl)
-            const relay = pool.getRelay(relayUrl)
-            
-            if (!relay) {
-              throw new Error(`Failed to connect to relay: ${relayUrl}`)
-            }
-
-            // Publish the event
-            await relay.publish(signedEvent)
-            
-            console.log(`✅ Successfully published to ${relayUrl}`)
-            return { relay: relayUrl, success: true }
-          } catch (error) {
-            console.error(`❌ Failed to publish to ${relayUrl}:`, error)
-            return { relay: relayUrl, success: false, error: error.message }
-          }
-        })
-
+        // Use the correct SimplePool API - publish to multiple relays
+        const publishPromises = pool.publish(relayUrls, signedEvent)
+        
         publishingStatus.value = 'Waiting for relay confirmations...'
         publishingProgress.value = 80
 
-        // Wait for all publishing attempts to complete
-        const results = await Promise.allSettled(publishPromises)
-        
+        // Wait for publishing results with timeout
+        const results = await Promise.race([
+          Promise.allSettled(publishPromises),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Publishing timeout after 30 seconds')), 30000)
+          )
+        ])
+
         // Count successful publications
         const successfulPublications = results
-          .filter(result => result.status === 'fulfilled' && result.value.success)
+          .filter(result => result.status === 'fulfilled')
           .length
 
         const failedPublications = results.length - successfulPublications
