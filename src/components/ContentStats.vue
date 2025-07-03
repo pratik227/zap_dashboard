@@ -103,7 +103,8 @@ const revenueInUSD = computed(() => {
       </div>
     </div>
 
-    <!-- Performance Trend -->
+    <!-- Performance Trend - COMMENTED OUT -->
+    <!-- 
     <div class="bg-white/90 backdrop-blur-sm p-4 sm:p-6 rounded-xl border border-orange-100/50 shadow-sm hover:shadow-md transition-all">
       <div class="flex items-center justify-between mb-4">
         <div class="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-emerald-100 to-teal-100 rounded-lg flex items-center justify-center">
@@ -118,5 +119,6 @@ const revenueInUSD = computed(() => {
         <p class="text-lg sm:text-xl font-bold text-gray-900">Trending Up</p>
       </div>
     </div>
+    -->
   </div>
 </template>
