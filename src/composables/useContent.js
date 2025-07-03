@@ -1,5 +1,6 @@
 import { ref, reactive, computed, watch } from 'vue'
 import { useNostrAuth } from './useNostrAuth.js'
+import { useContentZaps } from './useContentZaps.js'
 import { nostrRelayManager } from '../utils/nostrRelayManager.js'
 import { finalizeEvent, verifyEvent } from 'nostr-tools/pure'
 import { contentService } from '../utils/contentService.js'
@@ -92,6 +93,14 @@ loadContentFromStorage()
 
 export function useContent() {
   const { currentUser, isAuthenticated, userProfile, writeRelays, connectedRelays } = useNostrAuth()
+  const { 
+    startZapTracking, 
+    getZapsForContent, 
+    getTotalZapAmount, 
+    getZapCount,
+    getAllContentZaps,
+    trackMultipleContent 
+  } = useContentZaps()
 
   // Filter content by current user
   const userContentItems = computed(() => {
@@ -104,21 +113,39 @@ export function useContent() {
     )
   })
 
+  // Enhanced content items with zap data
+  const userContentItemsWithZaps = computed(() => {
+    const allZaps = getAllContentZaps.value
+    
+    return userContentItems.value.map(item => {
+      const zapData = allZaps[item.nostrEventId] || { zaps: [], totalAmount: 0, count: 0 }
+      
+      return {
+        ...item,
+        zapCount: zapData.count,
+        zapAmount: zapData.totalAmount,
+        zaps: zapData.zaps,
+        // Update revenue to include zaps if it's published to Nostr
+        revenue: item.nostrEventId ? zapData.totalAmount : item.revenue
+      }
+    })
+  })
+
   // Computed properties based on user's content
   const totalRevenue = computed(() => {
-    return userContentItems.value.reduce((sum, item) => sum + item.revenue, 0)
+    return userContentItemsWithZaps.value.reduce((sum, item) => sum + (item.zapAmount || item.revenue), 0)
   })
 
   const totalUnlocks = computed(() => {
-    return userContentItems.value.reduce((sum, item) => sum + item.unlocks, 0)
+    return userContentItemsWithZaps.value.reduce((sum, item) => sum + item.unlocks, 0)
   })
 
   const publishedItems = computed(() => {
-    return userContentItems.value.filter(item => item.status === CONTENT_STATUS.PUBLISHED)
+    return userContentItemsWithZaps.value.filter(item => item.status === CONTENT_STATUS.PUBLISHED)
   })
 
   const draftItems = computed(() => {
-    return userContentItems.value.filter(item => item.status === CONTENT_STATUS.DRAFT)
+    return userContentItemsWithZaps.value.filter(item => item.status === CONTENT_STATUS.DRAFT)
   })
 
   const revenueInUSD = computed(() => {
@@ -128,8 +155,8 @@ export function useContent() {
   const contentStats = computed(() => {
     const published = publishedItems.value.length
     const drafts = draftItems.value.length
-    const totalViews = userContentItems.value.reduce((sum, item) => sum + item.views, 0)
-    const totalSubscribers = userContentItems.value.reduce((sum, item) => sum + item.subscribers, 0)
+    const totalViews = userContentItemsWithZaps.value.reduce((sum, item) => sum + item.views, 0)
+    const totalSubscribers = userContentItemsWithZaps.value.reduce((sum, item) => sum + item.subscribers, 0)
 
     return {
       published,
@@ -142,10 +169,23 @@ export function useContent() {
   })
 
   const topPerformingContent = computed(() => {
-    return [...userContentItems.value]
-      .sort((a, b) => b.revenue - a.revenue)
+    return [...userContentItemsWithZaps.value]
+      .sort((a, b) => (b.zapAmount || b.revenue) - (a.zapAmount || a.revenue))
       .slice(0, 3)
   })
+
+  // Start tracking zaps for all published content on initialization
+  const initializeZapTracking = async () => {
+    const publishedContent = userContentItems.value.filter(item => 
+      item.status === CONTENT_STATUS.PUBLISHED && item.nostrEventId
+    )
+    
+    if (publishedContent.length > 0) {
+      const eventIds = publishedContent.map(item => item.nostrEventId)
+      console.log(`🔍 Starting zap tracking for ${eventIds.length} published content items`)
+      await trackMultipleContent(eventIds)
+    }
+  }
 
   // Content management functions
   const createContent = async (contentData) => {
@@ -282,6 +322,7 @@ export function useContent() {
       revenue: 0,
       views: 0,
       subscribers: 0,
+      nostrEventId: null, // Clear Nostr event ID for duplicate
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     }
@@ -398,8 +439,6 @@ export function useContent() {
         throw new Error('Failed to publish to any relays. Please check your relay connections.')
       }
 
-      // Note: Full content is now stored encrypted during the event creation process above
-
       // Update content status with Nostr event information
       await updateContent(contentId, {
         status: CONTENT_STATUS.PUBLISHED,
@@ -407,6 +446,10 @@ export function useContent() {
         publishedToRelays: result.successful,
         publishedAt: new Date().toISOString()
       })
+
+      // 🔥 START ZAP TRACKING FOR THIS CONTENT
+      console.log(`🔍 Starting zap tracking for newly published content: ${signedEvent.id}`)
+      await startZapTracking(signedEvent.id)
 
       let statusMessage = `Successfully published to ${result.successful} relay${result.successful !== 1 ? 's' : ''}!`
       
@@ -510,9 +553,23 @@ export function useContent() {
     return colors[status] || 'text-gray-600 bg-gray-100'
   }
 
+  // Initialize zap tracking when the composable is used
+  if (isAuthenticated.value) {
+    initializeZapTracking()
+  }
+
+  // Watch for authentication changes to initialize zap tracking
+  watch(isAuthenticated, (authenticated) => {
+    if (authenticated) {
+      setTimeout(() => {
+        initializeZapTracking()
+      }, 1000) // Small delay to ensure content is loaded
+    }
+  })
+
   return {
     // State
-    contentItems: userContentItems,
+    contentItems: userContentItemsWithZaps,
     contentForm,
     currentView,
     editingContent,
@@ -541,6 +598,7 @@ export function useContent() {
     purchaseContent,
     subscribeToContent,
     publishToNostr,
+    initializeZapTracking,
     
     // View management
     setView,
@@ -552,6 +610,11 @@ export function useContent() {
     formatRevenue,
     getContentTypeIcon,
     getStatusColor,
+    
+    // Zap functions
+    getZapsForContent,
+    getTotalZapAmount,
+    getZapCount,
     
     // Constants
     CONTENT_TYPES,

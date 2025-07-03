@@ -63,6 +63,16 @@ const formatDate = (dateString) => {
     year: 'numeric'
   })
 }
+
+// Format zap amount for display
+const formatZapAmount = (amount) => {
+  if (amount >= 1000000) {
+    return `${(amount / 1000000).toFixed(1)}M`
+  } else if (amount >= 1000) {
+    return `${(amount / 1000).toFixed(1)}k`
+  }
+  return amount.toString()
+}
 </script>
 
 <template>
@@ -104,11 +114,27 @@ const formatDate = (dateString) => {
                 <span v-if="item.nostrEventId" class="px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
                   On Nostr
                 </span>
+                
+                <!-- 🔥 ZAP INDICATOR - Show if content has received zaps -->
+                <div v-if="item.nostrEventId && (item.zapCount > 0 || item.zapAmount > 0)" 
+                     class="flex items-center space-x-1 px-2 py-1 bg-gradient-to-r from-orange-100 to-amber-100 rounded-full">
+                  <IconBolt class="w-3 h-3 text-orange-600" />
+                  <span class="text-xs font-bold text-orange-700">
+                    {{ formatZapAmount(item.zapAmount || 0) }}
+                  </span>
+                  <span class="text-xs text-orange-600">sats</span>
+                  <span v-if="item.zapCount > 1" class="text-xs text-orange-500">
+                    ({{ item.zapCount }})
+                  </span>
+                </div>
               </div>
               <p class="text-sm text-gray-600 line-clamp-2 mb-2">{{ item.description }}</p>
               <div class="flex items-center space-x-4 text-xs text-gray-500">
                 <span>Updated {{ formatDate(item.updatedAt) }}</span>
                 <span>By {{ item.creatorName || 'You' }}</span>
+                <span v-if="item.nostrEventId && item.zapCount === 0" class="text-orange-500">
+                  ⚡ Ready for zaps
+                </span>
               </div>
             </div>
           </div>
@@ -172,7 +198,13 @@ const formatDate = (dateString) => {
           </div>
           <div class="text-center">
             <p class="text-sm font-medium text-green-600">Revenue</p>
-            <p class="text-lg font-bold text-gray-900">{{ item.revenue.toLocaleString() }} sats</p>
+            <p class="text-lg font-bold text-gray-900">
+              {{ (item.zapAmount || item.revenue).toLocaleString() }} sats
+            </p>
+            <!-- Show breakdown if both zaps and traditional revenue exist -->
+            <p v-if="item.zapAmount > 0 && item.revenue > 0" class="text-xs text-gray-500">
+              ⚡{{ item.zapAmount }} + 💰{{ item.revenue }}
+            </p>
           </div>
           <div class="text-center">
             <p class="text-sm font-medium text-blue-600">Views</p>

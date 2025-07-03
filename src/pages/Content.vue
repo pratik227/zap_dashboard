@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { 
   IconFileText, 
   IconPlus, 
@@ -15,6 +15,7 @@ import {
   IconAlertCircle
 } from '@iconify-prerendered/vue-tabler'
 import { useContent } from '../composables/useContent.js'
+import { useContentZaps } from '../composables/useContentZaps.js'
 import { useNostrAuth } from '../composables/useNostrAuth.js'
 import ContentStats from '../components/ContentStats.vue'
 import ContentList from '../components/ContentList.vue'
@@ -48,12 +49,19 @@ const {
   unpublishContent,
   duplicateContent,
   publishToNostr,
-
+  
   // View management
   setView,
   editContent,
-  previewContent
+  previewContent,
+
+  // Zap functions
+  getZapsForContent,
+  getTotalZapAmount,
+  getZapCount
 } = useContent()
+
+const { getAllContentZaps } = useContentZaps()
 
 const handleCreateContent = async () => {
   try {
@@ -155,6 +163,33 @@ const setActiveTab = (tab) => {
   } else if (tab === 'create-new') {
     setView('create')
   }
+}
+
+// Format zap amount for display
+const formatZapAmount = (amount) => {
+  if (amount >= 1000000) {
+    return `${(amount / 1000000).toFixed(1)}M`
+  } else if (amount >= 1000) {
+    return `${(amount / 1000).toFixed(1)}k`
+  }
+  return amount.toString()
+}
+
+// Format zapper pubkey for display
+const formatZapperPubkey = (pubkey) => {
+  return pubkey.substring(0, 8) + '...' + pubkey.substring(pubkey.length - 8)
+}
+
+// Format zap timestamp
+const formatZapTime = (timestamp) => {
+  const date = new Date(timestamp)
+  const now = new Date()
+  const diff = now - date
+  
+  if (diff < 60000) return 'now'
+  if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`
+  if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`
+  return `${Math.floor(diff / 86400000)}d ago`
 }
 </script>
 
@@ -434,6 +469,55 @@ const setActiveTab = (tab) => {
               <div class="bg-white p-4 rounded-lg border border-green-200 max-h-60 overflow-y-auto">
                 <div class="prose prose-sm max-w-none">
                   <p class="text-gray-700 text-left whitespace-pre-wrap">{{ selectedContent.fullContent }}</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- 🔥 ZAP TRACKING SECTION - Show zaps received for this content -->
+            <div v-if="selectedContent.nostrEventId" class="mt-6 bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-lg p-6">
+              <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-gray-900 flex items-center space-x-2">
+                  <IconBolt class="w-5 h-5 text-orange-600" />
+                  <span>Zaps Received</span>
+                </h3>
+                <div class="flex items-center space-x-4">
+                  <div class="text-center">
+                    <div class="text-2xl font-bold text-orange-600">{{ getZapCount(selectedContent.nostrEventId) }}</div>
+                    <div class="text-xs text-gray-600">Total Zaps</div>
+                  </div>
+                  <div class="text-center">
+                    <div class="text-2xl font-bold text-orange-600">{{ formatZapAmount(getTotalZapAmount(selectedContent.nostrEventId)) }}</div>
+                    <div class="text-xs text-gray-600">Total Sats</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Zap List -->
+              <div class="space-y-3 max-h-60 overflow-y-auto">
+                <div v-if="getZapsForContent(selectedContent.nostrEventId).length === 0" class="text-center py-8">
+                  <IconBolt class="w-12 h-12 mx-auto text-gray-300 mb-3" />
+                  <h4 class="text-lg font-medium text-gray-900 mb-2">No zaps yet</h4>
+                  <p class="text-gray-600 text-sm">Share your content to start receiving zaps!</p>
+                </div>
+
+                <div
+                  v-for="zap in getZapsForContent(selectedContent.nostrEventId)"
+                  :key="zap.id"
+                  class="flex items-center justify-between p-3 bg-white rounded-lg border border-orange-100"
+                >
+                  <div class="flex items-center space-x-3">
+                    <div class="w-8 h-8 bg-gradient-to-r from-orange-400 to-amber-400 rounded-full flex items-center justify-center">
+                      <IconBolt class="w-4 h-4 text-white" />
+                    </div>
+                    <div>
+                      <div class="font-medium text-gray-900">{{ formatZapperPubkey(zap.zapperPubkey) }}</div>
+                      <div class="text-sm text-gray-600">{{ formatZapTime(zap.timestamp) }}</div>
+                      <div v-if="zap.message" class="text-sm text-gray-700 italic">"{{ zap.message }}"</div>
+                    </div>
+                  </div>
+                  <div class="text-right">
+                    <div class="font-bold text-orange-600">{{ formatZapAmount(zap.amount) }} sats</div>
+                  </div>
                 </div>
               </div>
             </div>
