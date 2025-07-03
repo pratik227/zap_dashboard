@@ -388,8 +388,14 @@ const getPercentageChange = (current, type) => {
         </div>
         <div v-else class="space-y-4">
           <div v-for="zap in recentZaps" :key="zap.id" class="flex items-center space-x-3 p-3 bg-orange-50/50 rounded-lg">
-            <div class="w-8 h-8 bg-gradient-to-r from-orange-400 to-amber-400 rounded-full flex items-center justify-center">
-              <IconBolt class="w-4 h-4 text-white" />
+            <div class="w-8 h-8 bg-gradient-to-r from-orange-400 to-amber-400 rounded-full flex items-center justify-center overflow-hidden">
+              <img 
+                :src="zap.sender.avatar" 
+                :alt="zap.sender.name || 'Anonymous'"
+                class="w-full h-full rounded-full object-cover"
+                @error="$event.target.style.display = 'none'; $event.target.nextElementSibling.style.display = 'flex'"
+              />
+              <IconBolt class="w-4 h-4 text-white" style="display: none;" />
             </div>
             <div class="flex-1 min-w-0">
               <p class="text-sm font-medium text-gray-900 truncate">
