@@ -1,4 +1,16 @@
-# ⚡ Zap Dashboard
+# ⚡ Zap Tracker - All-in-One Dashboard
+
+Zap Tracker is a comprehensive Bitcoin Lightning Network dashboard that provides complete visibility and management of your Zap ecosystem. Monitor analytics, manage wallets, engage with supporters, and share content - all from one powerful interface.
+
+### Project Overview
+Zap Tracker revolutionizes how creators and users interact with Bitcoin Lightning Network payments by providing a unified dashboard experience. In today's fragmented ecosystem, managing Zap payments, analytics, and community engagement requires juggling multiple platforms and tools. Zap Tracker eliminates this complexity by bringing everything together in one comprehensive interface.
+The platform serves as a central hub for Lightning Network payment management, offering real-time visibility into your Zap ecosystem. Users can monitor their complete payment history, track supporter engagement, and analyze performance metrics through intuitive visualizations. The dashboard provides immediate insights into total Zaps received, sats earned, unique supporters, and average Zap amounts, enabling data-driven decision making for content creators and businesses alike.
+Beyond basic analytics, Zap Tracker transforms how users engage with their communities. The integrated chat functionality allows direct communication with supporters while seamlessly incorporating Zap payments into conversations. This creates a more engaging and interactive experience that strengthens relationships between creators and their audience. The platform also includes robust content management capabilities, allowing users to post updates, announcements, and monetized content directly through the dashboard.
+The wallet management system provides comprehensive control over Lightning Network finances. Users can view real-time balances, track transaction history, and send payments directly from the platform. This eliminates the need to switch between different wallet applications and provides a streamlined financial management experience.
+Zap Tracker addresses the growing need for professional-grade Lightning Network tools by combining payment processing, analytics, community engagement, and content management in a single, user-friendly platform. Whether you're a content creator looking to monetize your work, a business accepting Lightning payments, or an enthusiast wanting better visibility into your Bitcoin transactions, Zap Tracker provides the comprehensive solution you need to succeed in the Lightning Network ecosystem.
+
+### Getting Started
+Ready to take control of your Zap ecosystem? Zap Tracker provides everything you need to monitor, manage, and maximize your Lightning Network payment experience.
 
 A modern, real-time dashboard for managing and analyzing Lightning Network zaps (tips) with Nostr Wallet Connect integration.
 
