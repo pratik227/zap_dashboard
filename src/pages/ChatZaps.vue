@@ -14,7 +14,8 @@ import {
   IconUserX, 
   IconLoader, 
   IconArrowLeft, 
-  IconAlertCircle
+  IconAlertCircle,
+  IconRefresh
 } from '@iconify-prerendered/vue-tabler'
 import { useNostrChat } from '../composables/useNostrChat.js'
 import { useNostrAuth } from '../composables/useNostrAuth.js'
@@ -31,7 +32,8 @@ const {
   sendMessage: sendChatMessage,
   isLoading: isSending,
   setActiveConversation,
-  startConversation
+  startConversation,
+  refreshConversationProfile
 } = useNostrChat()
 
 // Connections - using conversations from chat instead
@@ -323,15 +325,27 @@ onUnmounted(() => {
             ]"
           >
             <div class="flex items-center space-x-3">
-              <div class="w-10 h-10 bg-gradient-to-r from-orange-400 to-amber-400 rounded-full flex items-center justify-center">
-                <IconUser class="w-5 h-5 text-white" />
+              <div class="relative w-10 h-10 rounded-full overflow-hidden border-2 border-orange-200 hover:border-orange-300 transition-colors">
+                <img 
+                  v-if="connection.profile?.picture"
+                  :src="connection.profile.picture" 
+                  :alt="connection.profile?.name || 'User'"
+                  class="w-full h-full object-cover"
+                  @error="$event.target.style.display = 'none'; $event.target.nextElementSibling.style.display = 'flex'"
+                />
+                <div 
+                  class="w-full h-full bg-gradient-to-r from-orange-400 to-amber-400 flex items-center justify-center"
+                  :style="{ display: connection.profile?.picture ? 'none' : 'flex' }"
+                >
+                  <IconUser class="w-5 h-5 text-white" />
+                </div>
               </div>
               <div class="flex-1 min-w-0">
                 <div class="font-medium text-gray-900 truncate">
                   {{ connection.profile?.name || formatPubkey(connection.pubkey) }}
                 </div>
                 <div class="text-sm text-gray-500 truncate">
-                  {{ connection.pubkey }}
+                  {{ connection.profile?.nip05 || connection.pubkey }}
                 </div>
                 <div v-if="connection.lastMessage" class="text-xs text-gray-400 truncate">
                   {{ connection.lastMessage }}
@@ -360,19 +374,38 @@ onUnmounted(() => {
                 <IconArrowLeft class="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
 
-              <div class="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r from-orange-400 to-amber-400 rounded-full flex items-center justify-center flex-shrink-0">
-                <IconUser class="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+              <div class="relative w-8 h-8 sm:w-10 sm:h-10 rounded-full overflow-hidden border-2 border-orange-200 flex-shrink-0">
+                <img 
+                  v-if="selectedConnection.profile?.picture"
+                  :src="selectedConnection.profile.picture" 
+                  :alt="selectedConnection.profile?.name || 'User'"
+                  class="w-full h-full object-cover"
+                  @error="$event.target.style.display = 'none'; $event.target.nextElementSibling.style.display = 'flex'"
+                />
+                <div 
+                  class="w-full h-full bg-gradient-to-r from-orange-400 to-amber-400 flex items-center justify-center"
+                  :style="{ display: selectedConnection.profile?.picture ? 'none' : 'flex' }"
+                >
+                  <IconUser class="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                </div>
               </div>
               <div class="flex-1 min-w-0">
                 <div class="font-medium text-gray-900 truncate text-sm sm:text-base">
                   {{ selectedConnection.profile?.name || formatPubkey(selectedConnection.pubkey) }}
                 </div>
                 <div class="text-xs sm:text-sm text-gray-500 truncate">
-                  {{ selectedConnection.pubkey }}
+                  {{ selectedConnection.profile?.nip05 || selectedConnection.pubkey }}
                 </div>
               </div>
             </div>
             <div class="flex items-center space-x-2 flex-shrink-0">
+              <button
+                @click="refreshConversationProfile(selectedConnection.pubkey)"
+                class="touch-target p-2 text-gray-400 hover:text-gray-600 rounded-lg transition-colors flex items-center justify-center"
+                title="Refresh profile"
+              >
+                <IconRefresh class="w-4 h-4 sm:w-5 sm:h-5" />
+              </button>
               <button
                 @click="showConnectionOptions = !showConnectionOptions"
                 class="touch-target p-2 text-gray-400 hover:text-gray-600 rounded-lg transition-colors flex items-center justify-center"
