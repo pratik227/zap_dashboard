@@ -350,11 +350,15 @@ The project uses a custom Tailwind configuration with:
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
-### Development Guidelines
-- Use Vue 3 Composition API
-- Follow Tailwind CSS conventions
-- Write meaningful commit messages
-- Test thoroughly before submitting PRs
+[//]: # (### Development Guidelines)
+
+[//]: # (- Use Vue 3 Composition API)
+
+[//]: # (- Follow Tailwind CSS conventions)
+
+[//]: # (- Write meaningful commit messages)
+
+[//]: # (- Test thoroughly before submitting PRs)
 
 ## 📄 License
 
