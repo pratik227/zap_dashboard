@@ -43,6 +43,8 @@ const event = ref(null)
 const eventAuthor = ref(null)
 const showClientDropdown = ref(false)
 const dropdownRef = ref(null)
+const showClientDropdown = ref(false)
+const dropdownRef = ref(null)
 
 // Use Nostr auth to get user profile
 const { isAuthenticated } = useNostrAuth()
@@ -262,6 +264,77 @@ const formatContent = (content) => {
   return formatted
 }
 
+// Close dropdown when clicking outside
+const handleClickOutside = (event) => {
+  if (dropdownRef.value && !dropdownRef.value.contains(event.target)) {
+    showClientDropdown.value = false
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside)
+})
+
+const toggleClientDropdown = () => {
+  showClientDropdown.value = !showClientDropdown.value
+}
+
+// Get URL for different Nostr clients
+const getNostrClientUrl = (client) => {
+  if (!event.value) return '#'
+  
+  try {
+    // Determine if this is a regular note or long-form content
+    const isLongForm = event.value.kind === 30023
+    
+    if (isLongForm) {
+      // For long-form content, use naddr encoding
+      const identifier = event.value.tags.find(tag => tag[0] === 'd')?.[1] || ''
+      const naddr = nip19.naddrEncode({
+        kind: 30023,
+        pubkey: event.value.pubkey,
+        identifier,
+        relays: ['wss://relay.damus.io', 'wss://nos.lol', 'wss://relay.snort.social']
+      })
+      
+      switch (client) {
+        case 'primal':
+          return `https://primal.net/a/${naddr}`
+        case 'yakihonne':
+          return `https://www.yakihonne.com/notes/${naddr}`
+        case 'highlighter':
+          return `https://highlighter.com/a/${naddr}`
+        default:
+          return `https://primal.net/a/${naddr}`
+      }
+    } else {
+      // For regular notes, use nevent encoding
+      const nevent = nip19.neventEncode({
+        id: event.value.id,
+        relays: ['wss://relay.damus.io', 'wss://nos.lol', 'wss://relay.snort.social']
+      })
+      
+      switch (client) {
+        case 'primal':
+          return `https://primal.net/e/${nevent}`
+        case 'yakihonne':
+          return `https://www.yakihonne.com/notes/${nevent}`
+        case 'highlighter':
+          return `https://highlighter.com/e/${nevent}`
+        default:
+          return `https://primal.net/e/${nevent}`
+      }
+    }
+  } catch (error) {
+    console.error('Failed to generate client URL:', error)
+    return '#'
+  }
+}
+
 // Get event tags
 const getEventTags = () => {
   if (!event.value) return []
@@ -350,17 +423,17 @@ const getEventHashtags = () => {
   return hashtags
 }
 
-// Get event engagement stats
-const getEngagementStats = () => {
-  // In a real app, you would fetch actual engagement stats
-  // For now, we'll return mock data
-  return {
-    replies: Math.floor(Math.random() * 20),
-    reposts: Math.floor(Math.random() * 10),
-    likes: Math.floor(Math.random() * 50),
-    zaps: Math.floor(Math.random() * 5) + 1 // At least 1 zap since we're viewing a zapped event
-  }
-}
+// // Get event engagement stats
+// const getEngagementStats = () => {
+//   // In a real app, you would fetch actual engagement stats
+//   // For now, we'll return mock data
+//   return {
+//     replies: Math.floor(Math.random() * 20),
+//     reposts: Math.floor(Math.random() * 10),
+//     likes: Math.floor(Math.random() * 50),
+//     zaps: Math.floor(Math.random() * 5) + 1 // At least 1 zap since we're viewing a zapped event
+//   }
+// }
 </script>
 
 <template>
@@ -492,7 +565,7 @@ const getEngagementStats = () => {
             </div>
             
             <!-- Engagement Stats -->
-            <div class="flex items-center justify-between border-t border-gray-100 pt-4 mt-4">
+            <!-- <div class="flex items-center justify-between border-t border-gray-100 pt-4 mt-4">
               <div class="flex items-center space-x-6 text-sm text-gray-500">
                 <div class="flex items-center space-x-1">
                   <IconMessageCircle class="w-4 h-4" />
@@ -510,20 +583,58 @@ const getEngagementStats = () => {
                   <IconBolt class="w-4 h-4" />
                   <span>{{ getEngagementStats().zaps }}</span>
                 </div>
-              </div>
+              </div> -->
+              
+            <div class="flex items-center justify-end border-t border-gray-100 pt-4 mt-4">
               
               <a 
                 v-if="isAuthenticated && event" 
                 class="relative"
                 ref="dropdownRef"
+                ref="dropdownRef"
               >
                 <button
+                  @click.prevent="toggleClientDropdown"
                   @click.prevent="toggleClientDropdown"
                   class="text-sm text-orange-600 hover:text-orange-700 font-medium flex items-center space-x-1"
                 >
                   <span>Open in Nostr client</span>
                   <IconChevronDown :class="['w-3 h-3 transition-transform', showClientDropdown ? 'rotate-180' : '']" />
+                  <IconChevronDown :class="['w-3 h-3 transition-transform', showClientDropdown ? 'rotate-180' : '']" />
                 </button>
+                
+                <!-- Client Dropdown -->
+                <div 
+                  v-if="showClientDropdown"
+                  class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-10"
+                >
+                  <div class="py-1">
+                    <a 
+                      :href="getNostrClientUrl('primal')"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="block px-4 py-2 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-700"
+                    >
+                      Primal.net
+                    </a>
+                    <a 
+                      :href="getNostrClientUrl('yakihonne')"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="block px-4 py-2 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-700"
+                    >
+                      Yakihonne
+                    </a>
+                    <a 
+                      :href="getNostrClientUrl('highlighter')"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="block px-4 py-2 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-700"
+                    >
+                      Highlighter
+                    </a>
+                  </div>
+                </div>
                 
                 <!-- Client Dropdown -->
                 <div 
@@ -618,6 +729,11 @@ const getEngagementStats = () => {
   .max-w-2xl {
     max-width: 100%;
   }
+
+/* Dropdown styling */
+.z-10 {
+  z-index: 10;
+}
 
 /* Dropdown styling */
 .z-10 {
