@@ -389,6 +389,14 @@ const login = () => {
     isLoading.value = true
     authError.value = ''
     
+    // Check if user is already logged in
+    if (isAuthenticated.value && currentUser.value) {
+      console.log('User already logged in:', currentUser.value.npub)
+      isLoading.value = false
+      resolve(currentUser.value)
+      return
+    }
+    
     // Listen for auth events
     const handleAuth = async (event) => {
       try {
@@ -398,7 +406,30 @@ const login = () => {
           const pubkey = await window.nostr.getPublicKey()
           console.log('Got pubkey from nostr extension:', pubkey)
           
-          // Fetch and store profile
+          // Check if this user is already stored
+          const existingUser = localStorage.getItem(NOSTR_USER_KEY)
+          if (existingUser) {
+            try {
+              const userData = JSON.parse(existingUser)
+              if (userData.pubkey === pubkey) {
+                console.log('User already exists, using stored data:', userData.npub)
+                currentUser.value = userData
+                
+                // Start listening for user events
+                startUserEventListener(pubkey)
+                
+                // Clean up event listener
+                document.removeEventListener('nlAuth', handleAuth)
+                
+                resolve(userData)
+                return
+              }
+            } catch (error) {
+              console.warn('Failed to parse existing user data:', error)
+            }
+          }
+          
+          // Fetch and store profile for new user
           const userData = await fetchAndStoreProfile(pubkey)
           
           // Start listening for user events
@@ -448,11 +479,35 @@ const logout = () => {
     // Clear state
     currentUser.value = null
     authError.value = ''
+    userRelays.value = []
     
-    // Clear storage
-    localStorage.removeItem(NOSTR_USER_KEY)
+    // Clear all Nostr-related localStorage data
+    const nostrKeys = [
+      // Authentication data
+      NOSTR_USER_KEY, // 'nostrUser'
+      NOSTR_RELAYS_KEY, // 'nostrRelays'
+      
+      // Connection data
+      'nostr_connections',
+      'active_connection_id',
+      'nwc_url',
+      
+      // Notification data
+      'notification_settings',
+      'last_transaction_timestamp',
+      'last_balance',
+      'processed_transactions',
+      'notifications_list',
+      
+      // Content data
+      'user_content_items'
+    ]
     
-    console.log('User logged out successfully')
+    nostrKeys.forEach(key => {
+      localStorage.removeItem(key)
+    })
+    
+    console.log('User logged out successfully - cleared all Nostr data from localStorage')
     return true
   } catch (error) {
     console.error('Logout error:', error)

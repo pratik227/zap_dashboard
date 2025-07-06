@@ -30,6 +30,8 @@ const NOTIFICATION_TYPES = {
 const NOTIFICATION_SETTINGS_KEY = 'notification_settings'
 const LAST_TRANSACTION_KEY = 'last_transaction_timestamp'
 const LAST_BALANCE_KEY = 'last_balance'
+const PROCESSED_TRANSACTIONS_KEY = 'processed_transactions'
+const NOTIFICATIONS_KEY = 'notifications_list'
 
 // Generate unique notification ID
 const generateNotificationId = () => Date.now().toString(36) + Math.random().toString(36).substr(2)
@@ -47,6 +49,32 @@ const loadNotificationSettings = () => {
   }
 }
 
+// Load notifications from localStorage
+const loadNotifications = () => {
+  try {
+    const stored = localStorage.getItem(NOTIFICATIONS_KEY)
+    if (stored) {
+      const parsed = JSON.parse(stored)
+      notifications.value = Array.isArray(parsed) ? parsed : []
+      console.log('Loaded notifications from storage:', notifications.value.length, 'notifications')
+    }
+  } catch (error) {
+    console.error('Failed to load notifications:', error)
+    notifications.value = []
+  }
+}
+
+// Save notifications to localStorage
+const saveNotifications = () => {
+  try {
+    // Only keep the last 50 notifications to avoid storage bloat
+    const notificationsToSave = notifications.value.slice(0, 50)
+    localStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(notificationsToSave))
+  } catch (error) {
+    console.error('Failed to save notifications:', error)
+  }
+}
+
 // Save settings to localStorage
 const saveNotificationSettings = () => {
   try {
@@ -59,6 +87,9 @@ const saveNotificationSettings = () => {
 // Watch for settings changes and save
 watch(notificationSettings, saveNotificationSettings, { deep: true })
 
+// Watch for notification changes and save
+watch(notifications, saveNotifications, { deep: true })
+
 // Create notification object
 const createNotification = (type, title, message, data = {}) => {
   return {
@@ -68,13 +99,14 @@ const createNotification = (type, title, message, data = {}) => {
     message,
     timestamp: new Date().toISOString(),
     read: false,
+    played: false, // Track if sound was already played
     data,
     ...data
   }
 }
 
 // Add notification to the list
-const addNotification = (notification) => {
+const addNotification = (notification, isNewNotification = true) => {
   if (!notificationSettings.value.enabled) return
 
   notifications.value.unshift(notification)
@@ -84,14 +116,20 @@ const addNotification = (notification) => {
     notifications.value = notifications.value.slice(0, 50)
   }
 
-  // Show desktop notification if enabled
-  if (notificationSettings.value.desktop && 'Notification' in window) {
-    showDesktopNotification(notification)
-  }
+  // Only show desktop notification and play sound for truly new notifications
+  if (isNewNotification && !notification.played) {
+    // Show desktop notification if enabled
+    if (notificationSettings.value.desktop && 'Notification' in window) {
+      showDesktopNotification(notification)
+    }
 
-  // Play sound if enabled
-  if (notificationSettings.value.sound) {
-    playNotificationSound()
+    // Play sound if enabled
+    if (notificationSettings.value.sound) {
+      playNotificationSound()
+    }
+    
+    // Mark as played to prevent replay
+    notification.played = true
   }
 
   console.log('Notification added:', notification)
@@ -165,6 +203,7 @@ const markAllAsRead = () => {
 // Clear all notifications
 const clearAllNotifications = () => {
   notifications.value = []
+  saveNotifications() // Ensure empty state is saved
 }
 
 // Remove specific notification
@@ -278,6 +317,7 @@ const handlePaymentError = (error) => {
 let transactionPolling = null
 let lastTransactionTimestamp = null
 let lastBalance = null
+let processedTransactions = new Set()
 
 const startTransactionMonitoring = async () => {
   if (transactionPolling) return
@@ -286,6 +326,7 @@ const startTransactionMonitoring = async () => {
   try {
     const storedTimestamp = localStorage.getItem(LAST_TRANSACTION_KEY)
     const storedBalance = localStorage.getItem(LAST_BALANCE_KEY)
+    const storedProcessedTransactions = localStorage.getItem(PROCESSED_TRANSACTIONS_KEY)
     
     if (storedTimestamp) {
       lastTransactionTimestamp = parseInt(storedTimestamp)
@@ -294,31 +335,68 @@ const startTransactionMonitoring = async () => {
     if (storedBalance) {
       lastBalance = parseInt(storedBalance)
     }
+    
+    if (storedProcessedTransactions) {
+      processedTransactions = new Set(JSON.parse(storedProcessedTransactions))
+    }
   } catch (error) {
     console.warn('Failed to load last transaction state:', error)
   }
+
+  // Flag to prevent initial balance notification
+  let isInitialBalanceCheck = true
 
   transactionPolling = setInterval(async () => {
     try {
       // Check for new transactions
       const transactions = await fetchTransactions()
       if (transactions && transactions.length > 0) {
-        const latestTransaction = transactions[0]
-        const latestTimestamp = latestTransaction.settled_at || latestTransaction.created_at
+        let hasNewTransactions = false
         
-        if (lastTransactionTimestamp && latestTimestamp > lastTransactionTimestamp) {
-          // New transaction detected
-          if (latestTransaction.type === 'incoming') {
+        // Process each transaction to check if it's new
+        for (const transaction of transactions) {
+          const paymentHash = transaction.payment_hash
+          const timestamp = transaction.settled_at || transaction.created_at
+          
+          // Skip if we've already processed this transaction
+          if (processedTransactions.has(paymentHash)) {
+            continue
+          }
+          
+          // Skip if transaction is not settled
+          if (transaction.state !== 'settled') {
+            continue
+          }
+          
+          // Mark as processed to avoid duplicates
+          processedTransactions.add(paymentHash)
+          hasNewTransactions = true
+          
+          // Create notification for incoming transactions
+          if (transaction.type === 'incoming') {
             handleZapReceived({
-              amount: Math.floor(latestTransaction.amount / 1000),
+              amount: Math.floor(transaction.amount / 1000),
               sender: { name: 'Anonymous' }, // NWC doesn't provide sender info
-              timestamp: new Date(latestTimestamp * 1000).toISOString()
+              timestamp: new Date(timestamp * 1000).toISOString(),
+              paymentHash: paymentHash
             })
+          }
+          
+          // Update last transaction timestamp
+          if (!lastTransactionTimestamp || timestamp > lastTransactionTimestamp) {
+            lastTransactionTimestamp = timestamp
           }
         }
         
-        lastTransactionTimestamp = latestTimestamp
-        localStorage.setItem(LAST_TRANSACTION_KEY, lastTransactionTimestamp.toString())
+        // Save state if we processed new transactions
+        if (hasNewTransactions) {
+          localStorage.setItem(LAST_TRANSACTION_KEY, lastTransactionTimestamp.toString())
+          
+          // Keep only recent transaction hashes (last 1000 to avoid storage bloat)
+          const recentTransactions = Array.from(processedTransactions).slice(-1000)
+          processedTransactions = new Set(recentTransactions)
+          localStorage.setItem(PROCESSED_TRANSACTIONS_KEY, JSON.stringify(Array.from(processedTransactions)))
+        }
       }
 
       // Check for balance changes
@@ -326,12 +404,16 @@ const startTransactionMonitoring = async () => {
       if (balanceData && balanceData.balance !== undefined) {
         const currentBalance = Math.floor(balanceData.balance / 1000) // Convert to sats
         
-        if (lastBalance !== null && currentBalance !== lastBalance) {
+        if (lastBalance !== null && currentBalance !== lastBalance && !isInitialBalanceCheck) {
           handleBalanceChange(lastBalance, currentBalance)
         }
         
+        // Update lastBalance and save to localStorage
         lastBalance = currentBalance
         localStorage.setItem(LAST_BALANCE_KEY, lastBalance.toString())
+        
+        // After first balance check, allow balance change notifications
+        isInitialBalanceCheck = false
       }
     } catch (error) {
       console.warn('Transaction monitoring error:', error)
@@ -344,11 +426,15 @@ const stopTransactionMonitoring = () => {
     clearInterval(transactionPolling)
     transactionPolling = null
   }
+  
+  // Clear processed transactions when stopping monitoring
+  processedTransactions.clear()
 }
 
 // Initialize notification system
 const initializeNotifications = async () => {
   loadNotificationSettings()
+  loadNotifications()
   
   // Request desktop notification permission if enabled
   if (notificationSettings.value.desktop) {

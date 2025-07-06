@@ -230,10 +230,15 @@ const formatDate = (dateString) => {
               <!-- Simplified Default Star -->
               <button
                 @click="handleSetDefault(connection)"
-                class="flex-shrink-0 text-amber-400 hover:text-amber-500 transition-colors"
-                :title="connection.isDefault ? 'Default connection' : 'Set as default'"
+                :class="[
+                  'flex-shrink-0 transition-all duration-200',
+                  connection.isDefault 
+                    ? 'text-amber-400 hover:text-amber-500' 
+                    : 'text-gray-300 hover:text-amber-300'
+                ]"
+                :title="connection.isDefault ? 'Default connection (used for auto-connect)' : 'Set as default connection'"
               >
-                <IconStarFilled v-if="connection.isDefault" class="w-4 h-4" />
+                <IconStarFilled v-if="connection.isDefault" class="w-4 h-4 drop-shadow-sm" />
                 <IconStar v-else class="w-4 h-4" />
               </button>
             </div>

@@ -31,7 +31,7 @@ const currentPage = inject('currentPage')
 const emit = defineEmits(['show-connection', 'toggle-mobile-menu', 'change-page'])
 
 // Use Nostr authentication
-const { isAuthenticated, userProfile, currentUser } = useNostrAuth()
+const { isAuthenticated, userProfile, currentUser, logout } = useNostrAuth()
 
 const showProfileDropdown = ref(false)
 const profileDropdownRef = ref(null)
@@ -196,7 +196,7 @@ const handleProfileAction = (action) => {
       console.log('Navigate to account')
       break
     case 'signout':
-      console.log('Sign out user')
+      logout()
       break
   }
 }

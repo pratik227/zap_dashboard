@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted, inject, defineAsyncComponent } from 'vue'
+import { ref, computed, onMounted, onUnmounted, inject, defineAsyncComponent, watch } from 'vue'
 import { 
   IconWallet, 
   IconBolt, 
@@ -47,7 +47,7 @@ const QrStream = defineAsyncComponent({
 })
 
 const { isWalletConnected, activeConnection } = useNostrConnections()
-const { handleZapSent, handlePaymentSuccess, handlePaymentError } = useNotifications()
+const { handleZapSent, handlePaymentSuccess, handlePaymentError, notifications } = useNotifications()
 
 // Inject the changePage function from App.vue
 const changePage = inject('changePage')
@@ -121,6 +121,25 @@ onMounted(() => {
   }
   checkCameraPermission()
 })
+
+// Watch for new payment notifications and refresh wallet data
+watch(notifications, (newNotifications, oldNotifications) => {
+  if (!isWalletConnected.value) return
+  
+  // Check if there are new payment-related notifications
+  const hasNewPaymentNotification = newNotifications.length > (oldNotifications?.length || 0) &&
+    newNotifications.some(notification => 
+      (notification.type === 'zap_received' || notification.type === 'payment_success') &&
+      !notification.read
+    )
+  
+  if (hasNewPaymentNotification) {
+    console.log('New payment notification detected, refreshing wallet data...')
+    setTimeout(() => {
+      refreshData()
+    }, 1000) // Small delay to ensure transaction is fully processed
+  }
+}, { deep: true })
 
 onUnmounted(() => {
   if (invoicePolling.value) {

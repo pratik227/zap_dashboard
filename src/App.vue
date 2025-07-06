@@ -1,5 +1,5 @@
 <script setup>
-import { ref, provide, watch, onMounted, nextTick,computed } from 'vue'
+import { ref, provide, watch, onMounted, nextTick,computed, onUnmounted } from 'vue'
 import { IconAlertTriangle, IconX } from '@iconify-prerendered/vue-tabler'
 import Sidebar from './components/Sidebar.vue'
 import TopBar from './components/TopBar.vue'
@@ -32,7 +32,8 @@ const {
   setActiveConnection,
   clearActiveConnection,
   loadZapData,
-  autoReconnect
+  autoReconnect,
+  getBalance
 } = useNostrConnections()
 
 // Use the notifications composable
@@ -40,7 +41,8 @@ const {
   handleConnectionSuccess: notifyConnectionSuccess,
   handleConnectionError: notifyConnectionError,
   handleZapReceived,
-  handleBalanceChange
+  handleBalanceChange,
+  notifications
 } = useNotifications()
 
 // Global state
@@ -104,22 +106,23 @@ const isStandalonePage = computed(() => {
 })
 
 // Enhanced data refresh function with better error handling
-const refreshZapData = async (force = false) => {
+const refreshZapData = async (force = false, retryCount = 0) => {
   if (!activeConnection.value && !force) {
     console.log('No active connection, clearing zap data')
     zapData.value = []
     return
   }
   
-  if (isRefreshingData.value) {
+  if (isRefreshingData.value && retryCount === 0) {
     console.log('Data refresh already in progress, skipping...')
     return
   }
   
   isRefreshingData.value = true
+  const maxRetries = 3
   
   try {
-    console.log('Refreshing zap data...')
+    console.log(`Refreshing zap data... (attempt ${retryCount + 1}/${maxRetries + 1})`)
     const data = await loadZapData()
     
     // Check for new zaps and trigger notifications
@@ -132,15 +135,55 @@ const refreshZapData = async (force = false) => {
     
     zapData.value = data
     console.log('Zap data refreshed successfully:', data.length, 'zaps')
+    
+    // Clear any connection errors on successful refresh
+    if (connectionError.value) {
+      connectionError.value = ''
+    }
+    
   } catch (error) {
-    console.error('Failed to refresh zap data:', error)
+    console.error(`Failed to refresh zap data (attempt ${retryCount + 1}):`, error)
+    
+    // If we have retries left and it's a network/connection error, retry
+    if (retryCount < maxRetries && isNetworkError(error)) {
+      const delay = Math.min(1000 * Math.pow(2, retryCount), 10000) // Exponential backoff, max 10s
+      console.log(`Retrying data refresh in ${delay}ms...`)
+      
+      setTimeout(async () => {
+        await refreshZapData(force, retryCount + 1)
+      }, delay)
+      return
+    }
+    
+    // Set connection error for display
+    connectionError.value = `Failed to refresh data: ${error.message}`
+    
     // Don't clear existing data on error, just log it
     if (zapData.value.length === 0) {
       zapData.value = []
     }
   } finally {
-    isRefreshingData.value = false
+    // Only clear loading state if this is not a retry
+    if (retryCount === 0) {
+      isRefreshingData.value = false
+    }
   }
+}
+
+// Helper function to determine if an error is network-related
+const isNetworkError = (error) => {
+  const networkErrorMessages = [
+    'timeout',
+    'network',
+    'connection',
+    'failed to fetch',
+    'load failed',
+    'websocket',
+    'relay'
+  ]
+  
+  const errorMessage = error.message.toLowerCase()
+  return networkErrorMessages.some(msg => errorMessage.includes(msg))
 }
 
 // Watch for active connection changes with immediate execution
@@ -192,7 +235,77 @@ onMounted(async () => {
       refreshZapData(true)
     }, 1000)
   }
+  
+  // Start periodic health check and data refresh
+  startPeriodicHealthCheck()
 })
+
+// Periodic health check and data refresh
+let healthCheckInterval = null
+
+const startPeriodicHealthCheck = () => {
+  if (healthCheckInterval) {
+    clearInterval(healthCheckInterval)
+  }
+  
+  // Check every 2 minutes
+  healthCheckInterval = setInterval(async () => {
+    if (isWalletConnected.value && !isRefreshingData.value) {
+      console.log('Performing periodic health check and data refresh...')
+      
+      try {
+        // Test connection health by doing a simple balance check
+        await getBalance()
+        
+        // If successful, refresh data to catch any new transactions
+        await refreshZapData(true)
+        
+      } catch (error) {
+        console.warn('Periodic health check failed:', error)
+        
+        // If connection seems broken, try to reconnect
+        if (error.message.includes('not initialized') || error.message.includes('timeout')) {
+          console.log('Connection appears broken, attempting auto-reconnect...')
+          try {
+            await autoReconnect()
+            console.log('Auto-reconnect successful')
+          } catch (reconnectError) {
+            console.error('Auto-reconnect failed:', reconnectError)
+            connectionError.value = 'Connection lost. Please reconnect your wallet.'
+          }
+        }
+      }
+    }
+  }, 120000) // 2 minutes
+}
+
+// Cleanup on unmount
+onUnmounted(() => {
+  if (healthCheckInterval) {
+    clearInterval(healthCheckInterval)
+  }
+})
+
+// Watch for transaction notifications and auto-refresh
+watch(notifications, (newNotifications, oldNotifications) => {
+  if (!newNotifications || !oldNotifications) return
+  
+  // Check if there are new payment-related notifications
+  const hasNewPaymentNotification = newNotifications.length > oldNotifications.length &&
+    newNotifications.some(notification => 
+      (notification.type === 'zap_received' || 
+       notification.type === 'payment_success' || 
+       notification.type === 'payment_error') &&
+      !notification.read
+    )
+  
+  if (hasNewPaymentNotification && isWalletConnected.value) {
+    console.log('New payment notification detected, auto-refreshing data...')
+    setTimeout(() => {
+      refreshZapData(true)
+    }, 2000) // Small delay to ensure transaction is fully processed
+  }
+}, { deep: true })
 
 // Enhanced page change function to handle tab navigation
 const changePage = async (page, tab = null) => {
@@ -454,7 +567,7 @@ provide('isPageLoading', isPageLoading)
               >
                 <IconX class="w-5 h-5" />
               </button>
-            </div>
+            </div> 
             <NWCConnection @connection-success="handleConnectionSuccess" />
             <div v-if="isWalletConnected" class="mt-4 flex justify-end">
               <button 
