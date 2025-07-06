@@ -364,17 +364,22 @@ initializeForm()
         
         <!-- Lightning Address -->
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Lightning Address</label>
-          <div class="relative">
+          <label class="flex items-center space-x-2 text-sm font-medium text-orange-600 mb-1">
+            <IconBolt class="w-4 h-4" />
+            <span>Lightning Address</span>
+            <span class="bg-orange-100 text-orange-700 text-xs px-2 py-0.5 rounded-full">Important for Zaps</span>
+          </label>
+          <div class="relative group">
             <input
               v-model="form.lud16"
               type="text"
               placeholder="you@domain.com"
-              class="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-300 focus:border-purple-400 text-sm"
+              class="w-full pl-9 pr-3 py-2 border-2 border-orange-300 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-orange-500 text-sm bg-orange-50 transition-all duration-200 group-hover:border-orange-400"
             />
             <IconBolt class="absolute left-3 top-2.5 w-4 h-4 text-orange-500" />
           </div>
-          <p class="text-xs text-gray-500 mt-1">Optional - Your Lightning address for receiving payments</p>
+          <p class="text-xs text-orange-600 font-medium mt-1">Required for receiving zaps in ZapTracker</p>
+          <p class="text-xs text-gray-600 mt-0.5">Format: your-name@lightning-provider.com (e.g., you@getalby.com)</p>
         </div>
         
         <!-- NIP-05 Verification -->
