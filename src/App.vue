@@ -2,6 +2,7 @@
 import { ref, provide, watch, onMounted, nextTick,computed, onUnmounted } from 'vue'
 import { IconAlertTriangle, IconX } from '@iconify-prerendered/vue-tabler'
 import Sidebar from './components/Sidebar.vue'
+import { useContentZaps } from './composables/useContentZaps.js'
 import TopBar from './components/TopBar.vue'
 import Dashboard from './pages/Dashboard.vue'
 import ZapFeed from './pages/ZapFeed.vue'
@@ -45,6 +46,9 @@ const {
   notifications
 } = useNotifications()
 
+// Use the content zaps composable to get NIP-57 zaps
+const { getAllContentZaps } = useContentZaps()
+
 // Global state
 const zapData = ref([])
 const selectedTimeRange = ref('all') // Changed from '7d' to 'all'
@@ -62,12 +66,73 @@ const showConnectionModal = ref(false)
 const isMobileMenuOpen = ref(false)
 const isRefreshingData = ref(false)
 
+// Combine NWC payments (zapData) with NIP-57 zaps
+const combinedZapData = computed(() => {
+  // Get NWC payments from zapData
+  const nwcPayments = zapData.value
+  
+  // Get NIP-57 zaps from useContentZaps
+  const contentZapsMap = getAllContentZaps.value
+  const nip57Zaps = []
+  
+  // Convert the map of content zaps to an array
+  Object.entries(contentZapsMap).forEach(([eventId, zapData]) => {
+    zapData.zaps.forEach(zap => {
+      nip57Zaps.push({
+        id: zap.id,
+        amount: zap.amount,
+        timestamp: zap.timestamp,
+        sender: {
+          name: zap.sender?.name || `User ${zap.zapperPubkey.substring(0, 8)}`,
+          pubkey: zap.zapperPubkey,
+          nip05: zap.sender?.nip05 || null,
+          avatar: zap.sender?.picture || generateFallbackAvatar(zap.zapperPubkey)
+        },
+        note: zap.message || 'Zap',
+        noteType: 'original',
+        client: 'nostr',
+        source: 'nip57',
+        eventId: eventId
+      })
+    })
+  })
+  
+  // Combine and sort by timestamp
+  return [...nwcPayments, ...nip57Zaps].sort((a, b) => 
+    new Date(b.timestamp) - new Date(a.timestamp)
+  )
+})
+
+// Generate a fallback avatar based on pubkey
+const generateFallbackAvatar = (pubkey) => {
+  if (!pubkey) return 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'
+  
+  // Use a deterministic approach to generate avatar based on pubkey
+  const avatars = [
+    'https://images.pexels.com/photos/1040881/pexels-photo-1040881.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
+    'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
+    'https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
+    'https://images.pexels.com/photos/1181690/pexels-photo-1181690.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
+    'https://images.pexels.com/photos/1043471/pexels-photo-1043471.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
+    'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'
+  ]
+  
+  // Create a hash from the pubkey to consistently select an avatar
+  const hash = pubkey.split('').reduce((a, b) => {
+    a = ((a << 5) - a) + b.charCodeAt(0)
+    return a & a
+  }, 0)
+  
+  return avatars[Math.abs(hash) % avatars.length]
+}
+
 // Add error handling for page loading
 const pageLoadingError = ref('')
 const isPageLoading = ref(false)
 
 // Provide data to child components
 provide('zapData', zapData)
+provide('combinedZapData', combinedZapData)
 provide('selectedTimeRange', selectedTimeRange)
 provide('searchQuery', searchQuery)
 provide('selectedFilters', selectedFilters)

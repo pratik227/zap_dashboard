@@ -39,6 +39,7 @@ onMounted(async () => {
 })
 
 const zapData = inject('zapData')
+const combinedZapData = inject('combinedZapData')
 const selectedTimeRange = inject('selectedTimeRange')
 
 // Use Nostr authentication to get user profile
@@ -96,7 +97,7 @@ onMounted(() => {
 
 // Dynamic stats based on real data and time range
 const stats = computed(() => {
-  const allZaps = zapData.value
+  const allZaps = combinedZapData.value
   const filteredZaps = filterZapsByTimeRange(allZaps, selectedTimeRange.value)
   
   const totalSats = filteredZaps.reduce((sum, zap) => sum + zap.amount, 0)
@@ -118,7 +119,7 @@ const stats = computed(() => {
 
 // Dynamic chart data based on real zap timestamps
 const chartOption = computed(() => {
-  const allZaps = zapData.value
+  const allZaps = combinedZapData.value
   const filteredZaps = filterZapsByTimeRange(allZaps, selectedTimeRange.value)
   
   if (filteredZaps.length === 0) {
@@ -252,7 +253,7 @@ const chartOption = computed(() => {
 
 // Recent zaps from real data - NOW FILTERED BY TIME RANGE
 const recentZaps = computed(() => {
-  const allZaps = zapData.value
+  const allZaps = combinedZapData.value
   const filteredZaps = filterZapsByTimeRange(allZaps, selectedTimeRange.value)
   
   return filteredZaps
@@ -295,10 +296,10 @@ const getPercentageChange = (current, type) => {
         <div>
           <h1 class="text-xl sm:text-2xl font-bold mb-2 flex items-center space-x-2">
             <IconBolt class="w-6 h-6" />
-            <span>{{ zapData.length > 0 ? welcomeMessage : 'Connect your wallet to get started!' }}</span>
+            <span>{{ combinedZapData.length > 0 ? welcomeMessage : 'Connect your wallet to get started!' }}</span>
           </h1>
           <p class="text-orange-50 text-sm sm:text-base">
-            <span v-if="zapData.length > 0">
+            <span v-if="combinedZapData.length > 0">
               You've received {{ stats.totalZaps }} zaps worth {{ stats.totalSats.toLocaleString() }} sats
               <span v-if="selectedTimeRange !== 'all'" class="opacity-75">
                 ({{ getTimeRangeDisplayText(selectedTimeRange) }})
@@ -460,11 +461,11 @@ const getPercentageChange = (current, type) => {
               <p class="text-sm font-medium text-gray-900 truncate">
                 {{ zap.sender.name || 'Anonymous' }}
               </p>
-              <p class="text-xs text-gray-500">{{ zap.timeAgo }}</p>
+      <div v-if="!filteredZaps.length && combinedZapData.length > 0" class="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
             </div>
             <div class="text-right">
               <p class="text-sm font-semibold text-orange-600">{{ zap.amount }} sats</p>
-            </div>
+            <p class="text-sm text-amber-800">You have {{ combinedZapData.length }} zaps in your wallet, but none match your current filters.</p>
           </div>
         </div>
       </div>

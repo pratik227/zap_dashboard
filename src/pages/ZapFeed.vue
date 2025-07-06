@@ -10,7 +10,6 @@ import {
   IconWallet,
   IconAlertCircle
 } from '@iconify-prerendered/vue-tabler'
-import Filters from '../components/Filters.vue'
 import { filterZapsByTimeRange } from '../utils/timeFilter.js'
 import ZapEventModal from '../components/ZapEventModal.vue'
 import { useContentZaps } from '../composables/useContentZaps.js'
