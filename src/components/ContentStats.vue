@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue'
+import { useBtcPrice } from '../composables/useBtcPrice.js'
 import { 
   IconCurrencyBitcoin, 
   IconLock, 
@@ -16,8 +17,11 @@ const props = defineProps({
   }
 })
 
+// Use BTC price composable
+const { satsToUSD, formatUSD } = useBtcPrice()
+
 const revenueInUSD = computed(() => {
-  return (props.stats.totalRevenue * 0.0003).toFixed(2)
+  return formatUSD(satsToUSD(props.stats.totalRevenue))
 })
 </script>
 

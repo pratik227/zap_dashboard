@@ -1,10 +1,14 @@
 <script setup>
 import { computed, inject } from 'vue'
+import { useBtcPrice } from '../composables/useBtcPrice.js'
 
 const zapData = inject('zapData')
 const searchQuery = inject('searchQuery')
 const selectedFilters = inject('selectedFilters')
 const selectedTimeRange = inject('selectedTimeRange')
+
+// Use BTC price composable
+const { satsToUSD, formatUSD } = useBtcPrice()
 
 const filteredZaps = computed(() => {
   let zaps = [...zapData.value]
@@ -160,8 +164,8 @@ const getNoteTypeEmoji = (type) => {
                 </div>
                 <button class="text-xs text-orange-600 hover:text-orange-700 font-medium">
                   View Note →
-                </button>
-              </div>
+            <span class="text-sm text-gray-500">
+              ≈ {{ formatUSD(satsToUSD(zap.amount)) }}
             </div>
           </div>
         </div>

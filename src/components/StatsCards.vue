@@ -1,8 +1,12 @@
 <script setup>
 import { computed, inject } from 'vue'
+import { useBtcPrice } from '../composables/useBtcPrice.js'
 
 const zapData = inject('zapData')
 const selectedTimeRange = inject('selectedTimeRange')
+
+// Use BTC price composable
+const { satsToUSD, formatUSD } = useBtcPrice()
 
 const stats = computed(() => {
   const zaps = zapData.value
@@ -31,11 +35,12 @@ const stats = computed(() => {
   }
   
   const totalSats = filteredZaps.reduce((sum, zap) => sum + zap.amount, 0)
-  const totalUSD = totalSats * 0.0003 // Rough conversion
+  const totalUSD = satsToUSD(totalSats)
   const avgZap = filteredZaps.length > 0 ? totalSats / filteredZaps.length : 0
   
   return {
     totalSats,
+    totalUSD,
     totalUSD,
     totalZaps: filteredZaps.length,
     avgZap: Math.round(avgZap),
@@ -55,7 +60,7 @@ const stats = computed(() => {
             {{ stats.totalSats.toLocaleString() }}
           </p>
           <p class="text-xs text-gray-500">
-            ≈ ${{ stats.totalUSD.toFixed(2) }}
+            ≈ {{ formatUSD(stats.totalUSD) }}
           </p>
         </div>
         <div class="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
