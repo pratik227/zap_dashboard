@@ -2,7 +2,8 @@
 import { ref, onMounted } from 'vue'
 import { 
   IconUser, 
-  IconPlugConnected, 
+  IconPlugConnected,
+  IconEdit,
   IconPlus, 
   IconTrash, 
   IconRefresh, 
@@ -21,6 +22,7 @@ import {
 } from '@iconify-prerendered/vue-tabler'
 import { useNostrAuth } from '../composables/useNostrAuth.js'
 import * as nip19 from 'nostr-tools/nip19'
+import NostrProfileEditor from './NostrProfileEditor.vue'
 
 const {
   currentUser,
@@ -192,6 +194,17 @@ const getShortNpub = () => {
   if (!currentUser.value?.npub) return ''
   return currentUser.value.npub.substring(0, 20) + '...'
 }
+const showProfileEditor = ref(false)
+
+// Handle profile edit
+const handleEditProfile = () => {
+  showProfileEditor.value = true
+}
+
+// Handle profile update
+const handleProfileUpdated = () => {
+  showProfileEditor.value = false
+}
 </script>
 
 <template>
@@ -199,7 +212,7 @@ const getShortNpub = () => {
     <!-- Profile Section -->
     <div>
       <h3 class="text-lg font-semibold text-gray-900 mb-2">Nostr Profile</h3>
-      <p class="text-gray-600 text-sm mb-6">Connect with your Nostr identity to access decentralized features</p>
+      <p class="text-gray-600 text-sm mb-6">Connect with your Nostr identity to access decentralized features and manage your profile</p>
       
       <!-- Not Authenticated -->
       <div v-if="!isAuthenticated" class="bg-white rounded-lg border border-gray-200 p-6">
@@ -239,95 +252,117 @@ const getShortNpub = () => {
       
       <!-- Authenticated -->
       <div v-else class="bg-white rounded-lg border border-gray-200 p-6">
-        <div class="flex items-start justify-between">
-          <div class="flex items-start space-x-4 flex-1">
-            <img 
-              :src="getUserAvatar()" 
-              :alt="userProfile?.name || 'User'"
-              class="w-16 h-16 rounded-full border-2 border-purple-200"
-              @error="$event.target.src = 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'"
-            />
-            <div class="flex-1 min-w-0">
-              <h4 class="text-lg font-medium text-gray-900">{{ userProfile?.name || 'Anonymous' }}</h4>
-              
-              <!-- Display name if different from name, otherwise show about -->
-              <p v-if="userProfile?.display_name && userProfile?.display_name !== userProfile?.name" class="text-sm text-gray-600 mb-3">
-                {{ userProfile.display_name }}
-              </p>
-              <p v-else-if="userProfile?.about" class="text-sm text-gray-600 mb-3 line-clamp-2">
-                {{ userProfile.about }}
-              </p>
-              
-              <!-- Profile Details -->
-              <div class="space-y-2">
-                <!-- NPub -->
-                <div class="flex items-center space-x-2">
-                  <IconKey class="w-4 h-4 text-gray-400" />
-                  <code class="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                    {{ getShortNpub() }}
-                  </code>
-                  <button
-                    @click="copyToClipboard(currentUser.npub)"
-                    class="text-gray-400 hover:text-gray-600 transition-colors"
-                    title="Copy npub"
-                  >
-                    <IconCheck v-if="copySuccess" class="w-3 h-3 text-green-600" />
-                    <IconCopy v-else class="w-3 h-3" />
-                  </button>
-                </div>
+        <!-- Profile Editor -->
+        <div v-if="showProfileEditor">
+          <NostrProfileEditor 
+            @close-editor="showProfileEditor = false"
+            @profile-updated="handleProfileUpdated"
+          />
+        </div>
+        
+        <!-- Profile Display -->
+        <div v-else>
+          <div class="flex items-start justify-between">
+            <div class="flex items-start space-x-4 flex-1">
+              <img 
+                :src="getUserAvatar()" 
+                :alt="userProfile?.name || 'User'"
+                class="w-16 h-16 rounded-full border-2 border-purple-200"
+                @error="$event.target.src = 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'"
+              />
+              <div class="flex-1 min-w-0">
+                <h4 class="text-lg font-medium text-gray-900">{{ userProfile?.name || 'Anonymous' }}</h4>
                 
-                <!-- NIP-05 -->
-                <div v-if="userProfile?.nip05" class="flex items-center space-x-2">
-                  <IconShield class="w-4 h-4 text-green-500" />
-                  <span class="text-xs text-green-600">{{ userProfile.nip05 }}</span>
-                </div>
+                <!-- Display name if different from name, otherwise show about -->
+                <p v-if="userProfile?.display_name && userProfile?.display_name !== userProfile?.name" class="text-sm text-gray-600 mb-3">
+                  {{ userProfile.display_name }}
+                </p>
+                <p v-else-if="userProfile?.about" class="text-sm text-gray-600 mb-3 line-clamp-2">
+                  {{ userProfile.about }}
+                </p>
                 
-                <!-- Lightning Address (LUD16) -->
-                <div v-if="userProfile?.lud16" class="flex items-center space-x-2">
-                  <IconBolt class="w-4 h-4 text-orange-500" />
-                  <span class="text-xs text-orange-600">{{ userProfile.lud16 }}</span>
-                </div>
-                
-                <!-- Website -->
-                <div v-if="userProfile?.website" class="flex items-center space-x-2">
-                  <IconGlobe class="w-4 h-4 text-blue-500" />
-                  <a 
-                    :href="userProfile.website" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    class="text-xs text-blue-600 hover:text-blue-700 hover:underline"
-                  >
-                    {{ userProfile.website }}
-                    <IconExternalLink class="w-3 h-3 inline ml-1" />
-                  </a>
+                <!-- Profile Details -->
+                <div class="space-y-2">
+                  <!-- NPub -->
+                  <div class="flex items-center space-x-2">
+                    <IconKey class="w-4 h-4 text-gray-400" />
+                    <code class="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                      {{ getShortNpub() }}
+                    </code>
+                    <button
+                      @click="copyToClipboard(currentUser.npub)"
+                      class="text-gray-400 hover:text-gray-600 transition-colors"
+                      title="Copy npub"
+                    >
+                      <IconCheck v-if="copySuccess" class="w-3 h-3 text-green-600" />
+                      <IconCopy v-else class="w-3 h-3" />
+                    </button>
+                  </div>
+                  
+                  <!-- NIP-05 -->
+                  <div v-if="userProfile?.nip05" class="flex items-center space-x-2">
+                    <IconShield class="w-4 h-4 text-green-500" />
+                    <span class="text-xs text-green-600">{{ userProfile.nip05 }}</span>
+                  </div>
+                  
+                  <!-- Lightning Address (LUD16) -->
+                  <div v-if="userProfile?.lud16" class="flex items-center space-x-2">
+                    <IconBolt class="w-4 h-4 text-orange-500" />
+                    <span class="text-xs text-orange-600">{{ userProfile.lud16 }}</span>
+                  </div>
+                  
+                  <!-- Website -->
+                  <div v-if="userProfile?.website" class="flex items-center space-x-2">
+                    <IconGlobe class="w-4 h-4 text-blue-500" />
+                    <a 
+                      :href="userProfile.website" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      class="text-xs text-blue-600 hover:text-blue-700 hover:underline"
+                    >
+                      {{ userProfile.website }}
+                      <IconExternalLink class="w-3 h-3 inline ml-1" />
+                    </a>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-          
-          <div class="flex flex-col space-y-2">
-            <div class="text-right">
-              <div class="text-sm font-medium text-green-600">Connected</div>
-              <div class="text-xs text-gray-500">{{ connectedRelays.length }} relays</div>
-            </div>
             
-            <div class="flex space-x-2">
-              <button
-                @click="handleRefreshProfile"
-                :disabled="refreshingProfile"
-                class="btn-secondary text-xs"
-                title="Refresh profile"
-              >
-                <IconRefresh :class="['w-3 h-3', refreshingProfile ? 'animate-spin' : '']" />
-              </button>
+            <div class="flex flex-col space-y-2">
+              <div class="text-right">
+                <div class="text-sm font-medium text-green-600">Connected</div>
+                <div class="text-xs text-gray-500">{{ connectedRelays.length }} relays</div>
+              </div>
               
-              <button
-                @click="handleLogout"
-                class="btn-secondary text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
-              >
-                <IconX class="w-3 h-3" />
-                Logout
-              </button>
+              <div class="flex space-x-2">
+                <button
+                  @click="handleEditProfile"
+                  class="p-2 rounded-lg text-purple-600 hover:text-purple-700 hover:bg-purple-50 flex items-center justify-center"
+                  title="Edit profile"
+                >
+                  <IconEdit class="w-3 h-3" />
+                  <span class="hidden sm:ml-1 sm:inline text-xs">Edit</span>
+                </button>
+                
+                <button
+                  @click="handleRefreshProfile"
+                  :disabled="refreshingProfile"
+                  class="p-2 rounded-lg text-gray-600 hover:text-gray-700 hover:bg-gray-50 flex items-center justify-center"
+                  title="Refresh profile"
+                >
+                  <IconRefresh :class="['w-3 h-3', refreshingProfile ? 'animate-spin' : '']" />
+                  <span class="hidden sm:ml-1 sm:inline text-xs">Refresh</span>
+                </button>
+                
+                <button
+                  @click="handleLogout"
+                  class="p-2 rounded-lg text-red-600 hover:text-red-700 hover:bg-red-50 flex items-center justify-center"
+                  title="Logout"
+                >
+                  <IconX class="w-3 h-3" />
+                  <span class="hidden sm:ml-1 sm:inline text-xs">Logout</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
