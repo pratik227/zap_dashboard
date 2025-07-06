@@ -337,28 +337,30 @@ const handleProfileUpdated = () => {
               <div class="flex space-x-2">
                 <button
                   @click="handleEditProfile"
-                  class="btn-secondary text-xs text-purple-600 hover:text-purple-700 hover:bg-purple-50"
+                  class="p-2 rounded-lg text-purple-600 hover:text-purple-700 hover:bg-purple-50 flex items-center justify-center"
                   title="Edit profile"
                 >
                   <IconEdit class="w-3 h-3" />
-                  Edit
+                  <span class="hidden sm:ml-1 sm:inline text-xs">Edit</span>
                 </button>
                 
                 <button
                   @click="handleRefreshProfile"
                   :disabled="refreshingProfile"
-                  class="btn-secondary text-xs"
+                  class="p-2 rounded-lg text-gray-600 hover:text-gray-700 hover:bg-gray-50 flex items-center justify-center"
                   title="Refresh profile"
                 >
                   <IconRefresh :class="['w-3 h-3', refreshingProfile ? 'animate-spin' : '']" />
+                  <span class="hidden sm:ml-1 sm:inline text-xs">Refresh</span>
                 </button>
                 
                 <button
                   @click="handleLogout"
-                  class="btn-secondary text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
+                  class="p-2 rounded-lg text-red-600 hover:text-red-700 hover:bg-red-50 flex items-center justify-center"
+                  title="Logout"
                 >
                   <IconX class="w-3 h-3" />
-                  Logout
+                  <span class="hidden sm:ml-1 sm:inline text-xs">Logout</span>
                 </button>
               </div>
             </div>

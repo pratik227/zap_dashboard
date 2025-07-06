@@ -418,7 +418,8 @@ initializeForm()
       <div class="flex justify-end space-x-3 pt-4">
         <button
           @click="handleCancel" 
-          class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 text-sm font-medium transition-colors flex items-center space-x-2"
+          class="p-2 sm:px-4 sm:py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 text-sm font-medium transition-colors flex items-center justify-center sm:justify-start space-x-1 sm:space-x-2 min-w-[40px] sm:min-w-[80px]"
+          title="Cancel"
         >
           <IconX class="w-4 h-4" />
           <span class="hidden sm:inline">Cancel</span>
@@ -426,7 +427,8 @@ initializeForm()
         <button
           @click="saveProfile"
           :disabled="isLoading"
-          class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm font-medium transition-colors flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed min-w-[44px] justify-center"
+          class="p-2 sm:px-4 sm:py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm font-medium transition-colors flex items-center justify-center sm:justify-start space-x-1 sm:space-x-2 disabled:opacity-50 disabled:cursor-not-allowed min-w-[40px] sm:min-w-[120px]"
+          title="Save Profile"
         >
           <IconLoader v-if="isLoading" class="w-4 h-4 animate-spin" />
           <IconDeviceFloppy v-else class="w-4 h-4" />
