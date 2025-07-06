@@ -16,7 +16,7 @@ import {
 } from '@iconify-prerendered/vue-tabler'
 
 const currentPage = inject('currentPage')
-const zapData = inject('zapData')
+const combinedZapData = inject('combinedZapData')
 const emit = defineEmits(['change-page'])
 
 // Real-time wallet data
@@ -51,7 +51,7 @@ async function fetchWalletData() {
 }
 
 // Watch for zapData changes to refresh wallet data
-watch(() => zapData.value.length, (newLength) => {
+watch(() => combinedZapData.value.length, (newLength) => {
   if (newLength > 0) {
     fetchWalletData()
   }
@@ -62,8 +62,8 @@ onMounted(() => {
 })
 
 // Make totalZaps and totalSats reactive computed properties
-const totalZaps = computed(() => zapData.value.length)
-const totalSats = computed(() => zapData.value.reduce((sum, zap) => sum + zap.amount, 0))
+const totalZaps = computed(() => combinedZapData.value.length)
+const totalSats = computed(() => combinedZapData.value.reduce((sum, zap) => sum + zap.amount, 0))
 
 const menuItems = [
   { id: 'dashboard', label: 'Dashboard', icon: IconDashboard },

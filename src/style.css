@@ -21,6 +21,11 @@
     -moz-osx-font-smoothing: grayscale;
   }
   
+/* Cursor styles for clickable elements */
+.cursor-pointer {
+  cursor: pointer;
+}
+
   /* Responsive typography */
   html {
     font-size: 14px;
@@ -195,6 +200,27 @@
 }
 
 .animate-modal-content {
+  transition: transform 0.3s ease-out;
+}
+
+/* Zap event modal styles */
+.event-modal-enter-active,
+.event-modal-leave-active {
+  transition: all 0.3s ease-out;
+}
+
+.event-modal-enter-from,
+.event-modal-leave-to {
+  opacity: 0;
+  transform: scale(0.95);
+}
+
+.event-modal-enter-from .event-modal-content,
+.event-modal-leave-to .event-modal-content {
+  transform: scale(0.95) translateY(10px);
+}
+
+.event-modal-content {
   transition: transform 0.3s ease-out;
 }
 

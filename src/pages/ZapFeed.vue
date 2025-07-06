@@ -1,16 +1,79 @@
 <script setup>
-import { computed, inject } from 'vue'
-import { IconBolt, IconFileText, IconMessageCircle, IconRepeat, IconDeviceMobile, IconUser } from '@iconify-prerendered/vue-tabler'
-import Filters from '../components/Filters.vue'
+import { computed, inject, ref } from 'vue'
+import { 
+  IconBolt, 
+  IconFileText, 
+  IconMessageCircle, 
+  IconRepeat, 
+  IconDeviceMobile, 
+  IconUser,
+  IconWallet,
+  IconAlertCircle
+} from '@iconify-prerendered/vue-tabler'
 import { filterZapsByTimeRange } from '../utils/timeFilter.js'
+import ZapEventModal from '../components/ZapEventModal.vue'
+import { useContentZaps } from '../composables/useContentZaps.js'
 
 const zapData = inject('zapData')
 const searchQuery = inject('searchQuery')
 const selectedFilters = inject('selectedFilters')
 const selectedTimeRange = inject('selectedTimeRange')
 
+// Get zap data from useContentZaps
+const { getAllContentZaps } = useContentZaps()
+
+// State for event modal
+const showEventModal = ref(false)
+const selectedEventId = ref(null)
+
+// Combine NWC payments and NIP-57 zaps
+const combinedZaps = computed(() => {
+  // Get NWC payments from zapData
+  const nwcPayments = zapData.value.map(zap => ({
+    ...zap,
+    source: 'nwc', // Mark as NWC payment
+    eventId: null // NWC payments don't have associated event IDs
+  }))
+  
+  // Get NIP-57 zaps from useContentZaps
+  const contentZapsMap = getAllContentZaps.value
+  const nip57Zaps = []
+  
+  // Convert the map of content zaps to an array
+  Object.entries(contentZapsMap).forEach(([eventId, zapData]) => {
+    zapData.zaps.forEach(zap => {
+      nip57Zaps.push({
+        id: zap.id,
+        amount: zap.amount,
+        timestamp: zap.timestamp,
+        sender: {
+          name: zap.sender?.name || `User ${zap.zapperPubkey.substring(0, 8)}`,
+          pubkey: zap.zapperPubkey,
+          nip05: zap.sender?.nip05 || null,
+          avatar: generateAvatar({ pubkey: zap.zapperPubkey }, nip57Zaps.length)
+        },
+        note: zap.message || 'Zap',
+        noteType: 'original',
+        client: 'nostr',
+        source: 'nip57',
+        eventId: eventId, // Store the original event ID
+        engagement: {
+          replies: 0,
+          reposts: 0,
+          likes: 0
+        }
+      })
+    })
+  })
+  
+  // Combine and sort by timestamp
+  return [...nwcPayments, ...nip57Zaps].sort((a, b) => 
+    new Date(b.timestamp) - new Date(a.timestamp)
+  )
+})
+
 const filteredZaps = computed(() => {
-  let zaps = [...zapData.value]
+  let zaps = combinedZaps.value
   
   // Apply search filter
   if (searchQuery.value) {
@@ -42,6 +105,20 @@ const filteredZaps = computed(() => {
   
   return zaps.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
 })
+
+// Handle click on zap item
+const handleZapClick = (zap) => {
+  if (zap.eventId) {
+    selectedEventId.value = zap.eventId
+    showEventModal.value = true
+  }
+}
+
+// Close event modal
+const closeEventModal = () => {
+  showEventModal.value = false
+  selectedEventId.value = null
+}
 
 const formatDate = (timestamp) => {
   const date = new Date(timestamp)
@@ -149,6 +226,16 @@ const getTransactionTypeColor = (zap) => {
   return zap.type === 'outgoing' ? 'text-red-600' : 'text-green-600'
 }
 
+// Get source icon
+const getSourceIcon = (zap) => {
+  return zap.source === 'nip57' ? IconBolt : IconWallet
+}
+
+// Get source color
+const getSourceColor = (zap) => {
+  return zap.source === 'nip57' ? 'text-orange-600 bg-orange-100' : 'text-blue-600 bg-blue-100'
+}
+
 // Get transaction type background color class
 const getTransactionTypeBgColor = (zap) => {
   return zap.type === 'outgoing' ? 'from-red-100 to-pink-100' : 'from-orange-100 to-amber-100'
@@ -196,21 +283,24 @@ const truncateNote = (note, maxLength = 120) => {
       <div class="divide-y divide-orange-100/50">
         <transition-group name="list-item" tag="div">
           <div
-            v-for="(zap, index) in filteredZaps"
+            v-for="(zap, index) in filteredZaps.length ? filteredZaps : []"
             :key="zap.id"
-            class="p-3 hover:bg-orange-25/50 transition-all duration-200 hover:shadow-sm"
+            class="p-3 hover:bg-orange-25/50 transition-all duration-200 hover:shadow-sm cursor-pointer"
+            @click="handleZapClick(zap)"
             :style="{ animationDelay: `${index * 0.05}s` }"
           >
             <!-- Compact Layout -->
             <div class="flex items-center space-x-3">
               <!-- Smaller Avatar -->
               <div class="relative flex-shrink-0">
-                <img
-                  :src="generateAvatar(zap.sender, index)"
-                  :alt="getSenderName(zap.sender)"
-                  class="w-8 h-8 rounded-full border-2 border-orange-200 transition-all duration-200 hover:border-orange-300"
-                  @error="$event.target.src = generateAvatar(zap.sender, index)"
-                />
+                <div class="w-8 h-8 rounded-full border-2 border-orange-200 transition-all duration-200 hover:border-orange-300 overflow-hidden">
+                  <img
+                    :src="zap.sender?.avatar || zap.sender?.picture || generateAvatar(zap.sender, index)"
+                    :alt="getSenderName(zap.sender) || 'User'"
+                    class="w-full h-full object-cover"
+                    @error="$event.target.src = generateAvatar(zap.sender, index)"
+                  />
+                </div>
               </div>
               
               <!-- Main Content - Single Row Layout -->
@@ -228,6 +318,10 @@ const truncateNote = (note, maxLength = 120) => {
                     <span :class="['text-xs font-medium', getTransactionTypeColor(zap)]">
                       {{ getTransactionTypeText(zap) }}
                     </span>
+                    <!-- Source indicator -->
+                    <span :class="['px-1.5 py-0.5 rounded-full text-xs flex items-center space-x-1', getSourceColor(zap)]">
+                      <component :is="getSourceIcon(zap)" class="w-3 h-3" />
+                    </span>
                   </div>
                   
                   <div class="flex items-center space-x-2 flex-shrink-0">
@@ -243,7 +337,7 @@ const truncateNote = (note, maxLength = 120) => {
                 <!-- Note Content Row -->
                 <div class="flex items-center justify-between">
                   <p class="text-sm text-gray-700 flex-1 mr-3 truncate">
-                    {{ truncateNote(zap.note) }}
+                    <span v-if="zap.eventId" class="text-orange-600 font-medium mr-1">⚡</span>{{ truncateNote(zap.note) }}
                   </p>
                   
                   <!-- Compact Metadata -->
@@ -263,7 +357,7 @@ const truncateNote = (note, maxLength = 120) => {
       </div>
       
       <!-- Empty State -->
-      <div v-if="filteredZaps.length === 0" class="text-center py-8 animate-fade-in">
+      <div v-if="!filteredZaps.length" class="text-center py-8 animate-fade-in">
         <div class="text-4xl mb-3 animate-bounce-subtle">
           <IconBolt class="w-12 h-12 mx-auto text-gray-300" />
         </div>
@@ -272,8 +366,25 @@ const truncateNote = (note, maxLength = 120) => {
           {{ zapData.length === 0 ? 'Connect your wallet to see real zap data' : 'Try adjusting your filters or search terms.' }}
         </p>
       </div>
+      
+      <!-- Debug Info -->
+      <div v-if="!filteredZaps.length && zapData.length > 0" class="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+        <div class="flex items-center space-x-2">
+          <IconAlertCircle class="w-5 h-5 text-amber-600" />
+          <div>
+            <p class="text-sm text-amber-800">You have {{ zapData.length }} zaps in your wallet, but none match your current filters.</p>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
+  
+  <!-- Event Modal -->
+  <ZapEventModal 
+    :event-id="selectedEventId" 
+    :show="showEventModal" 
+    @close="closeEventModal" 
+  />
 </template>
 
 <style scoped>
