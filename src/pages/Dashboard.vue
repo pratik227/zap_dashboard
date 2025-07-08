@@ -102,7 +102,9 @@ onMounted(() => {
 // Dynamic stats based on real data and time range
 const stats = computed(() => {
   const allZaps = combinedZapData.value
-  const filteredZaps = filterZapsByTimeRange(allZaps, selectedTimeRange.value)
+  // Filter to only show zaps with eventId (NIP-57 zaps) first, then apply time range filter
+  const nip57Zaps = allZaps.filter(zap => zap.eventId)
+  const filteredZaps = filterZapsByTimeRange(nip57Zaps, selectedTimeRange.value)
   
   const totalSats = filteredZaps.reduce((sum, zap) => sum + zap.amount, 0)
   const totalUSD = satsToUSD(totalSats)
@@ -258,7 +260,9 @@ const chartOption = computed(() => {
 // Recent zaps from real data - NOW FILTERED BY TIME RANGE
 const recentZaps = computed(() => {
   const allZaps = combinedZapData.value
-  const filteredZaps = filterZapsByTimeRange(allZaps, selectedTimeRange.value)
+  // Filter to only show zaps with eventId (NIP-57 zaps) first, then apply time range filter
+  const nip57Zaps = allZaps.filter(zap => zap.eventId)
+  const filteredZaps = filterZapsByTimeRange(nip57Zaps, selectedTimeRange.value)
   
   return filteredZaps
     .slice(0, 5) // Take only the first 5 after filtering

@@ -62,8 +62,16 @@ onMounted(() => {
 })
 
 // Make totalZaps and totalSats reactive computed properties
-const totalZaps = computed(() => combinedZapData.value.length)
-const totalSats = computed(() => combinedZapData.value.reduce((sum, zap) => sum + zap.amount, 0))
+const totalZaps = computed(() => {
+  // Only count zaps with eventId (NIP-57 zaps)
+  return combinedZapData.value.filter(zap => zap.eventId).length
+})
+const totalSats = computed(() => {
+  // Only sum amounts from zaps with eventId (NIP-57 zaps)
+  return combinedZapData.value
+    .filter(zap => zap.eventId)
+    .reduce((sum, zap) => sum + zap.amount, 0)
+})
 
 const menuItems = [
   { id: 'dashboard', label: 'Dashboard', icon: IconDashboard },
