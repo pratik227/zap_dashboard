@@ -16,6 +16,9 @@ const profileFetchPromises = new Map()
 // Zap data structure
 const createZapData = (zapEvent) => {
   try {
+    // Extract payment hash/id from zap receipt
+    const id = zapEvent.id
+    
     // Extract zap receipt data (kind 9735)
     const amount = extractZapAmount(zapEvent)
     const zapperPubkey = zapEvent.pubkey
@@ -25,8 +28,11 @@ const createZapData = (zapEvent) => {
     const eventId = extractEventId(zapEvent)
     const senderProfile = { pubkey: zapperPubkey }
     
+    // Log the extracted data for debugging
+    console.log(`Creating zap data for event ${eventId}, payment hash: ${id}, amount: ${amount}`)
+    
     const zapData = {
-      id: zapEvent.id,
+      id: id, // This should be the payment hash for deduplication
       amount,
       zapperPubkey: zapperPubkey,
       sender: {
@@ -107,7 +113,14 @@ const extractZapMessage = (zapEvent) => {
 // Extract bolt11 invoice
 const extractBolt11 = (zapEvent) => {
   const bolt11Tag = zapEvent.tags.find(tag => tag[0] === 'bolt11')
-  return bolt11Tag ? bolt11Tag[1] : null
+  const bolt11 = bolt11Tag ? bolt11Tag[1] : null
+  
+  // Log the bolt11 for debugging
+  if (bolt11) {
+    console.log(`Found bolt11 invoice in zap event ${zapEvent.id}: ${bolt11.substring(0, 20)}...`)
+  }
+  
+  return bolt11
 }
 
 // Extract event ID from zap receipt
