@@ -64,11 +64,11 @@ const filteredZaps = computed(() => {
 // Handle click on zap item
 const handleZapClick = (zap) => {
   if (zap.eventId) {
-    console.log('Opening event modal for eventId:', zap.eventId)
+    console.log('Opening event modal for eventId:', zap.eventId, 'source:', zap.source)
     selectedEventId.value = zap.eventId
     showEventModal.value = true
   } else {
-    console.log('No eventId available for this zap:', zap.id)
+    console.log('No eventId available for this zap:', zap.id, 'source:', zap.source)
   }
 }
 

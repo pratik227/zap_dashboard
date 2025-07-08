@@ -43,8 +43,27 @@ export function mapTransactionToZap(transaction, index) {
 }
 
 export function processTransactions(transactions) {
+  // Create a Set to track processed payment hashes
+  const processedHashes = new Set()
+  
   return transactions
-    .filter(tx => tx.type === 'incoming' && tx.state === 'settled')
-    .map(mapTransactionToZap)
+    .filter(tx => {
+      // Only include incoming settled transactions
+      if (tx.type !== 'incoming' || tx.state !== 'settled') {
+        return false
+      }
+      
+      // Check if we've already processed this payment hash
+      const paymentHash = tx.payment_hash || tx.id
+      if (processedHashes.has(paymentHash)) {
+        console.log(`Skipping duplicate transaction with hash ${paymentHash}`)
+        return false
+      }
+      
+      // Add to processed set and include this transaction
+      processedHashes.add(paymentHash)
+      return true
+    })
+    .map((tx, index) => mapTransactionToZap(tx, index))
     .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
 }

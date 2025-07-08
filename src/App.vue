@@ -82,9 +82,18 @@ const combinedZapData = computed(() => {
   const contentZapsMap = getAllContentZaps.value
   const nip57Zaps = []
   
+  // Track payment hashes to avoid duplicates
+  const processedPaymentHashes = new Set(nwcPayments.map(zap => zap.id))
+  
   // Convert the map of content zaps to an array
   Object.entries(contentZapsMap).forEach(([eventId, zapData]) => {
     zapData.zaps.forEach(zap => {
+      // Skip if this zap is already in nwcPayments (by payment hash/id)
+      if (processedPaymentHashes.has(zap.id)) {
+        console.log(`Skipping duplicate zap with id ${zap.id} - already in NWC payments`)
+        return
+      }
+      
       nip57Zaps.push({
         id: zap.id,
         amount: zap.amount,
@@ -99,7 +108,6 @@ const combinedZapData = computed(() => {
         noteType: 'original',
         client: 'nostr',
         source: 'nip57', // Explicitly mark as NIP-57 zap
-        source: 'nip57',
         eventId: eventId
       })
     })
