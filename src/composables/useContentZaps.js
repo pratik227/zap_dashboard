@@ -35,7 +35,6 @@ const createZapData = (zapEvent) => {
     const zapperPubkey = zapEvent.pubkey
     const timestamp = zapEvent.created_at * 1000 // Convert to milliseconds
     const message = extractZapMessage(zapEvent)
-    const bolt11 = extractBolt11(zapEvent)
     const eventId = extractEventId(zapEvent)
     const senderProfile = { pubkey: zapperPubkey }
     
