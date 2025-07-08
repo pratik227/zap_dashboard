@@ -46,8 +46,8 @@ const contentTypes = [
 ]
 
 const monetizationModels = [
-  { value: 'one-time', label: 'One-time Purchase' },
-  { value: 'subscription', label: 'Subscription' },
+  // { value: 'one-time', label: 'One-time Purchase' },
+  // { value: 'subscription', label: 'Subscription' },
   { value: 'free', label: 'Free' }
 ]
 
