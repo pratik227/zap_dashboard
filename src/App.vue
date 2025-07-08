@@ -77,8 +77,7 @@ const isRefreshingData = ref(false)
 // Combine NWC payments (zapData) with NIP-57 zaps
 const combinedZapData = computed(() => {
   // Create a map to store unique zaps by payment hash/id
-  // Only include zaps with eventId (NIP-57 zaps)
-  const nip57ZapsMap = new Map()
+  const uniqueZapsMap = new Map()
   
   // First, process NIP-57 zaps from useContentZaps (prioritize these)
   const contentZapsMap = getAllContentZaps.value
@@ -86,8 +85,8 @@ const combinedZapData = computed(() => {
   // Convert the map of content zaps to an array
   Object.entries(contentZapsMap).forEach(([eventId, zapData]) => {
     zapData.zaps.forEach(zap => {
-      // Only add zaps that have an eventId (NIP-57 zaps)
-      nip57ZapsMap.set(zap.id, {
+      // Add NIP-57 zap to the map with payment hash/id as key
+      uniqueZapsMap.set(zap.id, {
         id: zap.id,
         amount: zap.amount,
         timestamp: zap.timestamp,
@@ -105,9 +104,23 @@ const combinedZapData = computed(() => {
       })
     })
   })
+  
+  // Now process NWC payments, only adding them if they don't already exist in the map
+  zapData.value.forEach(zap => {
+    // Only add NWC payment if we don't already have a NIP-57 zap with the same ID
+    if (!uniqueZapsMap.has(zap.id)) {
+      uniqueZapsMap.set(zap.id, {
+        ...zap,
+        source: 'nwc', // Explicitly mark as NWC payment
+        eventId: null // NWC payments don't have associated event IDs
+      })
+    } else {
+      console.log(`Skipping duplicate NWC payment with id ${zap.id?.substring(0, 16)}... (already have NIP-57 zap)`)
+    }
+  })
 
   // Convert map values to array and sort by timestamp
-  return Array.from(nip57ZapsMap.values()).sort((a, b) => 
+  return Array.from(uniqueZapsMap.values()).sort((a, b) => 
     new Date(b.timestamp) - new Date(a.timestamp)
   )
 })

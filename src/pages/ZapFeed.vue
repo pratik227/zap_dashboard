@@ -30,6 +30,9 @@ const selectedEventId = ref(null)
 const filteredZaps = computed(() => {
   let zaps = combinedZapData.value
   
+  // Filter to only show zaps with eventId (NIP-57 zaps)
+  zaps = zaps.filter(zap => zap.eventId)
+  
   // Apply search filter
   if (searchQuery.value) {
     const query = searchQuery.value.toLowerCase()
