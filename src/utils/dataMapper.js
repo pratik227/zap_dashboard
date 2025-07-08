@@ -51,8 +51,8 @@ export function processTransactions(transactions) {
   
   return transactions
     .filter(tx => {
-      // Only include settled transactions (both incoming and outgoing)
-      if (tx.state !== 'settled') {
+      // Only include incoming settled transactions
+      if (tx.type !== 'incoming' || tx.state !== 'settled') {
         return false
       }
       
@@ -66,8 +66,6 @@ export function processTransactions(transactions) {
       // Add to processed set and include this transaction
       if (paymentHash) {
         processedHashes.add(paymentHash)
-        // Add transaction type to make filtering easier
-        tx.transactionType = tx.type
       }
       return true
     })
