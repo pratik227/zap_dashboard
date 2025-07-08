@@ -478,7 +478,7 @@ const getPercentageChange = (current, type) => {
   </div>
 
     <!-- Wallet Balance Card -->
-    <div v-if="walletBalance > 0" class="bg-gradient-to-r from-green-400 to-emerald-500 text-white p-4 sm:p-6 rounded-xl shadow-lg">
+    <div v-if="walletBalance > 0" class="bg-gradient-to-r from-green-400 to-emerald-500 text-white mt-4 p-4 sm:p-6 rounded-xl shadow-lg">
       <div class="flex items-center justify-between">
         <div>
           <h3 class="text-lg font-semibold mb-1 flex items-center space-x-2">
