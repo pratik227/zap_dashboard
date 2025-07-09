@@ -521,7 +521,7 @@ onUnmounted(() => {
                 </span>
                 <span v-if="getZapCount(selectedNote.id) > 0" class="flex items-center space-x-1">
                   <IconBolt class="w-4 h-4 text-orange-600" />
-                  <span class="text-orange-600">{{ formatZapAmount(getTotalZapAmount(selectedNote.id)) }} sats</span>
+                  <span class="text-orange-600">{{ formatZapAmount(getTotalZapAmount(selectedNote.id)) }} sats ({{ getZapCount(selectedNote.id) }})</span>
                 </span>
               </div>
             </div>
