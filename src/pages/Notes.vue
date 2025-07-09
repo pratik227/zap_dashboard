@@ -302,7 +302,7 @@ onUnmounted(() => {
           <div class="bg-gradient-to-r from-orange-400 to-amber-400 text-white p-4 rounded-xl shadow-sm">
             <div class="flex flex-col">
               <p class="text-orange-100 text-sm mb-1">Total Revenue</p>
-              <p class="text-3xl font-bold mb-1">{{ noteStats.totalZapRevenue.toLocaleString() }}</p>
+              <p class="text-3xl font-bold mb-1">{{ noteStats.totalZapRevenue.toLocaleString() }} sats </p>
               <p class="text-orange-100 text-xs">
                 ≈ {{ revenueInUSD }} USD
               </p>
