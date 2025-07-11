@@ -17,7 +17,8 @@ import {
   IconEye,
   IconEyeOff,
   IconChevronDown,
-  IconChevronRight
+  IconChevronRight,
+  IconRefresh
 } from '@iconify-prerendered/vue-tabler'
 import { useNostrConnections } from '../composables/useNostrConnections.js'
 
@@ -380,7 +381,7 @@ const formatDate = (dateString) => {
               </div>
               
               <!-- Simplified Actions -->
-              <div class="flex space-x-3 pt-2">
+              <div class="flex flex-col sm:flex-row items-center justify-end space-y-3 sm:space-y-0 sm:space-x-3 mt-6">
                 <button @click="closeAddForm" class="btn-secondary flex-1">Cancel</button>
                 <button @click="handleAddConnection" class="btn-primary flex-1">Add</button>
               </div>

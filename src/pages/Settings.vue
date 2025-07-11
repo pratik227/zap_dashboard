@@ -1,9 +1,10 @@
 <script setup>
 import { ref, onMounted, watch } from 'vue'
-import { IconSettings, IconBolt, IconBell, IconShield, IconUser } from '@iconify-prerendered/vue-tabler'
+import { IconSettings, IconBolt, IconBell, IconShield, IconUser, IconRefresh, IconTrash } from '@iconify-prerendered/vue-tabler'
 import SettingsConnections from '../components/SettingsConnections.vue'
 import NotificationSettings from '../components/NotificationSettings.vue'
 import NostrSettings from '../components/NostrSettings.vue'
+import AccountReset from '../components/AccountReset.vue'
 
 // Define props to receive the initial tab from parent
 const props = defineProps({
@@ -13,12 +14,15 @@ const props = defineProps({
   }
 })
 
+const emit = defineEmits(['change-page'])
+
 const activeTab = ref('nostr')
 
 const tabs = [
   { id: 'nostr', label: 'Nostr', icon: IconUser },
   { id: 'wallet', label: 'Wallet', icon: IconBolt },
   { id: 'alerts', label: 'Notifications', icon: IconBell },
+  { id: 'reset', label: 'Reset', icon: IconRefresh }
   // { id: 'privacy', label: 'Privacy', icon: IconShield }
 ]
 
@@ -74,17 +78,22 @@ watch(() => props.initialTab, (newTab) => {
       <div class="p-6">
         <!-- Nostr Settings -->
         <div v-if="activeTab === 'nostr'">
-          <NostrSettings />
+          <NostrSettings @change-page="emit('change-page', $event)" />
         </div>
         
         <!-- Wallet Settings -->
         <div v-if="activeTab === 'wallet'">
-          <SettingsConnections />
+          <SettingsConnections @change-page="emit('change-page', $event)" />
         </div>
         
         <!-- Notification Settings -->
         <div v-if="activeTab === 'alerts'">
           <NotificationSettings />
+        </div>
+        
+        <!-- Reset Settings -->
+        <div v-if="activeTab === 'reset'">
+          <AccountReset />
         </div>
         
         <!-- Privacy Settings -->
