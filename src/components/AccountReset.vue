@@ -27,9 +27,8 @@ const resetStep = ref(0)
 const resetProgress = ref(0)
 const resetSteps = [
   'Preparing for reset',
-  'Clearing NWC data',
-  'Clearing Nostr data',
-  'Validating storage integrity',
+  'Clearing wallet connections',
+  'Removing Nostr identity',
   'Finalizing reset'
 ]
 
@@ -56,22 +55,22 @@ const handleReset = async () => {
     // Step 1: Prepare
     resetStep.value = 0
     resetProgress.value = 10
-    await new Promise(resolve => setTimeout(resolve, 500)) // Small delay for UI
+    await new Promise(resolve => setTimeout(resolve, 300)) // Small delay for UI
     
-    // Step 2: Perform complete reset
+    // Step 2: Clear wallet connections
     resetStep.value = 1
     resetProgress.value = 30
-    await performCompleteReset()
-    await new Promise(resolve => setTimeout(resolve, 500)) // Small delay for UI
+    await new Promise(resolve => setTimeout(resolve, 300)) // Small delay for UI
     
-    // Step 3: Validate reset was successful
+    // Step 3: Remove Nostr identity
     resetStep.value = 2
     resetProgress.value = 70
-    await new Promise(resolve => setTimeout(resolve, 500)) // Small delay for UI
+    await new Promise(resolve => setTimeout(resolve, 300)) // Small delay for UI
     
-    // Step 4: Finalize
-    resetStep.value = 3
+    // Step 4: Perform the actual reset and finalize
+    resetStep.value = 3 
     resetProgress.value = 100
+    await performCompleteReset()
     
     // Check final status
     connectionStatus.value = await verifyConnectionStatus()
@@ -79,10 +78,20 @@ const handleReset = async () => {
     resetResult.value = { success: true }
     resetComplete.value = true
     
-    // Force page reload after 3 seconds to ensure all components are reset
-    setTimeout(() => {
+    // Show a full-screen success message
+    document.body.style.overflow = 'hidden'
+    
+    // Force page reload after 5 seconds to ensure all components are reset
+    const reloadTimer = setTimeout(() => {
+      document.body.style.overflow = ''
       window.location.reload()
-    }, 3000)
+    }, 5000)
+    
+    // Allow user to cancel the automatic reload
+    window.cancelReload = () => {
+      clearTimeout(reloadTimer)
+      document.body.style.overflow = ''
+    }
   } catch (error) {
     console.error('Reset failed:', error)
     resetError.value = error.message || 'Reset failed'
@@ -254,17 +263,6 @@ onMounted(async () => {
         </div>
       </div>
     </div>
-
-    <!-- Post-Reset Message -->
-    <div v-if="resetComplete && resetResult?.success" class="bg-green-50 border border-green-200 rounded-xl shadow-sm p-6 text-center animate-fade-in">
-      <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce-subtle">
-        <IconRefresh class="w-8 h-8 text-green-600" />
-      </div>
-      <h3 class="text-xl font-semibold text-green-900 mb-2">Reset Complete</h3>
-      <p class="text-green-800 mb-4">
-        Your account data has been successfully reset. You will be redirected to the dashboard in a few seconds.
-      </p>
-    </div>
     
     <!-- Security Notice -->
     <div class="bg-orange-50 border border-orange-200 rounded-lg p-4 shadow-sm">
@@ -279,4 +277,51 @@ onMounted(async () => {
       </div>
     </div>
   </div>
+  
+  <!-- Full-screen Success Message -->
+  <Teleport to="body">
+    <transition name="fade">
+      <div v-if="resetComplete && resetResult?.success" class="fixed inset-0 bg-black/90 z-[9999] flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl p-8 max-w-md w-full text-center shadow-2xl">
+          <div class="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse">
+            <IconCheck class="w-10 h-10 text-green-600" />
+          </div>
+          <h2 class="text-2xl font-bold text-gray-900 mb-4">Reset Complete!</h2>
+          <p class="text-lg text-gray-700 mb-6">
+            All your account data has been successfully cleared. The page will refresh in a few seconds.
+          </p>
+          <div class="w-full bg-gray-200 rounded-full h-2 mb-6">
+            <div class="bg-green-600 h-2 rounded-full animate-countdown"></div>
+          </div>
+          <button 
+            @click="window.location.reload()"
+            class="btn-primary w-full"
+          >
+            <IconRefresh class="w-4 h-4" />
+            Refresh Now
+          </button>
+        </div>
+      </div>
+    </transition>
+  </Teleport>
 </template>
+<style scoped>
+.animate-countdown {
+  animation: countdown 5s linear forwards;
+}
+
+@keyframes countdown {
+  from { width: 100%; }
+  to { width: 0%; }
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.5s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+</style>
