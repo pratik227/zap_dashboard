@@ -21,6 +21,31 @@
     -moz-osx-font-smoothing: grayscale;
   }
   
+/* Emoji Picker Styles */
+.v3-emoji-picker {
+  --ep-color-bg: #ffffff;
+  --ep-color-sbg: #f5f5f5;
+  --ep-color-border: #e0e0e0;
+  --ep-color-selected: #fb923c;
+  --ep-color-hover: #fff7ed;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--ep-color-border);
+  border-radius: 0.75rem;
+  max-height: 350px;
+}
+
+.v3-emoji-picker .v3-header {
+  border-bottom-color: var(--ep-color-border);
+}
+
+.v3-emoji-picker .v3-emoji-picker-category-button.active {
+  color: var(--ep-color-selected);
+}
+
+.v3-emoji-picker .v3-emoji:hover {
+  background-color: var(--ep-color-hover);
+}
+
 /* Cursor styles for clickable elements */
 .cursor-pointer {
   cursor: pointer;

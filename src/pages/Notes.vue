@@ -1,5 +1,7 @@
 <script setup>
 import { ref, onMounted, computed, onUnmounted, watch } from 'vue'
+import EmojiPicker from 'vue3-emoji-picker'
+import 'vue3-emoji-picker/css'
 import {
   IconFileText, 
   IconPlus, 
@@ -161,6 +163,7 @@ const noteStats = computed(() => {
 const showViewPopup = ref(false)
 const showMediaUrlInput = ref(false)
 const showClientDropdown = ref(false)
+const showEmojiPicker = ref(false)
 const showVideoUrlInput = ref(false)
 const mediaUrl = ref('')
 const noteTextarea = ref(null)
@@ -289,6 +292,30 @@ const insertMediaUrl = (type) => {
     setTimeout(() => {
       textarea.focus()
       const newCursorPos = cursorPos + mediaText.length
+      textarea.setSelectionRange(newCursorPos, newCursorPos)
+    }, 50)
+  }
+}
+
+// Handle emoji selection
+const handleEmojiSelect = (emoji) => {
+  const textarea = noteTextarea.value
+  
+  if (textarea) {
+    const cursorPos = textarea.selectionStart
+    const textBefore = noteForm.content.substring(0, cursorPos)
+    const textAfter = noteForm.content.substring(textarea.selectionEnd)
+    
+    // Update content with emoji
+    noteForm.content = textBefore + emoji.i + textAfter
+    
+    // Reset emoji picker state
+    showEmojiPicker.value = false
+    
+    // Focus back on textarea and set cursor position after the emoji
+    setTimeout(() => {
+      textarea.focus()
+      const newCursorPos = cursorPos + emoji.i.length
       textarea.setSelectionRange(newCursorPos, newCursorPos)
     }, 50)
   }
@@ -583,19 +610,25 @@ onUnmounted(() => {
                   <span class="text-sm">Video</span>
                 </button>
                 <div class="h-5 mx-3 border-r border-orange-200/50"></div>
-                <button 
-                  class="p-2 text-gray-400 rounded transition-colors flex items-center space-x-1 cursor-not-allowed"
-                  title="Emoji support coming soon"
-                >
-                  <span class="text-xl leading-none">😊</span>
-                  <span class="text-sm">Emoji</span>
-                  <span class="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">Soon</span>
-                </button>
+                <div class="relative">
+                  <button 
+                    class="p-2 text-gray-500 hover:text-orange-600 hover:bg-orange-100/50 rounded transition-colors flex items-center space-x-1"
+                    title="Insert emoji"
+                    @click="showEmojiPicker = !showEmojiPicker"
+                  >
+                    <span class="text-xl leading-none">😊</span>
+                    <span class="text-sm">Emoji</span>
+                  </button>
+                  <!-- Emoji Picker -->
+                  <div v-if="showEmojiPicker" class="absolute top-full left-0 mt-2 z-20 shadow-xl rounded-lg border border-orange-200">
+                    <EmojiPicker @select="handleEmojiSelect" :native="true" />
+                  </div>
+                </div>
               </div>
               <textarea
                 v-model="noteForm.content"
                 placeholder="Write your note here... Use #hashtags to make your note discoverable."
-                class="w-full min-h-[300px] p-5 bg-white focus:outline-none resize-none text-gray-800 leading-relaxed border-none"
+                class="w-full min-h-[300px] p-5 bg-white focus:outline-none resize-none text-gray-800 leading-relaxed border-none emoji-textarea"
                 rows="12"
                 ref="noteTextarea"
               ></textarea>
