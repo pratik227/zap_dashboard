@@ -502,10 +502,18 @@ const handleProfileUpdated = () => {
               
               <button
                 @click="handleRemoveRelay(relay.url)"
-                class="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                title="Logout from Nostr"
                 title="Remove relay"
               >
                 <IconTrash class="w-4 h-4" />
+              </button>
+              <button
+                @click="$emit('change-page', 'account-reset')"
+                class="p-2 rounded-lg text-red-600 hover:text-red-700 hover:bg-red-50 flex items-center justify-center"
+                title="Reset all account data"
+              >
+                <IconRefresh class="w-3 h-3" />
+                <span class="hidden sm:ml-1 sm:inline text-xs">Reset</span>
               </button>
             </div>
           </div>
