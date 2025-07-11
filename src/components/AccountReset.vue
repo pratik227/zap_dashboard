@@ -338,21 +338,6 @@ onMounted(async () => {
           <div class="flex space-x-3">
             <button
               @click="handleReset"
-              :disabled="isResetting"
-              class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <IconLoader v-if="isResetting" class="w-4 h-4 animate-spin" />
-              <IconTrash v-else class="w-4 h-4" />
-              <span>{{ isResetting ? 'Resetting...' : 'Reset All Data' }}</span>
-            </button>
-            
-            <button
-              @click="checkStatus"
-              :disabled="isResetting"
-              class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <IconRefresh class="w-4 h-4" />
-              <span>Refresh Status</span>
             </button>
           </div>
         </div>
