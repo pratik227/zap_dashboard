@@ -453,13 +453,13 @@ onUnmounted(() => {
               >
                 <IconRefresh class="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
-              <button
-                @click="showConnectionOptions = !showConnectionOptions"
-                class="touch-target p-2 text-gray-400 hover:text-gray-600 rounded-lg transition-colors flex items-center justify-center"
-                title="Connection options"
-              >
-                <IconDots class="w-4 h-4 sm:w-5 sm:h-5" />
-              </button>
+<!--              <button-->
+<!--                @click="showConnectionOptions = !showConnectionOptions"-->
+<!--                class="touch-target p-2 text-gray-400 hover:text-gray-600 rounded-lg transition-colors flex items-center justify-center"-->
+<!--                title="Connection options"-->
+<!--              >-->
+<!--                <IconDots class="w-4 h-4 sm:w-5 sm:h-5" />-->
+<!--              </button>-->
             </div>
           </div>
         </div>
