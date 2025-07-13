@@ -2,6 +2,8 @@
 import { computed, inject, ref, onMounted } from 'vue'
 import { IconClock, IconBook, IconChartLine, IconRefresh, IconUsers, IconTrendingUp, IconAlertCircle, IconBolt } from '@iconify-prerendered/vue-tabler'
 import { filterZapsByTimeRange } from '../utils/timeFilter.js'
+import UserProfileModal from './UserProfileModal.vue'
+import { generateFallbackAvatar } from '../composables/useContentZaps.js'
 
 // Lazy load ECharts to prevent issues
 // Lazy load ECharts to prevent issues
@@ -43,7 +45,13 @@ onMounted(async () => {
 
 const zapData = inject('zapData')
 const combinedZapData = inject('combinedZapData')
+const profileStore = inject('profileStore')
+const fetchAuthorProfile = inject('fetchAuthorProfile')
 const selectedTimeRange = inject('selectedTimeRange')
+
+// State for user profile modal
+const showUserModal = ref(false)
+const selectedUser = ref(null)
 
 // Process real zap data for daily activity
 const dailyActivityOption = computed(() => {
@@ -336,6 +344,73 @@ const amountDistributionOption = computed(() => {
   }
 })
 
+// Calculate top supporters from NIP-57 zaps
+const topSupporters = computed(() => {
+  // Filter to only show zaps with eventId (NIP-57 zaps)
+  const zaps = combinedZapData.value.filter(zap => zap.eventId)
+  
+  // Apply time range filter
+  const filteredZaps = filterZapsByTimeRange(zaps, selectedTimeRange.value)
+  
+  if (filteredZaps.length === 0) {
+    return []
+  }
+  
+  // Aggregate zaps by supporter
+  const supporterMap = new Map()
+  
+  filteredZaps.forEach(zap => {
+    const pubkey = zap.sender?.pubkey || zap.zapperPubkey
+    if (!pubkey) return
+    
+    const currentData = supporterMap.get(pubkey) || { 
+      pubkey, 
+      totalAmount: 0, 
+      zapCount: 0,
+      profile: null
+    }
+    
+    currentData.totalAmount += zap.amount
+    currentData.zapCount += 1
+    
+    // Try to get profile from store
+    if (!currentData.profile && profileStore.value.has(pubkey)) {
+      currentData.profile = profileStore.value.get(pubkey)
+    }
+    
+    supporterMap.set(pubkey, currentData)
+  })
+  
+  // Convert to array and sort by amount
+  const supporters = Array.from(supporterMap.values())
+    .sort((a, b) => b.totalAmount - a.totalAmount)
+    .slice(0, 5) // Top 5 supporters
+  
+  // Fetch profiles for supporters that don't have one yet
+  supporters.forEach(supporter => {
+    if (!supporter.profile) {
+      fetchAuthorProfile(supporter.pubkey)
+        .then(profile => {
+          supporter.profile = profile
+        })
+        .catch(error => {
+          console.warn(`Failed to fetch profile for ${supporter.pubkey.substring(0, 8)}:`, error)
+        })
+    }
+  })
+  
+  return supporters
+})
+
+// Handle opening user profile modal
+const openUserProfile = (supporter) => {
+  selectedUser.value = {
+    pubkey: supporter.pubkey,
+    profile: supporter.profile
+  }
+  showUserModal.value = true
+}
+
 // Dynamic insights based on real data
 const insights = computed(() => {
   // Filter to only show zaps with eventId (NIP-57 zaps)
@@ -451,7 +526,7 @@ const insights = computed(() => {
       value: `${repeatPercentage}%`,
       description: `${repeatSupporters} of ${totalSupporters} supporters`,
       icon: IconUsers
-    }
+    },
   ]
 })
 
@@ -543,7 +618,7 @@ const summaryStats = computed(() => {
     
     <!-- Dynamic Insights Cards -->
     <div>
-      <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
+      <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2 mt-6">
         <IconTrendingUp class="w-5 h-5 text-orange-600" />
         <span>Real-Time Insights</span>
         <span v-if="zapData.length > 0" class="text-sm text-green-600 bg-green-100 px-2 py-1 rounded-full">
@@ -553,7 +628,7 @@ const summaryStats = computed(() => {
           No Data
         </span>
       </h3>
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div
           v-for="insight in insights"
           :key="insight.title"
@@ -565,6 +640,50 @@ const summaryStats = computed(() => {
           <h4 class="font-medium text-gray-900 mb-1">{{ insight.title }}</h4>
           <p class="text-lg font-bold text-orange-600 mb-2">{{ insight.value }}</p>
           <p class="text-xs text-gray-600">{{ insight.description }}</p>
+        </div>
+        
+        <!-- Top Supporters Card -->
+        <div class="card p-4 text-center hover:shadow-lg transition-all duration-200">
+          <div class="text-3xl mb-2">
+            <IconUsers class="w-8 h-8 mx-auto text-orange-600" />
+          </div>
+          <h4 class="font-medium text-gray-900 mb-3">Top Supporters</h4>
+          
+          <!-- Loading State -->
+          <div v-if="combinedZapData.filter(zap => zap.eventId).length === 0" class="text-center py-2">
+            <p class="text-sm text-gray-500">Connect to see top supporters</p>
+          </div>
+          
+          <!-- Supporters List -->
+          <div v-else-if="topSupporters.length > 0" class="space-y-2">
+            <div 
+              v-for="(supporter, index) in topSupporters.slice(0, 3)" 
+              :key="supporter.pubkey"
+              @click="openUserProfile(supporter)"
+              class="flex items-center p-2 rounded-lg hover:bg-orange-50 transition-colors cursor-pointer"
+            >
+              <!-- Rank -->
+              <div class="w-6 h-6 rounded-full bg-orange-100 flex items-center justify-center mr-2 flex-shrink-0">
+                <span class="text-xs font-bold text-orange-600">{{ index + 1 }}</span>
+              </div>
+              
+              <!-- Avatar -->
+              <div class="w-8 h-8 rounded-full overflow-hidden border border-orange-200 mr-2 flex-shrink-0">
+                <img 
+                  :src="supporter.profile?.picture || generateFallbackAvatar(supporter.pubkey)" 
+                  :alt="supporter.profile?.name || 'Supporter'"
+                  class="w-full h-full object-cover"
+                  @error="$event.target.src = generateFallbackAvatar(supporter.pubkey)"
+                />
+              </div>
+              
+              <!-- Name and Amount -->
+              <div class="flex-1 text-left min-w-0">
+                <p class="font-medium text-gray-900 text-sm truncate">{{ supporter.profile?.name || supporter.pubkey.substring(0, 8) + '...' }}</p>
+                <p class="text-xs text-orange-600">{{ supporter.totalAmount.toLocaleString() }} sats ({{ supporter.zapCount }})</p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -585,4 +704,11 @@ const summaryStats = computed(() => {
       </div>
     </div>
   </div>
+  
+  <!-- User Profile Modal -->
+  <UserProfileModal 
+    :show="showUserModal" 
+    :user-profile-data="selectedUser" 
+    @close="showUserModal = false" 
+  />
 </template>
