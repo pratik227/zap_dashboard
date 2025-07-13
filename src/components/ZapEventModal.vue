@@ -106,8 +106,6 @@ const getNostrClientUrl = (client) => {
         return `https://primal.net/e/${event.value.id}`
       case 'yakihonne':
         return `https://yakihonne.com/e/${event.value.id}`
-      case 'highlighter':
-        return `https://highlighter.com/a/note1${nip19.noteEncode(event.value.id)}`
       default:
         return `https://primal.net/e/${event.value.id}`
     }
