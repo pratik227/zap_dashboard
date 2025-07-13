@@ -661,15 +661,15 @@ const summaryStats = computed(() => {
               v-for="(supporter, index) in topSupporters.slice(0, 1)" 
               :key="supporter.pubkey"
               @click="openUserProfile(supporter)"
-              class="flex items-center p-2 rounded-lg hover:bg-orange-50 transition-colors cursor-pointer"
+              class="flex flex-col items-center p-2 rounded-lg hover:bg-orange-50 transition-colors cursor-pointer"
             >
               <!-- Rank -->
-              <div class="w-6 h-6 rounded-full bg-orange-100 flex items-center justify-center mr-2 flex-shrink-0">
+              <!-- <div class="w-6 h-6 rounded-full bg-orange-100 flex items-center justify-center mr-2 flex-shrink-0">
                 <span class="text-xs font-bold text-orange-600">{{ index + 1 }}</span>
-              </div>
+              </div> -->
               
               <!-- Avatar -->
-              <div class="w-8 h-8 rounded-full overflow-hidden border border-orange-200 mr-2 flex-shrink-0">
+              <div class="w-12 h-12 rounded-full overflow-hidden border-2 border-orange-200 mb-2 flex-shrink-0">
                 <img 
                   :src="supporter.profile?.picture || generateFallbackAvatar(supporter.pubkey)" 
                   :alt="supporter.profile?.name || 'Supporter'"
@@ -679,9 +679,9 @@ const summaryStats = computed(() => {
               </div>
               
               <!-- Name and Amount -->
-              <div class="flex-1 text-left min-w-0">
-                <div class="flex items-center">
-                  <p class="font-medium text-gray-900 text-sm truncate">{{ supporter.profile?.name || supporter.pubkey.substring(0, 8) + '...' }}</p>
+              <div class="text-center min-w-0">
+                <div class="flex items-center justify-center">
+                  <p class="font-medium text-gray-900 text-base truncate">{{ supporter.profile?.name || supporter.pubkey.substring(0, 8) + '...' }}</p>
                   <a 
                     v-if="supporter.pubkey"
                     :href="`https://yakihonne.com/users/${supporter.pubkey}`" 
@@ -694,8 +694,8 @@ const summaryStats = computed(() => {
                     <IconExternalLink class="w-3 h-3" />
                   </a>
                 </div>
-                <p class="text-xs text-orange-600">{{ supporter.totalAmount.toLocaleString() }} sats ({{ supporter.zapCount }})</p>
-                <p v-if="supporter.profile?.lud16" class="text-xs text-blue-600 flex items-center">
+                <p class="text-sm font-bold text-orange-600">{{ supporter.totalAmount.toLocaleString() }} sats ({{ supporter.zapCount }})</p>
+                <p v-if="supporter.profile?.lud16" class="text-xs text-blue-600 flex items-center justify-center">
                   <IconBolt class="w-3 h-3 mr-1 text-yellow-500" />
                   {{ supporter.profile.lud16 }}
                 </p>
