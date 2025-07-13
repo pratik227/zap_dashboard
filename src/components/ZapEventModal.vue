@@ -478,9 +478,42 @@ const zapAmount = computed(() => {
       <div class="relative bg-white rounded-xl shadow-xl max-w-md sm:max-w-lg md:max-w-xl w-full max-h-[90vh] overflow-hidden">
         <!-- Header -->
         <div class="flex items-center justify-between p-3 border-b border-gray-200 bg-gradient-to-r from-orange-50 to-amber-50">
-          <div class="flex items-center space-x-2">
+          <div class="flex items-center space-x-2 relative">
             <component :is="getEventKindIcon(event?.kind)" class="w-5 h-5 text-orange-600" />
             <h3 class="text-lg font-semibold text-gray-900">{{ getEventKindName(event?.kind) }}</h3>
+            
+            <!-- Open in Nostr Client (moved from separate section) -->
+            <div v-if="isAuthenticated && event" class="relative ml-2" ref="dropdownRef">
+              <button
+                @click="toggleClientDropdown"
+                class="text-xs text-orange-600 hover:text-orange-700 font-medium flex items-center space-x-1 bg-orange-50 px-2 py-0.5 rounded-lg hover:bg-orange-100 transition-colors"
+              >
+                <span>Open in client</span>
+                <IconChevronDown :class="['w-3 h-3 transition-transform', showClientDropdown ? 'rotate-180' : '']" />
+              </button>
+              
+              <!-- Client Dropdown -->
+              <div 
+                v-if="showClientDropdown"
+                class="absolute left-0 mt-1 w-32 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10"
+              >
+                <a :href="getNostrClientUrl('primal')" target="_blank" rel="noopener noreferrer" 
+                   class="block px-2 py-0.5 text-xs text-gray-700 hover:bg-orange-50 hover:text-orange-700 flex items-center space-x-1">
+                  <span class="w-3 h-3 flex items-center justify-center text-orange-600">🌐</span>
+                  <span>Primal.net</span>
+                </a>
+                <a :href="getNostrClientUrl('yakihonne')" target="_blank" rel="noopener noreferrer"
+                   class="block px-2 py-0.5 text-xs text-gray-700 hover:bg-orange-50 hover:text-orange-700 flex items-center space-x-1">
+                  <span class="w-3 h-3 flex items-center justify-center text-purple-600">🍜</span>
+                  <span>Yakihonne</span>
+                </a>
+                <a :href="getNostrClientUrl('highlighter')" target="_blank" rel="noopener noreferrer"
+                   class="block px-2 py-0.5 text-xs text-gray-700 hover:bg-orange-50 hover:text-orange-700 flex items-center space-x-1">
+                  <span class="w-3 h-3 flex items-center justify-center text-yellow-600">✨</span>
+                  <span>Highlighter</span>
+                </a>
+              </div>
+            </div>
           </div>
           <button
             @click="closeModal"
@@ -513,7 +546,7 @@ const zapAmount = computed(() => {
         <!-- Event Content -->
         <div v-else-if="event" class="overflow-y-auto max-h-[calc(90vh-120px)]">
           <!-- Zapper Info -->
-          <!-- Single Zapper Info -->
+          <!-- Single Zapper Info (Specific Zap) -->
           <div v-if="specificZap" class="p-4 border-b border-gray-100 bg-white">
             <div class="flex items-center justify-between">
               <div class="flex items-center space-x-4">
@@ -530,44 +563,6 @@ const zapAmount = computed(() => {
               </div>
               <div class="bg-gradient-to-r from-orange-100 to-amber-100 px-3 py-2 rounded-lg">
                 <div class="font-bold text-orange-600 text-lg">{{ formatZapAmount(specificZap.amount) }} sats</div>
-              </div>
-            </div>
-          </div>
-          
-          <!-- Open in Nostr Client -->
-          <div 
-            v-if="isAuthenticated && event" 
-            class="p-3 bg-gradient-to-r from-orange-50 to-amber-50 border-b border-orange-100 flex items-center justify-end"
-          >
-            <div class="relative" ref="dropdownRef">
-              <button
-                @click="toggleClientDropdown"
-                class="text-xs text-orange-600 hover:text-orange-700 font-medium flex items-center space-x-1 bg-orange-50 px-2 py-0.5 rounded-lg hover:bg-orange-100 transition-colors"
-              >
-                <span>Open in client</span>
-                <IconChevronDown :class="['w-3 h-3 transition-transform', showClientDropdown ? 'rotate-180' : '']" />
-              </button>
-              
-              <!-- Client Dropdown -->
-              <div 
-                v-if="showClientDropdown"
-                class="absolute right-0 mt-1 w-32 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10"
-              >
-                <a :href="getNostrClientUrl('primal')" target="_blank" rel="noopener noreferrer" 
-                   class="block px-2 py-0.5 text-xs text-gray-700 hover:bg-orange-50 hover:text-orange-700 flex items-center space-x-1">
-                  <span class="w-3 h-3 flex items-center justify-center text-orange-600">🌐</span>
-                  <span>Primal.net</span>
-                </a>
-                <a :href="getNostrClientUrl('yakihonne')" target="_blank" rel="noopener noreferrer"
-                   class="block px-2 py-0.5 text-xs text-gray-700 hover:bg-orange-50 hover:text-orange-700 flex items-center space-x-1">
-                  <span class="w-3 h-3 flex items-center justify-center text-purple-600">🍜</span>
-                  <span>Yakihonne</span>
-                </a>
-                <a :href="getNostrClientUrl('highlighter')" target="_blank" rel="noopener noreferrer"
-                   class="block px-2 py-0.5 text-xs text-gray-700 hover:bg-orange-50 hover:text-orange-700 flex items-center space-x-1">
-                  <span class="w-3 h-3 flex items-center justify-center text-yellow-600">✨</span>
-                  <span>Highlighter</span>
-                </a>
               </div>
             </div>
           </div>
