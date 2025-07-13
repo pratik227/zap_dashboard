@@ -648,7 +648,7 @@ const summaryStats = computed(() => {
           <div class="text-3xl mb-2">
             <IconUsers class="w-8 h-8 mx-auto text-orange-600" />
           </div>
-          <h4 class="font-medium text-gray-900 mb-3">Top Supporters</h4>
+          <h4 class="font-medium text-gray-900 mb-3">Top Supporter</h4>
           
           <!-- Loading State -->
           <div v-if="combinedZapData.filter(zap => zap.eventId).length === 0" class="text-center py-2">
