@@ -505,11 +505,6 @@ const zapAmount = computed(() => {
                   <span class="w-3 h-3 flex items-center justify-center text-purple-600">🍜</span>
                   <span>Yakihonne</span>
                 </a>
-                <a :href="getNostrClientUrl('highlighter')" target="_blank" rel="noopener noreferrer"
-                   class="block px-2 py-0.5 text-xs text-gray-700 hover:bg-orange-50 hover:text-orange-700 flex items-center space-x-1">
-                  <span class="w-3 h-3 flex items-center justify-center text-yellow-600">✨</span>
-                  <span>Highlighter</span>
-                </a>
               </div>
             </div>
           </div>
