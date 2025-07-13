@@ -676,7 +676,9 @@ const getSenderName = (sender) => {
         </div>
       </div>
     </div>
+  }
   </div>
+}
 </template>
 
 <style scoped>
