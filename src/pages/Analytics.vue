@@ -2,7 +2,7 @@
 import { computed, inject, ref, onMounted } from 'vue'
 import { IconClock, IconBook, IconChartLine, IconRefresh, IconUsers, IconTrendingUp, IconAlertCircle, IconBolt } from '@iconify-prerendered/vue-tabler'
 import { filterZapsByTimeRange } from '../utils/timeFilter.js'
-import UserProfileModal from './UserProfileModal.vue'
+import UserProfileModal from '../components/UserProfileModal.vue'
 import { generateFallbackAvatar } from '../composables/useContentZaps.js'
 
 // Lazy load ECharts to prevent issues
