@@ -420,7 +420,7 @@ const formatZapAmount = (amount) => {
   return amount.toString()
 }
 
-// Get sender name with fallback
+// Get sender name with fallback  
 const getSenderName = (sender) => {
   // Check for display_name first (Nostr standard)
   if (sender?.display_name) {
@@ -436,6 +436,47 @@ const getSenderName = (sender) => {
   const pubkey = sender?.pubkey || sender?.zapperPubkey
   if (pubkey) {
     return `user:${pubkey.substring(0, 8)}`
+  }
+}
+</script>
+
+<template>
+  <div v-if="show" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
+      <!-- Header -->
+      <div class="flex items-center justify-between p-4 border-b border-gray-200">
+        <div class="flex items-center space-x-3">
+          <component :is="getEventKindIcon(event?.kind)" class="w-5 h-5 text-gray-600" />
+          <div>
+            <h2 class="text-lg font-semibold text-gray-900">{{ getEventKindName(event?.kind) }}</h2>
+            <p v-if="eventAuthor" class="text-sm text-gray-500">
+              by {{ eventAuthor.name }}
+              <span v-if="event" class="text-gray-400">• {{ formatDate(event.created_at) }}</span>
+            </p>
+          </div>
+        </div>
+        <button @click="closeModal" class="text-gray-400 hover:text-gray-600 transition-colors">
+          <IconX class="w-6 h-6" />
+        </button>
+      </div>
+
+      <!-- Loading State -->
+      <div v-if="isLoading" class="flex items-center justify-center py-12">
+        <div class="text-center">
+          <IconLoader class="w-8 h-8 animate-spin mx-auto mb-4 text-gray-400" />
+          <p class="text-gray-600">Loading event...</p>
+        </div>
+      </div>
+
+      <!-- Error State -->
+      <div v-else-if="error" class="flex items-center justify-center py-12">
+        <div class="text-center">
+          <IconAlertCircle class="w-8 h-8 mx-auto mb-4 text-red-500" />
+          <p class="text-red-600 mb-2">{{ error }}</p>
+          <button @click="fetchEvent" class="text-blue-600 hover:underline">Try again</button>
+        </div>
+      </div>
+
         <!-- Zapper Info - Commented out for later use -->
         <!-- <div class="p-3 bg-gradient-to-r from-orange-50 to-amber-50 border-b border-orange-100 flex items-center justify-between">
           <div class="flex items-center justify-between w-full">
@@ -676,9 +717,7 @@ const getSenderName = (sender) => {
         </div>
       </div>
     </div>
-  }
   </div>
-}
 </template>
 
 <style scoped>
