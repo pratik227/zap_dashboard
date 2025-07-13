@@ -656,9 +656,9 @@ const summaryStats = computed(() => {
           </div>
           
           <!-- Supporters List -->
-          <div v-else-if="topSupporters.length > 0" class="space-y-2">
+          <div v-else-if="topSupporters.length > 0">
             <div 
-              v-for="(supporter, index) in topSupporters.slice(0, 3)" 
+              v-for="(supporter, index) in topSupporters.slice(0, 1)" 
               :key="supporter.pubkey"
               @click="openUserProfile(supporter)"
               class="flex items-center p-2 rounded-lg hover:bg-orange-50 transition-colors cursor-pointer"
@@ -680,22 +680,25 @@ const summaryStats = computed(() => {
               
               <!-- Name and Amount -->
               <div class="flex-1 text-left min-w-0">
-                <p class="font-medium text-gray-900 text-sm truncate">{{ supporter.profile?.name || supporter.pubkey.substring(0, 8) + '...' }}</p>
+                <div class="flex items-center">
+                  <p class="font-medium text-gray-900 text-sm truncate">{{ supporter.profile?.name || supporter.pubkey.substring(0, 8) + '...' }}</p>
+                  <a 
+                    v-if="supporter.pubkey"
+                    :href="`https://yakihonne.com/users/${supporter.pubkey}`" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    class="ml-2 p-1 text-purple-600 hover:text-purple-800 hover:bg-purple-50 rounded-full transition-colors"
+                    title="View profile on Yakihonne"
+                    @click.stop
+                  >
+                    <IconExternalLink class="w-3 h-3" />
+                  </a>
+                </div>
                 <p class="text-xs text-orange-600">{{ supporter.totalAmount.toLocaleString() }} sats ({{ supporter.zapCount }})</p>
                 <p v-if="supporter.profile?.lud16" class="text-xs text-blue-600 flex items-center">
                   <IconBolt class="w-3 h-3 mr-1 text-yellow-500" />
                   {{ supporter.profile.lud16 }}
                 </p>
-                <a 
-                  v-if="supporter.pubkey"
-                  :href="`https://yakihonne.com/users/${supporter.pubkey}`" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  class="inline-block mt-1 p-1 text-purple-600 hover:text-purple-800 hover:bg-purple-50 rounded-full transition-colors"
-                  title="View profile on Yakihonne"
-                >
-                  <IconExternalLink class="w-3 h-3" />
-                </a>
               </div>
             </div>
           </div>
