@@ -558,7 +558,7 @@ const zapAmount = computed(() => {
                 />
                 <div>
                   <div class="font-medium text-gray-900 text-lg">{{ getSenderName(specificZap.sender) }}</div>
-                  <div class="text-sm text-gray-500">{{ formatDate(specificZap.timestamp) }}</div>
+                <!--  <div class="text-sm text-gray-500">{{ formatDate(specificZap.timestamp) }}</div> -->
                 </div>
               </div>
               <div class="bg-gradient-to-r from-orange-100 to-amber-100 px-3 py-2 rounded-lg">
