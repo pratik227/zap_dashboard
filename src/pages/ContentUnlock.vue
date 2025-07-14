@@ -377,23 +377,23 @@ const getNostrClientUrl = (client, eventId) => {
     switch (client) {
       case 'yakihonne':
         // For long-form content (kind 30023), use naddrEncode if we have the necessary data
-        if (event.value.kind === 30023 && event.value.pubkey) {
+        if (articleEvent && articleEvent.kind === 30023 && articleEvent.pubkey) {
           // Get the d tag identifier (or fallback to event id)
-          const dTag = event.value.tags.find(tag => tag[0] === 'd')?.[1] || event.value.id
+          const dTag = articleEvent.tags.find(tag => tag[0] === 'd')?.[1] || articleEvent.id
           
           // Create naddr format for long-form content
           return `https://yakihonne.com/article/${nip19.naddrEncode({
-            pubkey: event.value.pubkey,
+            pubkey: articleEvent.pubkey,
             kind: 30023,
             identifier: dTag
           })}`
         }
         // Fallback to nevent format
-        return `https://yakihonne.com/${nip19.neventEncode({ id: event.value.id })}`
+        return `https://yakihonne.com/${nip19.neventEncode({ id: articleEvent })}`
       case 'primal':
-        return `https://primal.net/e/${eventId}`
+        return `https://primal.net/e/${articleEvent}`
       default:
-        return `https://primal.net/e/${eventId}`
+        return `https://primal.net/e/${articleEvent}`
     }
   } catch (error) {
     console.error('Failed to generate client URL:', error)
@@ -438,4 +438,4 @@ watch(isContentLoading, (loading) => {
 .btn-secondary {
   @apply bg-gray-600 hover:bg-gray-700 text-white px-6 py-3 rounded-lg font-medium transition-colors flex items-center justify-center space-x-2;
 }
-</style> 
+</style>
