@@ -18,6 +18,7 @@ import { useContent } from '../composables/useContent.js'
 import { useContentZaps } from '../composables/useContentZaps.js'
 import { useNostrAuth } from '../composables/useNostrAuth.js'
 import { useNostrLongForm } from '../composables/useNostrLongForm.js'
+import { generateFallbackAvatar } from '../composables/useContentZaps.js'
 import ContentStats from '../components/ContentStats.vue'
 import ContentList from '../components/ContentList.vue'
 import ContentForm from '../components/ContentForm.vue'
@@ -511,11 +512,14 @@ const formatZapTime = (timestamp) => {
                   class="flex items-center justify-between p-3 bg-white rounded-lg border border-orange-100"
                 >
                   <div class="flex items-center space-x-3">
-                    <div class="w-8 h-8 bg-gradient-to-r from-orange-400 to-amber-400 rounded-full flex items-center justify-center">
-                      <IconBolt class="w-4 h-4 text-white" />
-                    </div>
+                    <img 
+                      :src="zap.sender?.avatar || zap.sender?.picture" 
+                      :alt="zap.sender?.name || 'User'"
+                      class="w-8 h-8 rounded-full object-cover"
+                      @error="$event.target.src = generateFallbackAvatar(zap.zapperPubkey)"
+                    />
                     <div>
-                      <div class="font-medium text-gray-900">{{ formatZapperPubkey(zap.zapperPubkey) }}</div>
+                      <div class="font-medium text-gray-900">{{ zap.sender?.name || formatZapperPubkey(zap.zapperPubkey) }}</div>
                       <div class="text-sm text-gray-600">{{ formatZapTime(zap.timestamp) }}</div>
                       <div v-if="zap.message" class="text-sm text-gray-700 italic">"{{ zap.message }}"</div>
                     </div>

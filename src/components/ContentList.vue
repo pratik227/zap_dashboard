@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { 
   IconFileText, 
   IconMail, 
@@ -14,7 +14,8 @@ import {
   IconCopy,
   IconDots,
   IconBolt,
-  IconUsers
+  IconUsers,
+  IconMenu
 } from '@iconify-prerendered/vue-tabler'
 
 const props = defineProps({
@@ -22,6 +23,25 @@ const props = defineProps({
     type: Array,
     required: true
   }
+})
+
+// Track which dropdown is currently open
+const openDropdownId = ref(null)
+
+// Close dropdown when clicking outside
+const handleClickOutside = (event) => {
+  if (openDropdownId.value && !event.target.closest('.dropdown-container')) {
+    openDropdownId.value = null
+  }
+}
+
+// Add/remove event listener
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside)
 })
 
 const emit = defineEmits(['edit', 'delete', 'preview', 'duplicate', 'share', 'publish-nostr'])
@@ -177,8 +197,8 @@ const getSalesTooltip = (item) => {
             </div>
           </div>
 
-          <!-- Actions -->
-          <div class="flex items-center space-x-2 flex-shrink-0">
+          <!-- Actions - Desktop -->
+          <div class="hidden sm:flex items-center space-x-2 flex-shrink-0">
             <button
               @click="$emit('edit', item)"
               class="p-2 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
@@ -215,6 +235,68 @@ const getSalesTooltip = (item) => {
             >
               <IconTrash class="w-4 h-4" />
             </button>
+          </div>
+          
+          <!-- Mobile Actions -->
+          <div class="flex items-center space-x-2 flex-shrink-0 sm:hidden">
+            <!-- Preview button always visible -->
+            <button
+              @click="$emit('preview', item)"
+              class="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+              title="Preview"
+            >
+              <IconEye class="w-3.5 h-3.5" />
+            </button>
+            
+            <!-- Three-dot menu for other actions -->
+            <div class="relative dropdown-container">
+              <button
+                @click="openDropdownId = openDropdownId === item.id ? null : item.id"
+                class="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+                title="More actions"
+              >
+                <IconDots class="w-3.5 h-3.5" />
+              </button>
+              
+              <!-- Dropdown Menu -->
+              <div 
+                v-if="openDropdownId === item.id"
+                class="absolute right-0 top-full mt-1 w-36 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10"
+              >
+                <button
+                  @click="$emit('edit', item); openDropdownId = null"
+                  class="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-600 flex items-center space-x-2"
+                >
+                  <IconEdit class="w-3.5 h-3.5" />
+                  <span>Edit</span>
+                </button>
+                
+                <button
+                  v-if="item.status === 'draft'"
+                  @click="$emit('publish-nostr', item); openDropdownId = null"
+                  class="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-600 flex items-center space-x-2"
+                >
+                  <IconShare class="w-3.5 h-3.5" />
+                  <span>Publish</span>
+                </button>
+                
+                <button
+                  @click="$emit('share', item); openDropdownId = null"
+                  class="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-green-50 hover:text-green-600 flex items-center space-x-2"
+                >
+                  <IconCopy class="w-3.5 h-3.5" />
+                  <span>Share</span>
+                </button>
+                
+                <button
+                  @click="$emit('delete', item); openDropdownId = null"
+                  class="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-red-50 hover:text-red-600 flex items-center space-x-2"
+                >
+                  <IconTrash class="w-3.5 h-3.5" />
+                  <span>Delete</span>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -300,6 +382,11 @@ const getSalesTooltip = (item) => {
 </template>
 
 <style scoped>
+/* Ensure dropdowns appear above other elements */
+.z-10 {
+  z-index: 10;
+}
+
 .line-clamp-2 {
   display: -webkit-box;
   -webkit-line-clamp: 2;

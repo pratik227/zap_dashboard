@@ -281,7 +281,7 @@ const _fetchProfileFromNostr = async (pubkey) => {
 }
 
 // Generate a consistent fallback avatar based on pubkey
-const generateFallbackAvatar = (pubkey) => {
+export const generateFallbackAvatar = (pubkey) => {
   if (!pubkey) return 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'
   
   // Use a deterministic approach to generate avatar based on pubkey
@@ -513,9 +513,6 @@ export function useContentZaps() {
     getAllContentZaps,
     initializeZapTracking,
     fetchZapperProfile,
-    
-    // Utility functions
-    extractEventId,
-    generateFallbackAvatar
+    extractEventId
   }
 }

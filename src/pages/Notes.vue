@@ -28,6 +28,7 @@ import { useNostrNotes } from '../composables/useNostrNotes.js'
 import { useNostrAuth } from '../composables/useNostrAuth.js'
 import { useContentZaps } from '../composables/useContentZaps.js'
 import { useBtcPrice } from '../composables/useBtcPrice.js'
+import { generateFallbackAvatar } from '../composables/useContentZaps.js'
 
 const { isAuthenticated, currentUser, userProfile, login } = useNostrAuth()
 
@@ -699,7 +700,7 @@ onUnmounted(() => {
                 <div class="relative">
                   <button
                     @click="showClientDropdown = !showClientDropdown"
-                    class="btn-secondary text-sm flex items-center gap-1"
+                    class="btn-secondary p-2 text-xs sm:text-sm flex items-center gap-1"
                   >
                     <IconExternalLink class="w-4 h-4" />
                     <span class="hidden sm:inline">Open in Client</span>
@@ -726,17 +727,17 @@ onUnmounted(() => {
                 
                 <button
                   @click="startEditing(selectedNote)"
-                  class="btn-secondary"
+                  class="btn-secondary p-2 text-xs sm:text-sm"
                 >
                   <IconEdit class="w-4 h-4" />
-                  Edit
+                  <span class="hidden sm:inline">Edit</span>
                 </button>
                 <button
                   @click="handleDelete(selectedNote)"
-                  class="btn-secondary text-red-600 hover:text-red-700 hover:bg-red-50"
+                  class="btn-secondary p-2 text-xs sm:text-sm text-red-600 hover:text-red-700 hover:bg-red-50"
                 >
                   <IconTrash class="w-4 h-4" />
-                  Delete
+                  <span class="hidden sm:inline">Delete</span>
                 </button>
               </div>
             </div>
@@ -969,7 +970,7 @@ onUnmounted(() => {
                       :src="zap.sender?.avatar || zap.sender?.picture" 
                       :alt="zap.sender?.name || 'User'"
                       class="w-full h-full object-cover"
-                      @error="$event.target.src = 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'"
+                      @error="$event.target.src = generateFallbackAvatar(zap.zapperPubkey)"
                     />
                   </div>
                   <div>
@@ -1016,7 +1017,7 @@ onUnmounted(() => {
                       :src="zap.sender?.avatar || zap.sender?.picture" 
                       :alt="zap.sender?.name || 'User'"
                       class="w-full h-full object-cover"
-                      @error="$event.target.src = 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'"
+                      @error="$event.target.src = generateFallbackAvatar(zap.zapperPubkey)"
                     />
                   </div>
                   <div>

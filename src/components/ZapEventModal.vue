@@ -1,6 +1,6 @@
 <script setup>
-import { ref, onMounted, watch, onUnmounted, computed } from 'vue'
-import { 
+import { ref, onMounted, watch, onUnmounted, computed, inject } from 'vue'
+import {
   IconX, 
   IconBolt, 
   IconUser, 
@@ -17,17 +17,23 @@ import {
   IconMicrophone, 
   IconLink, 
   IconHash,
-  IconChevronDown
+  IconChevronDown,
+  IconCheck
 } from '@iconify-prerendered/vue-tabler'
 import { nostrRelayManager } from '../utils/nostrRelayManager.js'
-import { useNostrAuth } from '../composables/useNostrAuth.js'
-import * as nip19 from 'nostr-tools/nip19'
+import { useNostrAuth } from '../composables/useNostrAuth.js' 
 import { useContentZaps } from '../composables/useContentZaps.js'
+import * as nip19 from 'nostr-tools/nip19'
 
 const props = defineProps({
   eventId: {
     type: String,
     required: true
+  },
+  specificZapId: {
+    type: String,
+    required: false,
+    default: null
   },
   show: {
     type: Boolean,
@@ -42,12 +48,15 @@ const isLoading = ref(false)
 const error = ref('')
 const event = ref(null)
 const eventAuthor = ref(null)
+const specificZap = ref(null)
 const showClientDropdown = ref(false)
 const dropdownRef = ref(null)
+const copiedItem = ref(null)
 
 // Use Nostr auth to get user profile
 const { isAuthenticated } = useNostrAuth()
-const { getTotalZapAmount } = useContentZaps()
+const { getTotalZapAmount, getZapsForContent } = useContentZaps()
+const combinedZapData = inject('combinedZapData')
 
 // Fetch event when modal is shown
 watch(() => props.show, async (show) => {
@@ -97,8 +106,6 @@ const getNostrClientUrl = (client) => {
         return `https://primal.net/e/${event.value.id}`
       case 'yakihonne':
         return `https://yakihonne.com/e/${event.value.id}`
-      case 'highlighter':
-        return `https://highlighter.com/a/note1${nip19.noteEncode(event.value.id)}`
       default:
         return `https://primal.net/e/${event.value.id}`
     }
@@ -116,6 +123,7 @@ const fetchEvent = async () => {
   error.value = ''
   event.value = null
   eventAuthor.value = null
+  specificZap.value = null
   
   try {
     console.log(`Fetching event: ${props.eventId}`)
@@ -134,6 +142,19 @@ const fetchEvent = async () => {
     
     // Fetch author profile
     await fetchAuthorProfile(fetchedEvent.pubkey)
+
+    // Find the specific zap if specificZapId is provided
+    if (props.specificZapId) {
+      console.log('Looking for specific zap:', props.specificZapId)
+      const zap = combinedZapData.value.find(z => z.id === props.specificZapId)
+      if (zap) {
+        console.log('Found specific zap:', zap)
+        specificZap.value = zap
+      } else {
+        console.warn('Specific zap not found:', props.specificZapId)
+      }
+    }
+    
     
   } catch (err) {
     console.error('Failed to fetch event:', err)
@@ -206,6 +227,24 @@ const generateFallbackAvatar = (pubkey) => {
   
   return avatars[Math.abs(hash) % avatars.length]
 }
+
+// Copy to clipboard with feedback
+const copyToClipboard = async (text) => {
+  try {
+    await navigator.clipboard.writeText(text)
+    copiedItem.value = 'eventId'
+    setTimeout(() => {
+      copiedItem.value = null
+    }, 2000)
+  } catch (error) {
+    console.error('Failed to copy to clipboard:', error)
+  }
+}
+
+// Get zaps for this event
+const zapsForEvent = computed(() => {
+  return getZapsForContent(props.eventId) || []
+})
 
 // Format date
 const formatDate = (timestamp) => {
@@ -390,6 +429,37 @@ const getEventHashtags = () => {
   return hashtags
 }
 
+// Format zap amount for display
+const formatZapAmount = (amount) => {
+  if (amount >= 1000000) {
+    return `${(amount / 1000000).toFixed(1)}M`
+  } else if (amount >= 1000) {
+    return `${(amount / 1000).toFixed(1)}k`
+  }
+  return amount.toString()
+}
+
+// Get sender name with fallback
+const getSenderName = (sender) => {
+  // Check for display_name first (Nostr standard)
+  if (sender?.display_name) {
+    return sender.display_name
+  }
+  
+  // Then check for name
+  if (sender?.name) {
+    return sender.name
+  }
+  
+  // Fallback to pubkey
+  const pubkey = sender?.pubkey || sender?.zapperPubkey
+  if (pubkey) {
+    return `user:${pubkey.substring(0, 8)}`
+  }
+  
+  return 'Anonymous'
+}
+
 // Get zap amount for this event
 const zapAmount = computed(() => {
   return getTotalZapAmount(props.eventId) || 0
@@ -406,9 +476,37 @@ const zapAmount = computed(() => {
       <div class="relative bg-white rounded-xl shadow-xl max-w-md sm:max-w-lg md:max-w-xl w-full max-h-[90vh] overflow-hidden">
         <!-- Header -->
         <div class="flex items-center justify-between p-3 border-b border-gray-200 bg-gradient-to-r from-orange-50 to-amber-50">
-          <div class="flex items-center space-x-2">
+          <div class="flex items-center space-x-2 relative">
             <component :is="getEventKindIcon(event?.kind)" class="w-5 h-5 text-orange-600" />
             <h3 class="text-lg font-semibold text-gray-900">{{ getEventKindName(event?.kind) }}</h3>
+            
+            <!-- Open in Nostr Client (moved from separate section) -->
+            <div v-if="isAuthenticated && event" class="relative ml-2" ref="dropdownRef">
+              <button
+                @click="toggleClientDropdown"
+                class="text-xs text-orange-600 hover:text-orange-700 font-medium flex items-center space-x-1 bg-orange-50 px-2 py-0.5 rounded-lg hover:bg-orange-100 transition-colors"
+              >
+                <span>Open in client</span>
+                <IconChevronDown :class="['w-3 h-3 transition-transform', showClientDropdown ? 'rotate-180' : '']" />
+              </button>
+              
+              <!-- Client Dropdown -->
+              <div 
+                v-if="showClientDropdown"
+                class="absolute left-0 mt-1 w-32 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10"
+              >
+                <a :href="getNostrClientUrl('primal')" target="_blank" rel="noopener noreferrer" 
+                   class="block px-2 py-0.5 text-xs text-gray-700 hover:bg-orange-50 hover:text-orange-700 flex items-center space-x-1">
+                  <span class="w-3 h-3 flex items-center justify-center text-orange-600">🌐</span>
+                  <span>Primal.net</span>
+                </a>
+                <a :href="getNostrClientUrl('yakihonne')" target="_blank" rel="noopener noreferrer"
+                   class="block px-2 py-0.5 text-xs text-gray-700 hover:bg-orange-50 hover:text-orange-700 flex items-center space-x-1">
+                  <span class="w-3 h-3 flex items-center justify-center text-purple-600">🍜</span>
+                  <span>Yakihonne</span>
+                </a>
+              </div>
+            </div>
           </div>
           <button
             @click="closeModal"
@@ -440,79 +538,24 @@ const zapAmount = computed(() => {
 
         <!-- Event Content -->
         <div v-else-if="event" class="overflow-y-auto max-h-[calc(90vh-120px)]">
-          <!-- Author Info -->
-          <div class="p-3 border-b border-gray-100 bg-white">
-            <div class="flex items-center space-x-3">
-              <img 
-                :src="eventAuthor?.picture" 
-                :alt="eventAuthor?.name"
-                class="w-10 h-10 rounded-full border-2 border-orange-200 object-cover"
-                @error="$event.target.src = generateFallbackAvatar(eventAuthor?.pubkey)"
-              />
-              <div class="flex-1 min-w-0">
-                <div class="flex items-center space-x-2">
-                  <h4 class="font-medium text-gray-900 truncate">{{ eventAuthor?.name }}</h4>
-                  <span v-if="eventAuthor?.nip05" class="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">{{ eventAuthor?.nip05 }}</span>
-                </div>
-                <div class="flex items-center space-x-2 text-xs text-gray-500">
-                  <span class="flex items-center space-x-1">
-                    <IconCalendar class="w-3 h-3" />
-                    <span>{{ formatDate(event.created_at) }}</span>
-                  </span>
+          <!-- Zapper Info -->
+          <!-- Single Zapper Info (Specific Zap) -->
+          <div v-if="specificZap" class="p-4 border-b border-gray-100 bg-white">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center space-x-4">
+                <img 
+                  :src="specificZap.sender?.picture || specificZap.sender?.avatar" 
+                  :alt="getSenderName(specificZap.sender)"
+                  class="w-12 h-12 rounded-full border-2 border-orange-200 object-cover"
+                  @error="$event.target.src = generateFallbackAvatar(specificZap.zapperPubkey)"
+                />
+                <div>
+                  <div class="font-medium text-gray-900 text-lg">{{ getSenderName(specificZap.sender) }}</div>
+                <!--  <div class="text-sm text-gray-500">{{ formatDate(specificZap.timestamp) }}</div> -->
                 </div>
               </div>
-            </div>
-          </div>
-          
-          <!-- Zap Information -->
-          <div class="p-3 bg-gradient-to-r from-orange-50 to-amber-50 border-b border-orange-100 flex items-center justify-between">
-            <div class="flex items-center justify-between w-full">
-              <!-- Zap Info -->
-              <div class="flex items-center space-x-2">
-                <div class="w-6 h-6 bg-orange-100 rounded-full flex items-center justify-center">
-                  <IconBolt class="w-3 h-3 text-orange-600" />
-                </div>
-                <div class="bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full flex items-center space-x-1 text-sm">
-                  <span class="font-bold">{{ zapAmount }}</span>
-                  <span>sats</span>
-                </div>
-              </div>
-              
-              <!-- Open in Nostr Client -->
-              <div 
-                v-if="isAuthenticated && event" 
-                class="relative"
-                ref="dropdownRef"
-              >
-                <button
-                  @click="toggleClientDropdown"
-                  class="text-xs text-orange-600 hover:text-orange-700 font-medium flex items-center space-x-1 bg-orange-50 px-2 py-0.5 rounded-lg hover:bg-orange-100 transition-colors"
-                >
-                  <span>Open in client</span>
-                  <IconChevronDown :class="['w-3 h-3 transition-transform', showClientDropdown ? 'rotate-180' : '']" />
-                </button>
-                
-                <!-- Client Dropdown -->
-                <div 
-                  v-if="showClientDropdown"
-                  class="absolute right-0 mt-1 w-32 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10"
-                >
-                  <a :href="getNostrClientUrl('primal')" target="_blank" rel="noopener noreferrer" 
-                     class="block px-2 py-0.5 text-xs text-gray-700 hover:bg-orange-50 hover:text-orange-700 flex items-center space-x-1">
-                    <span class="w-3 h-3 flex items-center justify-center text-orange-600">🌐</span>
-                    <span>Primal.net</span>
-                  </a>
-                  <a :href="getNostrClientUrl('yakihonne')" target="_blank" rel="noopener noreferrer"
-                     class="block px-2 py-0.5 text-xs text-gray-700 hover:bg-orange-50 hover:text-orange-700 flex items-center space-x-1">
-                    <span class="w-3 h-3 flex items-center justify-center text-purple-600">🍜</span>
-                    <span>Yakihonne</span>
-                  </a>
-                  <a :href="getNostrClientUrl('highlighter')" target="_blank" rel="noopener noreferrer"
-                     class="block px-2 py-0.5 text-xs text-gray-700 hover:bg-orange-50 hover:text-orange-700 flex items-center space-x-1">
-                    <span class="w-3 h-3 flex items-center justify-center text-yellow-600">✨</span>
-                    <span>Highlighter</span>
-                  </a>
-                </div>
+              <div class="bg-gradient-to-r from-orange-100 to-amber-100 px-3 py-2 rounded-lg">
+                <div class="font-bold text-orange-600 text-lg">{{ formatZapAmount(specificZap.amount) }} sats</div>
               </div>
             </div>
           </div>
@@ -586,8 +629,16 @@ const zapAmount = computed(() => {
                 <IconChevronDown class="w-3 h-3 transition-transform ui-open:rotate-180" />
               </summary>
               <div class="mt-2 space-y-2">
-                <div class="bg-gray-100 p-2 rounded">
-                  <p class="font-mono text-xs break-all">ID: {{ event.id }}</p>
+                <div class="flex items-center justify-between">
+                  <span class="text-gray-600">Event ID:</span>
+                  <div class="flex items-center space-x-2">
+                    <code class="text-gray-800 bg-gray-200 px-2 py-1 rounded text-xs cursor-pointer hover:bg-gray-300 transition-colors" @click="copyToClipboard(event.id)" title="Click to copy">
+                      {{ event.id.substring(0, 16) }}...
+                    </code>
+                    <span v-if="copiedItem === 'eventId'" class="text-xs text-green-600 flex items-center">
+                      <IconCheck class="w-3 h-3 mr-1" />Copied!
+                    </span>
+                  </div>
                 </div>
                 <div v-for="(tag, index) in getEventTags()" :key="index" class="bg-gray-100 p-2 rounded">
                   <p class="font-mono text-xs break-all">{{ tag[0] }}: {{ tag[1] }}</p>

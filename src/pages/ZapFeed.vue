@@ -26,6 +26,7 @@ const { getAllContentZaps } = useContentZaps()
 // State for event modal
 const showEventModal = ref(false)
 const selectedEventId = ref(null)
+const selectedZapId = ref(null)
 
 const filteredZaps = computed(() => {
   let zaps = combinedZapData.value
@@ -67,8 +68,9 @@ const filteredZaps = computed(() => {
 // Handle click on zap item
 const handleZapClick = (zap) => {
   if (zap.eventId) {
-    console.log('Opening event modal for eventId:', zap.eventId, 'source:', zap.source)
+    console.log('Opening event modal for eventId:', zap.eventId, 'zapId:', zap.id, 'source:', zap.source)
     selectedEventId.value = zap.eventId
+    selectedZapId.value = zap.id
     showEventModal.value = true
   } else {
     console.log('No eventId available for this zap:', zap.id, 'source:', zap.source)
@@ -79,6 +81,7 @@ const handleZapClick = (zap) => {
 const closeEventModal = () => {
   showEventModal.value = false
   selectedEventId.value = null
+  selectedZapId.value = null
 }
 
 const formatDate = (timestamp) => {
@@ -446,6 +449,7 @@ const truncateNote = (note, maxLength = 120) => {
   <!-- Event Modal -->
   <ZapEventModal 
     :event-id="selectedEventId" 
+    :specific-zap-id="selectedZapId"
     :show="showEventModal" 
     @close="closeEventModal" 
   />

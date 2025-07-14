@@ -1,10 +1,14 @@
 [[redirects]]
-  from = "/.well-known/*"
-  to = "/.well-known/:splat"
-  status = 200
-  force = true
+from = "/.well-known/*"
+to = "/.well-known/:splat"
+status = 200
+force = true
 
 [[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
+from = "/*"
+to = "/index.html"
+status = 200
+
+[build]
+command = "npx vite build"
+publish = "dist"

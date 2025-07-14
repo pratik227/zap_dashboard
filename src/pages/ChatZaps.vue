@@ -25,6 +25,7 @@ import { useNostrChat } from '../composables/useNostrChat.js'
 import { useNostrAuth } from '../composables/useNostrAuth.js'
 import { useNostrConnections } from '../composables/useNostrConnections.js'
 import * as nip19 from 'nostr-tools/nip19'
+import UserProfileModal from '../components/UserProfileModal.vue'
 
 // Authentication
 const { isAuthenticated, currentUser, userProfile, login } = useNostrAuth()
@@ -49,8 +50,8 @@ const selectedConnection = ref(null)
 const showNewConnectionModal = ref(false)
 const showConnectionOptions = ref(false)
 const showMobileSidebar = ref(false)
-const showUserProfileModal = ref(false)
-const selectedUserProfile = ref(null)
+const showProfileModal = ref(false)
+const selectedProfile = ref(null)
 const newMessage = ref('')
 const newConnection = ref({
   name: '',
@@ -168,15 +169,15 @@ const addConnection = async () => {
 }
 
 const openUserProfile = (connection) => {
-  selectedUserProfile.value = connection
-  showUserProfileModal.value = true
+  selectedProfile.value = connection
+  showProfileModal.value = true
   activeTab.value = 'publickey'
   copySuccess.value = ''
 }
 
 const closeUserProfile = () => {
-  showUserProfileModal.value = false
-  selectedUserProfile.value = null
+  showProfileModal.value = false
+  selectedProfile.value = null
   copySuccess.value = ''
 }
 
@@ -618,184 +619,11 @@ onUnmounted(() => {
     </Teleport>
 
     <!-- User Profile Modal -->
-    <Teleport to="#modal-root">
-      <transition name="modal-transition">
-        <div v-if="showUserProfileModal && selectedUserProfile" class="fixed inset-0 bg-black/50 backdrop-blur-lg flex items-center justify-center z-[9999] p-4">
-          <div class="bg-white rounded-xl w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto shadow-2xl">
-            <!-- Header -->
-            <div class="p-6 border-b border-gray-200">
-              <div class="flex items-center justify-between">
-                <div class="flex items-center space-x-3">
-                  <div class="relative w-12 h-12 rounded-full overflow-hidden border-2 border-orange-200">
-                    <img 
-                      v-if="selectedUserProfile.profile?.picture"
-                      :src="selectedUserProfile.profile.picture" 
-                      :alt="selectedUserProfile.profile?.name || 'User'"
-                      class="w-full h-full object-cover"
-                      @error="$event.target.style.display = 'none'; $event.target.nextElementSibling.style.display = 'flex'"
-                    />
-                    <div 
-                      class="w-full h-full bg-gradient-to-r from-orange-400 to-amber-400 flex items-center justify-center"
-                      :style="{ display: selectedUserProfile.profile?.picture ? 'none' : 'flex' }"
-                    >
-                      <IconUser class="w-6 h-6 text-white" />
-                    </div>
-                  </div>
-                  <div>
-                    <h3 class="text-lg font-semibold text-gray-900">
-                      {{ selectedUserProfile.profile?.name || formatPubkey(selectedUserProfile.pubkey) }}
-                    </h3>
-                    <p v-if="selectedUserProfile.profile?.about" class="text-sm text-gray-600 line-clamp-2">
-                      {{ selectedUserProfile.profile.about }}
-                    </p>
-                  </div>
-                </div>
-                <button
-                  @click="closeUserProfile"
-                  class="touch-target text-gray-400 hover:text-gray-600 p-1 rounded-lg transition-colors flex items-center justify-center"
-                  title="Close"
-                >
-                  <IconX class="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-
-            <!-- Tab Navigation -->
-            <div class="border-b border-gray-200">
-              <nav class="flex">
-                <button
-                  @click="activeTab = 'publickey'"
-                  :class="[
-                    'flex-1 py-3 px-4 text-sm font-medium border-b-2 transition-colors',
-                    activeTab === 'publickey'
-                      ? 'border-orange-400 text-orange-600 bg-orange-50'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  ]"
-                >
-                  <div class="flex items-center justify-center space-x-2">
-                    <IconKey class="w-4 h-4" />
-                    <span>Public key</span>
-                  </div>
-                </button>
-                <button
-                  v-if="selectedUserProfile.profile?.lud16"
-                  @click="activeTab = 'lightning'"
-                  :class="[
-                    'flex-1 py-3 px-4 text-sm font-medium border-b-2 transition-colors',
-                    activeTab === 'lightning'
-                      ? 'border-orange-400 text-orange-600 bg-orange-50'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  ]"
-                >
-                  <div class="flex items-center justify-center space-x-2">
-                    <IconBolt class="w-4 h-4" />
-                    <span>Lightning address</span>
-                  </div>
-                </button>
-              </nav>
-            </div>
-
-            <!-- Tab Content -->
-            <div class="p-6">
-              <!-- Public Key Tab -->
-              <div v-if="activeTab === 'publickey'" class="space-y-6">
-                <!-- QR Code -->
-                <div class="text-center">
-                  <div class="bg-white p-4 rounded-lg border-2 border-gray-200 inline-block mb-4">
-                    <QRCodeVue3
-                      :value="formatNpub(selectedUserProfile.pubkey)"
-                      :size="200"
-                      color="#000000"
-                      background-color="#ffffff"
-                      error-correction-level="M"
-                    />
-                  </div>
-                </div>
-
-                <!-- Public Key String -->
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-2">Public key:</label>
-                  <div class="bg-gray-50 p-3 rounded-lg border">
-                    <div class="flex items-center justify-between">
-                      <code class="text-xs text-gray-600 break-all font-mono flex-1 mr-3">
-                        {{ formatNpub(selectedUserProfile.pubkey) }}
-                      </code>
-                      <button
-                        @click="copyToClipboard(formatNpub(selectedUserProfile.pubkey), 'publickey')"
-                        class="touch-target p-2 text-gray-400 hover:text-orange-600 rounded-lg transition-colors flex-shrink-0"
-                        title="Copy public key"
-                      >
-                        <IconCheck v-if="copySuccess === 'publickey'" class="w-4 h-4 text-green-600" />
-                        <IconCopy v-else class="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Lightning Address Tab -->
-              <div v-if="activeTab === 'lightning' && selectedUserProfile.profile?.lud16" class="space-y-6">
-                <!-- QR Code -->
-                <div class="text-center">
-                  <div class="bg-white p-4 rounded-lg border-2 border-gray-200 inline-block mb-4">
-                    <QRCodeVue3
-                      :value="selectedUserProfile.profile.lud16"
-                      :size="200"
-                      color="#000000"
-                      background-color="#ffffff"
-                      error-correction-level="M"
-                    />
-                  </div>
-                </div>
-
-                <!-- Lightning Address String -->
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-2">Lightning address:</label>
-                  <div class="bg-gray-50 p-3 rounded-lg border">
-                    <div class="flex items-center justify-between">
-                      <div class="flex items-center space-x-2 flex-1 mr-3">
-                        <IconBolt class="w-4 h-4 text-yellow-500 flex-shrink-0" />
-                        <code class="text-sm text-gray-600 break-all font-mono">
-                          {{ selectedUserProfile.profile.lud16 }}
-                        </code>
-                      </div>
-                      <button
-                        @click="copyToClipboard(selectedUserProfile.profile.lud16, 'lightning')"
-                        class="touch-target p-2 text-gray-400 hover:text-orange-600 rounded-lg transition-colors flex-shrink-0"
-                        title="Copy Lightning address"
-                      >
-                        <IconCheck v-if="copySuccess === 'lightning'" class="w-4 h-4 text-green-600" />
-                        <IconCopy v-else class="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Lightning Address Info -->
-                <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                  <div class="flex items-start space-x-3">
-                    <IconBolt class="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <h4 class="font-medium text-yellow-900 mb-1">Lightning Address</h4>
-                      <p class="text-sm text-yellow-800">
-                        This is a Lightning payment address. You can send Bitcoin payments instantly to this address.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- No Lightning Address Message -->
-              <div v-if="activeTab === 'lightning' && !selectedUserProfile.profile?.lud16" class="text-center py-8">
-                <IconBolt class="w-12 h-12 mx-auto text-gray-300 mb-3" />
-                <h4 class="text-lg font-medium text-gray-900 mb-2">No Lightning Address</h4>
-                <p class="text-gray-600 text-sm">This user hasn't set up a Lightning address yet.</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </transition>
-    </Teleport>
+    <UserProfileModal 
+      :show="showProfileModal" 
+      :user-profile-data="selectedProfile" 
+      @close="closeUserProfile" 
+    />
   </div>
 </template>
 
