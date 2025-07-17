@@ -154,20 +154,38 @@ const addZapToCampaignAggregatedZaps = (campaignId, zapData) => {
 }
 
 // Start campaign zap aggregation listener
-const startCampaignZapAggregation = async (authState) => {
-  if (!authState?.value || campaignZapSubscription) {
-    console.log('Campaign zap aggregation already active or not authenticated')
+const startCampaignZapAggregation = async () => {
+  if (!isAuthenticated.value) {
+    console.log('Not authenticated, cannot start campaign zap aggregation')
+    return
+  }
+
+  // Close existing subscription if any
+  if (campaignZapSubscription) {
+    console.log('Closing existing campaign zap subscription...')
+    campaignZapSubscription.close()
+    campaignZapSubscription = null
+  }
+
+  // Get all user campaign IDs for targeted filtering
+  const campaignIds = userCampaigns.value.map(campaign => campaign.id)
+  
+  if (campaignIds.length === 0) {
+    console.log('No campaigns found, skipping zap aggregation setup')
     return
   }
 
   try {
-    console.log('🔍 Starting campaign zap aggregation listener...')
+    console.log('🔍 Starting optimized campaign zap aggregation listener for campaigns:', campaignIds.map(id => id.substring(0, 8) + '...'))
     
-    // Subscribe to all zap receipts (kind 9735)
+    // Subscribe to zap receipts (kind 9735) that reference our campaigns
+    // This is much more efficient than fetching all zap receipts
     campaignZapSubscription = nostrRelayManager.subscribeToEvents([
       {
         kinds: [9735], // Zap receipts
-        limit: 100
+        '#e': campaignIds, // Only zap receipts that reference our campaign IDs
+        '#p': [currentUser.value.pubkey], // Only zaps to events authored by us
+        limit: 200 // Increased limit since we're being more specific
       }
     ], {
       onevent: async (zapEvent) => {
@@ -180,41 +198,20 @@ const startCampaignZapAggregation = async (authState) => {
         console.log(`⚡ Processing zap receipt for campaign aggregation: ${zapEvent.id.substring(0, 16)}...`)
         
         try {
-          // Extract the directly zapped event ID
-          const directZappedEventId = extractEventId(zapEvent)
-          if (!directZappedEventId) {
-            console.log('No event ID found in zap receipt, skipping')
+          // Extract the campaign ID directly from the e tag
+          const campaignId = extractEventId(zapEvent)
+          if (!campaignId) {
+            console.log('No campaign ID found in zap receipt, skipping')
             return
           }
           
-          // Fetch the directly zapped event with timeout
-          const timeoutPromise = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Fetch timeout')), 10000)
-          )
-          
-          const directZappedEvent = await Promise.race([
-            nostrRelayManager.getEvent({
-              ids: [directZappedEventId]
-            }),
-            timeoutPromise
-          ])
-          
-          if (!directZappedEvent) {
-            console.log('Could not fetch directly zapped event:', directZappedEventId)
+          // Verify this campaign ID is one of ours
+          if (!campaignIds.includes(campaignId)) {
+            console.log('Zap receipt references campaign not owned by us, skipping:', campaignId)
             return
           }
           
-          // Check if the zapped event has a goal tag pointing to a campaign
-          const goalTag = directZappedEvent.tags.find(tag => tag[0] === 'goal')
-          if (!goalTag || !goalTag[1]) {
-            console.log('No goal tag found in zapped event, not a campaign-related zap. Event tags:', directZappedEvent.tags)
-            console.log('Zapped event content:', directZappedEvent.content)
-            console.log('Zapped event kind:', directZappedEvent.kind)
-            return
-          }
-          
-          const campaignId = goalTag[1]
-          console.log(`Found campaign reference in zapped event: ${campaignId}`)
+          console.log(`✅ Processing zap for our campaign: ${campaignId}`)
           
           // Extract zap data
           const amount = extractZapAmount(zapEvent)
@@ -243,10 +240,8 @@ const startCampaignZapAggregation = async (authState) => {
             timestamp: new Date(zapEvent.created_at * 1000).toISOString(),
             message,
             bolt11,
-            directZappedEventId,
             campaignId,
-            rawZapEvent: zapEvent,
-            rawZappedEvent: directZappedEvent
+            rawZapEvent: zapEvent
           }
           
           // Add to campaign aggregated zaps
@@ -853,7 +848,7 @@ export function useCampaigns() {
       
       // Start campaign zap aggregation
       setTimeout(async () => {
-        await startCampaignZapAggregation(isAuthenticated)
+        await startCampaignZapAggregation()
       }, 2000)
     }
   })
@@ -867,7 +862,7 @@ export function useCampaigns() {
       }, 500)
       
       setTimeout(async () => {
-        await startCampaignZapAggregation(isAuthenticated)
+        await startCampaignZapAggregation()
       }, 1500)
     } else {
       // Clear campaigns when logged out
@@ -875,6 +870,25 @@ export function useCampaigns() {
       stopCampaignZapAggregation()
     }
   })
+  
+  // Watch for changes to user campaigns and restart zap aggregation with updated filters
+  watch(userCampaigns, async (newCampaigns, oldCampaigns) => {
+    // Only restart if we're authenticated and campaigns have actually changed
+    if (!isAuthenticated.value) return
+    
+    const newIds = newCampaigns.map(c => c.id).sort()
+    const oldIds = (oldCampaigns || []).map(c => c.id).sort()
+    
+    // Check if campaign IDs have changed
+    if (JSON.stringify(newIds) !== JSON.stringify(oldIds)) {
+      console.log('Campaign list changed, restarting zap aggregation with updated filters...')
+      console.log('Old campaign IDs:', oldIds)
+      console.log('New campaign IDs:', newIds)
+      
+      // Restart zap aggregation with new campaign filters
+      await startCampaignZapAggregation()
+    }
+  }, { deep: true })
   
   // Watch for changes to campaign aggregated zaps and save to storage
   watch(campaignAggregatedZaps, saveCampaignAggregatedZaps, { deep: true })
