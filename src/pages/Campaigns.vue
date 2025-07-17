@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, inject, watch } from 'vue'
+import { ref, computed, onMounted, inject, watch, toRefs } from 'vue'
 import { 
   IconTarget, 
   IconPlus, 
@@ -21,7 +21,10 @@ import {
   IconClock,
   IconUsers,
   IconArrowRight,
-  IconEye
+  IconEye,
+  IconCheck,
+  IconGrid,
+  IconChevronDown
 } from '@iconify-prerendered/vue-tabler'
 import { useNostrAuth } from '../composables/useNostrAuth.js'
 import { useCampaigns } from '../composables/useCampaigns.js'
