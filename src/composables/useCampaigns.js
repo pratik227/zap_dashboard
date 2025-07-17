@@ -281,7 +281,6 @@ const stopCampaignZapAggregation = () => {
 
 export function useCampaigns() {
   const { currentUser, isAuthenticated } = useNostrAuth()
-  const { currentUser, isAuthenticated } = useNostrAuth()
   const { startZapTracking, getZapsForContent, getTotalZapAmount } = useContentZaps()
   const { handleZapReceived } = useNotifications()
 
