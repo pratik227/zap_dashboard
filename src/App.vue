@@ -18,6 +18,7 @@ import Finances from './pages/Finances.vue'
 import Settings from './pages/Settings.vue'
 import InvoiceShare from './pages/InvoiceShare.vue'
 import Notes from './pages/Notes.vue'
+import Calendar from './pages/Calendar.vue'
 import NWCConnection from './components/NWCConnection.vue'
 import ErrorBoundary from './components/ErrorBoundary.vue'
 import { useNostrConnections } from './composables/useNostrConnections.js'
@@ -337,7 +338,8 @@ const components = {
   finances: Finances,
   settings: Settings,
   'invoice-share': InvoiceShare,
-  notes: Notes
+  notes: Notes,
+  calendar: Calendar
 }
 
 // Check if current page is standalone
