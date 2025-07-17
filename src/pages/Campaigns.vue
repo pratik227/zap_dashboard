@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, inject, watch } from 'vue'
+import { ref, computed, onMounted, inject, watch, toRefs } from 'vue'
 import { 
   IconTarget, 
   IconPlus, 
@@ -36,7 +36,7 @@ import CampaignShareModal from '../components/CampaignShareModal.vue'
 const changePage = inject('changePage')
 
 // Use composables
-const { isAuthenticated, currentUser, login } = useNostrAuth()
+const { isAuthenticated, currentUser, login } = toRefs(useNostrAuth())
 const { 
   userCampaigns, 
   isLoading, 
