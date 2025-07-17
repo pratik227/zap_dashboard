@@ -181,10 +181,7 @@ const publishNewCampaign = async () => {
     const goalAmountMsats = form.value.goalAmount * 1000
     
     // Convert date to timestamp
-    let closedAtTimestamp = null
-    if (form.value.closedAt) {
-      closedAtTimestamp = Math.floor(new Date(form.value.closedAt).getTime() / 1000)
-    }
+    const closedAtTimestamp = getEndOfDayTimestamp(form.value.closedAt)
     
     // Create campaign data
     const campaignData = {
@@ -225,6 +222,17 @@ const formatDate = (dateString) => {
     day: 'numeric',
     year: 'numeric'
   })
+}
+
+// Set the end of day for the closed date (23:59:59.999)
+const getEndOfDayTimestamp = (dateString) => {
+  if (!dateString) return null
+  
+  const date = new Date(dateString)
+  // Set to end of day (23:59:59.999) in local timezone
+  date.setHours(23, 59, 59, 999)
+  
+  return Math.floor(date.getTime() / 1000)
 }
 </script>
 

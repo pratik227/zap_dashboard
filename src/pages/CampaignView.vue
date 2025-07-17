@@ -168,12 +168,13 @@ const formatAmount = (amount) => {
 // Calculate days remaining
 const daysRemaining = computed(() => {
   if (!campaign.value || !campaign.value.closedAt) return 'No deadline'
-  
+
   const now = Math.floor(Date.now() / 1000)
   const remaining = campaign.value.closedAt - now
-  
+  console.log(`Days remaining calculation: now=${now}, closedAt=${props.campaign.closedAt}, remaining=${remaining} seconds`)
+
   if (remaining <= 0) return 'Ended'
-  
+
   const days = Math.floor(remaining / (60 * 60 * 24))
   return days === 1 ? '1 day left' : `${days} days left`
 })

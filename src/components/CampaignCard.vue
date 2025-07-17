@@ -73,12 +73,13 @@ const getCampaignId = (campaign) => {
 // Calculate days remaining
 const daysRemaining = computed(() => {
   if (!props.campaign.closedAt) return 'No deadline'
-  
+
   const now = Math.floor(Date.now() / 1000)
   const remaining = props.campaign.closedAt - now
-  
+  console.log(`CampaignCard - Days remaining: now=${now}, closedAt=${props.campaign.closedAt}, remaining=${remaining} seconds`)
+
   if (remaining <= 0) return 'Ended'
-  
+
   const days = Math.floor(remaining / (60 * 60 * 24))
   return days === 1 ? '1 day left' : `${days} days left`
 })

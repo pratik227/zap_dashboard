@@ -242,14 +242,18 @@ export function useCampaigns() {
       
       // Add closed_at if provided
       if (campaignData.closedAt) {
-        tags.push(['closed_at', Math.floor(new Date(campaignData.closedAt).getTime() / 1000).toString()])
+        tags.push(['closed_at', campaignData.closedAt.toString()])
       }
       
       // Add relays
+      // NIP-75 requires a single relays tag with multiple values
       const relayUrls = nostrRelayManager.getReadRelays().map(relay => relay.url)
-      relayUrls.forEach(url => {
-        tags.push(['relays', url])
-      })
+      if (relayUrls.length > 0) {
+        tags.push(['relays', ...relayUrls])
+      } else {
+        // Fallback to default relays if none are configured
+        tags.push(['relays', 'wss://relay.damus.io', 'wss://nos.lol', 'wss://relay.snort.social'])
+      }
       
       // Create event
       const eventTemplate = {
@@ -383,8 +387,9 @@ export function useCampaigns() {
   // Check if campaign is expired
   const isCampaignExpired = (campaign) => {
     if (!campaign.closedAt) return false
-    
+
     const now = Math.floor(Date.now() / 1000)
+    console.log(`Campaign expiration check: now=${now}, closedAt=${campaign.closedAt}, diff=${campaign.closedAt - now} seconds`)
     return campaign.closedAt < now
   }
 
