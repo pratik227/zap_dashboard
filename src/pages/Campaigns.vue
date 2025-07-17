@@ -109,9 +109,19 @@ const campaignStats = computed(() => {
 // Check if campaign is expired
 const isCampaignExpired = (campaign) => {
   if (!campaign.closedAt) return false
-
+  
   const now = Math.floor(Date.now() / 1000)
-  console.log(`Campaign expiration check in Campaigns.vue: campaign=${campaign.title}, now=${now}, closedAt=${campaign.closedAt}, diff=${campaign.closedAt - now} seconds`)
+  
+  // Only log if the campaign is close to expiration (within 24 hours)
+  const diff = campaign.closedAt - now
+  if (Math.abs(diff) < 24 * 60 * 60) {
+    console.log(`Campaign "${campaign.title}" expiration check:`)
+    console.log(`- Now: ${new Date(now * 1000).toLocaleString()}`)
+    console.log(`- Closes: ${new Date(campaign.closedAt * 1000).toLocaleString()}`)
+    console.log(`- Diff: ${diff} seconds (${Math.floor(diff / 3600)} hours)`)
+    console.log(`- Status: ${campaign.closedAt < now ? 'EXPIRED' : 'ACTIVE'}`)
+  }
+  
   return campaign.closedAt < now
 }
 

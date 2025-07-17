@@ -227,12 +227,27 @@ const formatDate = (dateString) => {
 // Set the end of day for the closed date (23:59:59.999)
 const getEndOfDayTimestamp = (dateString) => {
   if (!dateString) return null
-  
+
   const date = new Date(dateString)
-  // Set to end of day (23:59:59.999) in local timezone
-  date.setHours(23, 59, 59, 999)
   
-  return Math.floor(date.getTime() / 1000)
+  // Create a new Date object for the end of the selected day (23:59:59.999)
+  // We need to be explicit about timezone handling to avoid issues
+  const year = date.getFullYear()
+  const month = date.getMonth()
+  const day = date.getDate()
+  
+  // Create a new date set to the end of the day (23:59:59.999)
+  const endOfDay = new Date(year, month, day, 23, 59, 59, 999)
+  
+  // Convert to Unix timestamp (seconds)
+  const timestamp = Math.floor(endOfDay.getTime() / 1000)
+  
+  console.log(`Date string: ${dateString}`)
+  console.log(`Parsed date: ${date.toLocaleString()}`)
+  console.log(`End of day: ${endOfDay.toLocaleString()}`)
+  console.log(`End of day timestamp: ${timestamp} (${new Date(timestamp * 1000).toLocaleString()})`)
+  
+  return timestamp
 }
 </script>
 

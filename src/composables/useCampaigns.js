@@ -232,28 +232,35 @@ export function useCampaigns() {
       // Prepare tags
       const tags = [
         ['amount', campaignData.goalAmount.toString()], // in millisats
-        ['summary', campaignData.summary]
+        ['summary', campaignData.summary.trim()]
       ]
       
       // Add image if provided
       if (campaignData.image) {
-        tags.push(['image', campaignData.image])
+        tags.push(['image', campaignData.image.trim()])
       }
       
       // Add closed_at if provided
       if (campaignData.closedAt) {
-        tags.push(['closed_at', campaignData.closedAt.toString()])
+        const closedAtStr = campaignData.closedAt.toString()
+        tags.push(['closed_at', closedAtStr])
+        console.log(`Setting campaign end date: ${new Date(campaignData.closedAt * 1000).toLocaleString()}, timestamp: ${closedAtStr}`)
       }
       
       // Add relays
-      // NIP-75 requires a single relays tag with multiple values
+      // NIP-75 requires a SINGLE relays tag with MULTIPLE values (not multiple relays tags)
       const relayUrls = nostrRelayManager.getReadRelays().map(relay => relay.url)
+      let relaysTag = ['relays']
+      
       if (relayUrls.length > 0) {
-        tags.push(['relays', ...relayUrls])
+        relaysTag.push(...relayUrls)
       } else {
         // Fallback to default relays if none are configured
-        tags.push(['relays', 'wss://relay.damus.io', 'wss://nos.lol', 'wss://relay.snort.social'])
+        relaysTag.push('wss://relay.damus.io', 'wss://nos.lol', 'wss://relay.snort.social')
       }
+      tags.push(relaysTag)
+      
+      console.log('Final relays tag:', relaysTag)
       
       // Create event
       const eventTemplate = {
@@ -269,8 +276,19 @@ export function useCampaigns() {
       // Verify the signed event
       const isValid = verifyEvent(signedEvent)
       if (!isValid) {
-        throw new Error('Event signature verification failed')
+        console.error('Event signature verification failed')
+        throw new Error('Event signature verification failed. Please try again.')
       }
+      
+      // Log the complete event for debugging
+      console.log('Publishing campaign event:', {
+        id: signedEvent.id,
+        kind: signedEvent.kind,
+        pubkey: signedEvent.pubkey,
+        created_at: signedEvent.created_at,
+        content: signedEvent.content,
+        tags: signedEvent.tags
+      })
       
       // Publish to relays
       const result = await nostrRelayManager.publishEvent(signedEvent)
@@ -387,9 +405,18 @@ export function useCampaigns() {
   // Check if campaign is expired
   const isCampaignExpired = (campaign) => {
     if (!campaign.closedAt) return false
-
+    
     const now = Math.floor(Date.now() / 1000)
-    console.log(`Campaign expiration check: now=${now}, closedAt=${campaign.closedAt}, diff=${campaign.closedAt - now} seconds`)
+    const diff = campaign.closedAt - now
+    const diffDays = Math.floor(diff / (24 * 60 * 60))
+    const diffHours = Math.floor((diff % (24 * 60 * 60)) / 3600)
+    
+    console.log(`Campaign expiration check for "${campaign.title}":`)
+    console.log(`- Current time: ${new Date(now * 1000).toLocaleString()}`)
+    console.log(`- End time: ${new Date(campaign.closedAt * 1000).toLocaleString()}`)
+    console.log(`- Time remaining: ${diffDays} days, ${diffHours} hours (${diff} seconds)`)
+    console.log(`- Status: ${campaign.closedAt < now ? 'EXPIRED' : 'ACTIVE'}`)
+    
     return campaign.closedAt < now
   }
 
