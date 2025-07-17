@@ -61,8 +61,8 @@ const filteredCampaigns = computed(() => {
   const query = searchQuery.value.toLowerCase()
   return userCampaigns.value.filter(campaign => 
     campaign.title.toLowerCase().includes(query) ||
-    campaign.content.toLowerCase().includes(query) ||
-    campaign.summary.toLowerCase().includes(query)
+    (campaign.content && campaign.content.toLowerCase().includes(query)) ||
+    (campaign.summary && campaign.summary.toLowerCase().includes(query))
   )
 })
 
@@ -107,7 +107,7 @@ const handleDeleteCampaign = async () => {
 
 // View campaign details
 const viewCampaign = (campaign) => {
-  changePage('campaign-view', { eventId: campaign.id })
+  changePage('campaign-view')
 }
 
 // Edit campaign
@@ -295,3 +295,19 @@ onMounted(async () => {
     @close="showShareModal = false; selectedCampaign = null"
   />
 </template>
+
+<style scoped>
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+</style>
