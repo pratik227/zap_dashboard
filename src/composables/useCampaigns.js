@@ -453,14 +453,18 @@ export function useCampaigns() {
     // Extract tags
     const amountTag = event.tags.find(tag => tag[0] === 'amount')
     const summaryTag = event.tags.find(tag => tag[0] === 'summary')
+    const descriptionLongTag = event.tags.find(tag => tag[0] === 'description_long')
     const imageTag = event.tags.find(tag => tag[0] === 'image')
+    const linkTag = event.tags.find(tag => tag[0] === 'link')
     const closedAtTag = event.tags.find(tag => tag[0] === 'closed_at')
     const relaysTag = event.tags.find(tag => tag[0] === 'relays')
     
     // Parse data
     const goalAmount = amountTag ? parseInt(amountTag[1]) : 0 // in millisats
     const summary = summaryTag ? summaryTag[1] : ''
+    const descriptionLong = descriptionLongTag ? descriptionLongTag[1] : ''
     const image = imageTag ? imageTag[1] : null
+    const optionalLink = linkTag ? linkTag[1] : null
     const closedAt = closedAtTag ? parseInt(closedAtTag[1]) : null
     const relays = relaysTag ? event.tags.filter(tag => tag[0] === 'relays').map(tag => tag[1]) : []
     
@@ -471,8 +475,10 @@ export function useCampaigns() {
       title,
       content: event.content,
       summary,
+      descriptionLong,
       goalAmount, // in millisats
       image,
+      optionalLink,
       closedAt,
       relays,
       createdAt: event.created_at,
@@ -505,9 +511,19 @@ export function useCampaigns() {
         ['summary', campaignData.summary.trim()]
       ]
       
+      // Add long description if provided
+      if (campaignData.descriptionLong) {
+        tags.push(['description_long', campaignData.descriptionLong.trim()])
+      }
+      
       // Add image if provided
       if (campaignData.image) {
         tags.push(['image', campaignData.image.trim()])
+      }
+      
+      // Add optional link if provided
+      if (campaignData.optionalLink) {
+        tags.push(['link', campaignData.optionalLink.trim()])
       }
       
       // Add closed_at if provided

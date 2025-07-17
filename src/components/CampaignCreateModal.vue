@@ -31,8 +31,10 @@ const { publishCampaign, isLoading, error: campaignError } = useCampaigns()
 const form = ref({
   title: '',
   summary: '',
+  descriptionLong: '',
   goalAmount: 100000, // Default 100k sats (in sats)
   image: '',
+  optionalLink: '',
   closedAt: ''
 })
 
@@ -51,8 +53,10 @@ watch(() => props.campaign, (campaign) => {
     form.value = {
       title: campaign.title || '',
       summary: campaign.summary || '',
+      descriptionLong: campaign.descriptionLong || '',
       goalAmount: Math.floor(campaign.goalAmount / 1000) || 100000, // Convert millisats to sats
       image: campaign.image || '',
+      optionalLink: campaign.optionalLink || '',
       closedAt: campaign.closedAt ? new Date(campaign.closedAt * 1000).toISOString().split('T')[0] : ''
     }
     
@@ -106,6 +110,11 @@ const validateForm = () => {
     return false
   }
   
+  if (form.value.optionalLink && !isValidLinkUrl(form.value.optionalLink)) {
+    localError.value = 'Please enter a valid URL for optional link'
+    return false
+  }
+  
   return true
 }
 
@@ -121,6 +130,17 @@ const isValidImageUrl = (url) => {
   }
 }
 
+// Validate optional link URL
+const isValidLinkUrl = (url) => {
+  if (!url) return true
+  
+  try {
+    const parsed = new URL(url)
+    return true
+  } catch (e) {
+    return false
+  }
+}
 // Show preview
 const showCampaignPreview = () => {
   if (!validateForm()) return
@@ -188,8 +208,10 @@ const publishNewCampaign = async () => {
     const campaignData = {
       title: form.value.title.trim(),
       summary: form.value.summary.trim(),
+      descriptionLong: form.value.descriptionLong.trim(),
       goalAmount: goalAmountMsats, // in millisats
       image: form.value.image.trim(),
+      optionalLink: form.value.optionalLink.trim(),
       closedAt: closedAtTimestamp
     }
     
@@ -381,7 +403,21 @@ const getEndOfDayTimestamp = (dateString) => {
               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base transition-all duration-200 resize-none"
             ></textarea>
             <p class="text-xs text-gray-500 mt-1">
-              Provide a clear, compelling description of your campaign (max 500 characters)
+              Brief summary of your campaign (required)
+            </p>
+          </div>
+          
+          <!-- Description (Long) -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Description <span class="text-gray-500">(optional, longer details)</span></label>
+            <textarea
+              v-model="form.descriptionLong"
+              rows="6"
+              placeholder="Describe your goal..."
+              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base transition-all duration-200 resize-none"
+            ></textarea>
+            <p class="text-xs text-gray-500 mt-1">
+              Provide detailed information about your campaign and goals
             </p>
           </div>
           
@@ -415,6 +451,20 @@ const getEndOfDayTimestamp = (dateString) => {
               />
             </div>
           </div>
+          
+          <!-- Optional Links -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Optional links <span class="text-gray-500">(optional, URL)</span></label>
+            <input
+              v-model="form.optionalLink"
+              type="url"
+              placeholder="https://... (external link)"
+              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base transition-all duration-200"
+            />
+            <p class="text-xs text-gray-500 mt-1">
+              Add a link to your website, social media, or related content
+            </p>
+          </div>
         </div>
       </div>
       
@@ -440,12 +490,35 @@ const getEndOfDayTimestamp = (dateString) => {
             <h3 class="text-xl font-semibold text-gray-900 mb-3">{{ form.title }}</h3>
             <p class="text-gray-600 mb-4">{{ form.summary }}</p>
             
+            <!-- Long Description -->
+            <div v-if="form.descriptionLong" class="mb-4">
+              <h4 class="text-sm font-medium text-gray-700 mb-2">Description</h4>
+              <div class="bg-gray-50 p-3 rounded-lg border border-gray-200 max-h-32 overflow-y-auto">
+                <p class="text-sm text-gray-700 whitespace-pre-wrap">{{ form.descriptionLong }}</p>
+              </div>
+            </div>
+            
             <!-- Goal Amount -->
             <div class="flex items-center space-x-2 mb-4">
               <div class="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
                 <IconBolt class="w-4 h-4 text-orange-600" />
               </div>
               <span class="font-medium text-gray-900">{{ form.goalAmount.toLocaleString() }} sats</span>
+            </div>
+            
+            <!-- Optional Link -->
+            <div v-if="form.optionalLink" class="flex items-center space-x-2 mb-4">
+              <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                <IconExternalLink class="w-4 h-4 text-blue-600" />
+              </div>
+              <a 
+                :href="form.optionalLink" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                class="text-blue-600 hover:text-blue-700 hover:underline truncate"
+              >
+                {{ form.optionalLink }}
+              </a>
             </div>
             
             <!-- Deadline -->
