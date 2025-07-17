@@ -12,6 +12,9 @@ import ChatZaps from './pages/ChatZaps.vue'
 import Content from './pages/Content.vue'
 import ContentUnlock from './pages/ContentUnlock.vue'
 import Donations from './pages/Donations.vue'
+import Campaigns from './pages/Campaigns.vue'
+import CampaignView from './pages/CampaignView.vue'
+import CampaignNotFound from './pages/CampaignNotFound.vue'
 import MiniPoS from './pages/MiniPoS.vue'
 import Wallet from './pages/Wallet.vue'
 import Finances from './pages/Finances.vue'
@@ -332,6 +335,9 @@ const components = {
   content: Content,
   'content-unlock': ContentUnlock,
   donations: Donations,
+  campaigns: Campaigns,
+  'campaign-view': CampaignView,
+  'campaign-not-found': CampaignNotFound,
   'mini-pos': MiniPoS,
   wallet: Wallet,
   finances: Finances,
