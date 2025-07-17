@@ -11,11 +11,6 @@ import Analytics from './pages/Analytics.vue'
 import ChatZaps from './pages/ChatZaps.vue'
 import Content from './pages/Content.vue'
 import ContentUnlock from './pages/ContentUnlock.vue'
-import Donations from './pages/Donations.vue'
-import Campaigns from './pages/Campaigns.vue'
-import CampaignView from './pages/CampaignView.vue'
-import CampaignNotFound from './pages/CampaignNotFound.vue'
-import Donations from './pages/Donations.vue'
 import Campaigns from './pages/Campaigns.vue'
 import CampaignView from './pages/CampaignView.vue'
 import CampaignNotFound from './pages/CampaignNotFound.vue'
@@ -338,11 +333,6 @@ const components = {
   'chat-zaps': ChatZaps,
   content: Content,
   'content-unlock': ContentUnlock,
-  donations: Donations,
-  campaigns: Campaigns,
-  'campaign-view': CampaignView,
-  'campaign-not-found': CampaignNotFound,
-  donations: Donations,
   campaigns: Campaigns,
   'campaign-view': CampaignView,
   'campaign-not-found': CampaignNotFound,

@@ -82,7 +82,6 @@ const menuItems = [
   { id: 'content', label: 'Content', icon: IconFileText },
   { id: 'notes', label: 'Notes', icon: IconEdit },
   { id: 'campaigns', label: 'Campaigns', icon: IconTarget },
-  { id: 'campaigns', label: 'Campaigns', icon: IconTarget },
   // { id: 'mini-pos', label: 'Mini PoS', icon: IconShoppingCart },
   // { id: 'finances', label: 'Finances', icon: IconCreditCard },
   { id: 'settings', label: 'Settings', icon: IconSettings }
