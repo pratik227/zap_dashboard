@@ -17,7 +17,8 @@ import {
   IconFileText,
   IconGift,
   IconShoppingCart,
-  IconEdit
+  IconEdit,
+  IconCalendar
 } from '@iconify-prerendered/vue-tabler'
 import NotificationDropdown from './NotificationDropdown.vue'
 import { useNostrAuth } from '../composables/useNostrAuth.js'

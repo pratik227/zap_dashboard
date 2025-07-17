@@ -96,11 +96,11 @@
 
 @layer components {
   .card {
-    @apply bg-white/90 backdrop-blur-sm border border-orange-100/50 rounded-xl shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1;
+    @apply bg-white/90 backdrop-blur-sm border border-orange-100/50 rounded-xl shadow-sm hover:shadow-md transition-all duration-200;
   }
   
   .stat-card {
-    @apply card p-4 sm:p-6 hover:shadow-lg hover:border-orange-200/60 transition-all duration-300 hover:scale-105;
+    @apply card p-4 sm:p-6 hover:shadow-lg hover:border-orange-200/60 transition-all duration-200;
   }
   
   .zap-item {
@@ -108,19 +108,48 @@
   }
   
   .btn-primary {
-    @apply bg-gradient-to-r from-orange-400 to-amber-400 hover:from-orange-500 hover:to-amber-500 text-white px-4 py-3 rounded-lg font-medium transition-all duration-200 flex items-center justify-center gap-2 shadow-sm hover:shadow-md touch-target text-sm sm:text-base transform hover:scale-105 active:scale-95;
+    @apply bg-gradient-to-r from-orange-400 to-amber-400 hover:from-orange-500 hover:to-amber-500 text-white px-4 py-3 rounded-lg font-medium transition-all duration-200 flex items-center justify-center gap-2 shadow-sm hover:shadow-md touch-target text-sm sm:text-base;
   }
   
   .btn-secondary {
-    @apply bg-orange-50 hover:bg-orange-100 text-orange-700 px-4 py-3 rounded-lg font-medium transition-all duration-200 flex items-center justify-center gap-2 border border-orange-200/50 touch-target text-sm sm:text-base hover:shadow-sm hover:border-orange-300 transform hover:scale-105 active:scale-95;
+    @apply bg-orange-50 hover:bg-orange-100 text-orange-700 px-4 py-3 rounded-lg font-medium transition-all duration-200 flex items-center justify-center gap-2 border border-orange-200/50 touch-target text-sm sm:text-base hover:shadow-sm hover:border-orange-300;
   }
   
   .filter-chip {
-    @apply bg-white border border-orange-200/50 text-orange-700 px-3 py-2 rounded-full text-sm font-medium hover:bg-orange-50 transition-all duration-200 cursor-pointer touch-target hover:shadow-sm hover:scale-105 active:scale-95;
+    @apply bg-white border border-orange-200/50 text-orange-700 px-3 py-2 rounded-full text-sm font-medium hover:bg-orange-50 transition-all duration-200 cursor-pointer touch-target hover:shadow-sm;
   }
   
   .filter-chip.active {
     @apply bg-gradient-to-r from-orange-400 to-amber-400 text-white border-orange-400 shadow-md;
+  }
+  
+  /* Calendar specific styles */
+  .calendar-day {
+    @apply min-h-[80px] p-2 border border-gray-100 cursor-pointer transition-all duration-200 hover:bg-orange-50 rounded-lg;
+  }
+  
+  .calendar-day.today {
+    @apply bg-orange-100 border-orange-300 text-orange-600 font-semibold;
+  }
+  
+  .calendar-day.selected {
+    @apply ring-2 ring-orange-400 bg-orange-50;
+  }
+  
+  .calendar-day.other-month {
+    @apply bg-gray-50 text-gray-400;
+  }
+  
+  .calendar-event {
+    @apply text-xs p-1 rounded truncate cursor-pointer transition-colors duration-200 hover:shadow-sm;
+  }
+  
+  .calendar-event.time-based {
+    @apply bg-blue-100 text-blue-700 hover:bg-blue-200;
+  }
+  
+  .calendar-event.date-based {
+    @apply bg-green-100 text-green-700 hover:bg-green-200;
   }
   
   /* Mobile-optimized form inputs */
