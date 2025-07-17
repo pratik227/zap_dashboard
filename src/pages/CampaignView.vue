@@ -63,18 +63,27 @@ const loadCampaign = async () => {
   const eventId = getEventIdFromUrl()
   
   if (!eventId) {
+    console.error('No eventId found in URL parameters')
     changePage('campaign-not-found')
     return
   }
   
+  console.log('Attempting to load campaign with eventId:', eventId)
+  
   try {
     const loadedCampaign = await fetchCampaignById(eventId)
+    console.log('Campaign loaded successfully:', loadedCampaign)
     campaign.value = loadedCampaign
     
     // Fetch author profile
     await fetchAuthorProfile(loadedCampaign.pubkey)
   } catch (err) {
     console.error('Failed to load campaign:', err)
+    console.error('Error details:', {
+      message: err.message,
+      stack: err.stack,
+      eventId: eventId
+    })
     changePage('campaign-not-found')
   }
 }

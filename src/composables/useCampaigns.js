@@ -353,6 +353,7 @@ export function useCampaigns() {
 
     try {
       console.log('Fetching campaign by ID:', eventId)
+      console.log('Current relay manager status:', nostrRelayManager.getConnectionStats())
       
       // First check if we already have this campaign in our state
       const existingCampaign = userCampaigns.value.find(c => c.id === eventId)
@@ -361,13 +362,18 @@ export function useCampaigns() {
         return existingCampaign
       }
       
+      console.log('Campaign not in local state, fetching from relays...')
+      
       // If not in state, fetch from relays
       const event = await nostrRelayManager.getEvent({
         ids: [eventId],
         kinds: [CAMPAIGN_KIND]
       })
       
+      console.log('Relay query result:', event)
+      
       if (!event) {
+        console.error('No event found with ID:', eventId, 'and kind:', CAMPAIGN_KIND)
         throw new Error('Campaign not found')
       }
       
@@ -375,6 +381,7 @@ export function useCampaigns() {
       
       // Process the event
       const campaign = processCampaignEvent(event)
+      console.log('Processed campaign:', campaign)
       
       // Start tracking zaps for this campaign
       startZapTracking(event.id)
@@ -504,6 +511,7 @@ export function useCampaigns() {
 
     try {
       console.log('Creating new campaign:', campaignData.title)
+      console.log('Campaign data received:', campaignData)
       
       // Prepare tags
       const tags = [
@@ -547,6 +555,7 @@ export function useCampaigns() {
       tags.push(relaysTag)
       
       console.log('Final relays tag:', relaysTag)
+      console.log('All tags prepared:', tags)
       
       // Create event
       const eventTemplate = {
@@ -556,8 +565,13 @@ export function useCampaigns() {
         content: campaignData.title
       }
       
+      console.log('Event template before signing:', eventTemplate)
+      console.log('Campaign kind being used:', CAMPAIGN_KIND)
+      
       // Sign the event
       const signedEvent = await window.nostr.signEvent(eventTemplate)
+      
+      console.log('Event signed successfully:', signedEvent)
       
       // Verify the signed event
       const isValid = verifyEvent(signedEvent)
@@ -565,6 +579,8 @@ export function useCampaigns() {
         console.error('Event signature verification failed')
         throw new Error('Event signature verification failed. Please try again.')
       }
+      
+      console.log('Event signature verified successfully')
       
       // Log the complete event for debugging
       console.log('Publishing campaign event:', {
@@ -577,8 +593,18 @@ export function useCampaigns() {
         tags: signedEvent.tags
       })
       
+      // Check relay manager status before publishing
+      const relayStats = nostrRelayManager.getConnectionStats()
+      console.log('Relay manager stats before publishing:', relayStats)
+      
+      if (relayStats.writeEnabled === 0) {
+        throw new Error('No write-enabled relays available for publishing')
+      }
+      
       // Publish to relays
       const result = await nostrRelayManager.publishEvent(signedEvent)
+      
+      console.log('Publish result:', result)
       
       if (result.successful === 0) {
         throw new Error('Failed to publish to any relays')
@@ -594,6 +620,23 @@ export function useCampaigns() {
       console.log('Campaign Event ID:', signedEvent.id);
       console.log('Campaign Event:', signedEvent);
       console.log('Publish Result:', result);
+      
+      // Verify the event was actually published by trying to fetch it back
+      console.log('Attempting to verify publication by fetching the event back...')
+      try {
+        const verificationEvent = await nostrRelayManager.getEvent({
+          ids: [signedEvent.id],
+          kinds: [CAMPAIGN_KIND]
+        })
+        
+        if (verificationEvent) {
+          console.log('✅ Event successfully verified on relays:', verificationEvent.id)
+        } else {
+          console.warn('⚠️ Event not found on relays after publication - may take time to propagate')
+        }
+      } catch (verifyError) {
+        console.warn('⚠️ Could not verify event publication:', verifyError)
+      }
       
       // Check if we already have this campaign in our local state
       const existingCampaign = userCampaigns.value.find(c => c.id === signedEvent.id)
