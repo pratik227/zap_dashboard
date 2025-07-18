@@ -285,29 +285,29 @@ const getSenderName = (sender) => {
 }
 
 // Get transaction type display text
-// const getTransactionTypeText = (zap) => {
-//  return zap.type === 'outgoing' ? 'Sent' : 'Received'
-//}
+ const getTransactionTypeText = (zap) => {
+  return zap.type === 'outgoing' ? 'Sent' : 'Received'
+}
 
 // Get transaction type color class
-// const getTransactionTypeColor = (zap) => {
-//  return zap.type === 'outgoing' ? 'text-red-600' : 'text-green-600'
-//}
+ const getTransactionTypeColor = (zap) => {
+  return zap.type === 'outgoing' ? 'text-red-600' : 'text-green-600'
+}
 
 // Get source icon
-// const getSourceIcon = (zap) => {
-//  return zap.source === 'nip57' ? IconBolt : IconWallet
-//}
+ const getSourceIcon = (zap) => {
+  return zap.source === 'nip57' ? IconBolt : IconWallet
+}
 
 // Get source color
-//const getSourceColor = (zap) => {
-//  return zap.source === 'nip57' ? 'text-orange-600 bg-orange-100' : 'text-blue-600 bg-blue-100'
-//}
+const getSourceColor = (zap) => {
+  return zap.source === 'nip57' ? 'text-orange-600 bg-orange-100' : 'text-blue-600 bg-blue-100'
+}
 
-// Get transaction type background color class
-//const getTransactionTypeBgColor = (zap) => {
-//  return zap.type === 'outgoing' ? 'from-red-100 to-pink-100' : 'from-orange-100 to-amber-100'
-//}
+ // Get transaction type background color class
+const getTransactionTypeBgColor = (zap) => {
+  return zap.type === 'outgoing' ? 'from-red-100 to-pink-100' : 'from-orange-100 to-amber-100'
+}
 
 // Get note type icon component
 const getNoteTypeIcon = (type) => {
