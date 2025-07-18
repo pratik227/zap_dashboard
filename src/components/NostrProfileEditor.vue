@@ -652,7 +652,7 @@ const saveProfile = async () => {
     
   } catch (err) {
     console.error('Failed to update profile:', err);
-    error.value = `Failed to update profile: ${err.message}`;
+    error.value = \`Failed to update profile: ${err.message}`;
   } finally {
     isLoading.value = false;
   }
