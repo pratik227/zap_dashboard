@@ -276,7 +276,7 @@ const toggleRelaySection = () => {
           </div>
           <div>
             <h3 class="text-lg font-semibold text-gray-900">Nostr Identity</h3>
-            <p class="text-sm text-gray-600">Connect and manage your decentralized identity</p>
+            <p class="text-sm text-gray-600">Manage your decentralized identity</p>
           </div>
         </div>
       </div>
