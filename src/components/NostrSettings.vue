@@ -1,4 +1,3 @@
-```vue
 <script setup>
 import { ref, onMounted } from 'vue'
 import { 
@@ -320,155 +319,184 @@ const toggleRelaySection = () => {
       
       <!-- Authenticated State -->
       <div v-else class="p-4 sm:p-6">
-        <!-- Profile Card -->
-        <div class="bg-gradient-to-r from-orange-50 to-amber-50 rounded-xl p-4 mb-6 border border-orange-200/50">
-          <div class="flex flex-col sm:flex-row sm:items-center gap-4">
-            <!-- Avatar and Basic Info -->
-            <div class="flex items-center space-x-3 flex-1">
-              <div class="relative">
-                <img 
-                  :src="getUserAvatar()" 
-                  :alt="userProfile?.name || 'User'"
-                  class="w-12 h-12 sm:w-14 sm:h-14 rounded-full border-2 border-white shadow-md object-cover"
-                  @error="$event.target.src = 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'"
-                />
-                <div class="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-green-400 rounded-full border-2 border-white flex items-center justify-center">
-                  <IconUserCheck class="w-2.5 h-2.5 text-white" />
+        <!-- Modern Profile Card -->
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-6">
+          <!-- Profile Header -->
+          <div class="relative bg-gradient-to-br from-orange-400 via-amber-400 to-yellow-400 px-6 py-8">
+            <!-- Subtle pattern overlay -->
+            <div class="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent"></div>
+            
+            <div class="relative flex flex-col items-center text-center">
+              <!-- Avatar with status indicator -->
+              <div class="relative mb-4">
+                <div class="w-20 h-20 rounded-2xl bg-white/20 backdrop-blur-sm p-1 shadow-lg">
+                  <img 
+                    :src="getUserAvatar()" 
+                    :alt="userProfile?.name || 'User'"
+                    class="w-full h-full rounded-xl object-cover"
+                    @error="$event.target.src = 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'"
+                  />
+                </div>
+                <!-- Status indicator -->
+                <div class="absolute -bottom-1 -right-1 w-6 h-6 bg-green-400 rounded-lg border-3 border-white shadow-sm flex items-center justify-center">
+                  <IconUserCheck class="w-3 h-3 text-white" />
                 </div>
               </div>
               
-              <div class="flex-1 min-w-0">
-                <h4 class="text-lg font-semibold text-gray-900 mb-1">{{ userProfile?.name || 'Anonymous' }}</h4>
+              <!-- Name and subtitle -->
+              <h3 class="text-xl font-bold text-white mb-1">
+                {{ userProfile?.name || 'Anonymous' }}
+              </h3>
+              <p v-if="userProfile?.display_name && userProfile?.display_name !== userProfile?.name" 
+                 class="text-white/80 text-sm mb-3">
+                {{ userProfile.display_name }}
+              </p>
+              <p v-else-if="userProfile?.about" 
+                 class="text-white/80 text-sm mb-3 line-clamp-2 max-w-xs">
+                {{ userProfile.about }}
+              </p>
+              
+              <!-- Action buttons -->
+              <div class="flex items-center space-x-2">
+                <button
+                  @click="handleEditProfile"
+                  class="flex items-center space-x-2 bg-white/20 backdrop-blur-sm hover:bg-white/30 px-4 py-2 rounded-xl text-white font-medium transition-all duration-200 hover:scale-105 touch-target"
+                >
+                  <IconEdit class="w-4 h-4" />
+                  <span>Edit Profile</span>
+                </button>
                 
-                <!-- Display name or about -->
-                <p v-if="userProfile?.display_name && userProfile?.display_name !== userProfile?.name" 
-                   class="text-xs text-gray-600 mb-1">
-                  {{ userProfile.display_name }}
-                </p>
-                <p v-else-if="userProfile?.about" 
-                   class="text-xs text-gray-600 mb-1 line-clamp-1">
-                  {{ userProfile.about }}
-                </p>
+                <button
+                  @click="handleRefreshProfile"
+                  :disabled="loadingStates.refreshProfile"
+                  class="w-10 h-10 bg-white/20 backdrop-blur-sm hover:bg-white/30 rounded-xl flex items-center justify-center text-white transition-all duration-200 hover:scale-105 disabled:opacity-50 touch-target"
+                  title="Refresh Profile"
+                >
+                  <IconRefresh :class="['w-4 h-4', loadingStates.refreshProfile ? 'animate-spin' : '']" />
+                </button>
                 
-                <!-- Status Badges -->
-                <div class="flex flex-wrap gap-1">
-                  <span class="inline-flex items-center px-1.5 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-medium">
-                    <IconUserCheck class="w-2.5 h-2.5 mr-1" />
-                    Connected
-                  </span>
-                  <span v-if="userProfile?.nip05" class="inline-flex items-center px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
-                    <IconShield class="w-2.5 h-2.5 mr-1" />
-                    Verified
-                  </span>
-                  <span v-if="userProfile?.lud16" class="inline-flex items-center px-1.5 py-0.5 bg-orange-100 text-orange-700 rounded-full text-xs font-medium">
-                    <IconBolt class="w-2.5 h-2.5 mr-1" />
-                    Zap Ready
-                  </span>
-                </div>
+                <button
+                  @click="handleLogout"
+                  :disabled="loadingStates.logout"
+                  class="w-10 h-10 bg-white/20 backdrop-blur-sm hover:bg-red-500/30 rounded-xl flex items-center justify-center text-white transition-all duration-200 hover:scale-105 disabled:opacity-50 touch-target"
+                  title="Logout"
+                >
+                  <IconLoader v-if="loadingStates.logout" class="w-4 h-4 animate-spin" />
+                  <IconX v-else class="w-4 h-4" />
+                </button>
               </div>
+            </div>
+          </div>
+          
+          <!-- Profile Details -->
+          <div class="p-6 space-y-4">
+            <!-- Status badges -->
+            <div class="flex flex-wrap gap-2 justify-center">
+              <span class="inline-flex items-center px-3 py-1.5 bg-green-50 text-green-700 rounded-full text-xs font-medium border border-green-200">
+                <IconUserCheck class="w-3 h-3 mr-1.5" />
+                Connected
+              </span>
+              <span v-if="userProfile?.nip05" class="inline-flex items-center px-3 py-1.5 bg-blue-50 text-blue-700 rounded-full text-xs font-medium border border-blue-200">
+                <IconShield class="w-3 h-3 mr-1.5" />
+                Verified
+              </span>
+              <span v-if="userProfile?.lud16" class="inline-flex items-center px-3 py-1.5 bg-orange-50 text-orange-700 rounded-full text-xs font-medium border border-orange-200">
+                <IconBolt class="w-3 h-3 mr-1.5" />
+                Zap Ready
+              </span>
             </div>
             
-            <!-- Action Buttons -->
-            <div class="flex flex-row gap-2">
-              <button
-                @click="handleEditProfile"
-                class="p-2 text-gray-500 hover:text-orange-600 hover:bg-orange-100 rounded-lg transition-all duration-200 group"
-                title="Edit Profile"
-              >
-                <IconEdit class="w-4 h-4 group-hover:scale-110 transition-transform" />
-              </button>
-              
-              <button
-                @click="handleRefreshProfile"
-                :disabled="loadingStates.refreshProfile"
-                class="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-100 rounded-lg transition-all duration-200 group disabled:opacity-50"
-                title="Refresh Profile"
-              >
-                <IconRefresh :class="['w-4 h-4 transition-transform', loadingStates.refreshProfile ? 'animate-spin' : 'group-hover:scale-110']" />
-              </button>
-              
-              <button
-                @click="handleLogout"
-                :disabled="loadingStates.logout"
-                class="p-2 text-gray-500 hover:text-red-600 hover:bg-red-100 rounded-lg transition-all duration-200 group disabled:opacity-50"
-                title="Logout"
-              >
-                <IconLoader v-if="loadingStates.logout" class="w-4 h-4 animate-spin" />
-                <IconX v-else class="w-4 h-4 group-hover:scale-110 transition-transform" />
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Profile Details Grid -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
-          <!-- Public Key Card -->
-          <div class="bg-white/80 rounded-lg border border-gray-200/50 p-3">
-            <div class="flex items-center justify-between mb-2">
-              <div class="flex items-center space-x-2">
-                <IconKey class="w-3.5 h-3.5 text-gray-400" />
-                <span class="text-xs font-medium text-gray-600">Public Key</span>
+            <!-- Profile information list -->
+            <div class="space-y-3">
+              <!-- Public Key -->
+              <div class="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors group">
+                <div class="flex items-center space-x-3 flex-1 min-w-0">
+                  <div class="w-8 h-8 bg-gray-200 rounded-lg flex items-center justify-center">
+                    <IconKey class="w-4 h-4 text-gray-600" />
+                  </div>
+                  <div class="flex-1 min-w-0">
+                    <p class="text-sm font-medium text-gray-900">Public Key</p>
+                    <code class="text-xs text-gray-500 font-mono truncate block">{{ getShortNpub() }}</code>
+                  </div>
+                </div>
+                <button
+                  @click="copyToClipboard(currentUser.npub)"
+                  :disabled="loadingStates.copyAction"
+                  class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-all duration-200 opacity-0 group-hover:opacity-100 disabled:opacity-50"
+                  title="Copy public key"
+                >
+                  <IconLoader v-if="loadingStates.copyAction" class="w-4 h-4 animate-spin" />
+                  <IconCheck v-else-if="copySuccess" class="w-4 h-4 text-green-600" />
+                  <IconCopy v-else class="w-4 h-4" />
+                </button>
               </div>
-              <button
-                @click="copyToClipboard(currentUser.npub)"
-                :disabled="loadingStates.copyAction"
-                class="p-1 text-gray-400 hover:text-orange-600 transition-all duration-200 hover:scale-110 disabled:opacity-50"
-                title="Copy npub"
-              >
-                <IconLoader v-if="loadingStates.copyAction" class="w-3.5 h-3.5 animate-spin" />
-                <IconCheck v-else-if="copySuccess" class="w-3.5 h-3.5 text-green-600" />
-                <IconCopy v-else class="w-3.5 h-3.5" />
-              </button>
-            </div>
-            <code class="text-xs text-gray-500 bg-gray-50/80 px-2 py-1 rounded block break-all font-mono">
-              {{ getShortNpub() }}
-            </code>
-          </div>
 
-          <!-- Lightning Address Card -->
-          <div v-if="userProfile?.lud16" class="bg-white/80 rounded-lg border border-gray-200/50 p-3">
-            <div class="flex items-center justify-between mb-2">
-              <div class="flex items-center space-x-2">
-                <IconBolt class="w-3.5 h-3.5 text-orange-500" />
-                <span class="text-xs font-medium text-gray-600">Lightning Address</span>
+              <!-- Lightning Address -->
+              <div v-if="userProfile?.lud16" class="flex items-center justify-between p-3 bg-orange-50 rounded-xl hover:bg-orange-100 transition-colors group">
+                <div class="flex items-center space-x-3 flex-1 min-w-0">
+                  <div class="w-8 h-8 bg-orange-200 rounded-lg flex items-center justify-center">
+                    <IconBolt class="w-4 h-4 text-orange-600" />
+                  </div>
+                  <div class="flex-1 min-w-0">
+                    <p class="text-sm font-medium text-gray-900">Lightning Address</p>
+                    <p class="text-xs text-orange-600 font-mono truncate">{{ userProfile.lud16 }}</p>
+                  </div>
+                </div>
+                <button
+                  @click="copyToClipboard(userProfile.lud16)"
+                  :disabled="loadingStates.copyAction"
+                  class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-orange-600 hover:bg-orange-100 rounded-lg transition-all duration-200 opacity-0 group-hover:opacity-100 disabled:opacity-50"
+                  title="Copy Lightning address"
+                >
+                  <IconLoader v-if="loadingStates.copyAction" class="w-4 h-4 animate-spin" />
+                  <IconCopy v-else class="w-4 h-4" />
+                </button>
               </div>
-              <button
-                @click="copyToClipboard(userProfile.lud16)"
-                :disabled="loadingStates.copyAction"
-                class="p-1 text-gray-400 hover:text-orange-600 transition-all duration-200 hover:scale-110 disabled:opacity-50"
-                title="Copy Lightning address"
-              >
-                <IconLoader v-if="loadingStates.copyAction" class="w-3.5 h-3.5 animate-spin" />
-                <IconCopy v-else class="w-3.5 h-3.5" />
-              </button>
-            </div>
-            <div class="text-xs text-orange-600 font-mono break-all bg-orange-50/50 px-2 py-1 rounded">{{ userProfile.lud16 }}</div>
-          </div>
 
-          <!-- NIP-05 Card -->
-          <div v-if="userProfile?.nip05" class="bg-white/80 rounded-lg border border-gray-200/50 p-3">
-            <div class="flex items-center space-x-2 mb-2">
-              <IconShield class="w-3.5 h-3.5 text-green-500" />
-              <span class="text-xs font-medium text-gray-600">NIP-05 Verified</span>
-            </div>
-            <div class="text-xs text-green-600 font-mono break-all bg-green-50/50 px-2 py-1 rounded">{{ userProfile.nip05 }}</div>
-          </div>
+              <!-- NIP-05 Verification -->
+              <div v-if="userProfile?.nip05" class="flex items-center justify-between p-3 bg-blue-50 rounded-xl hover:bg-blue-100 transition-colors group">
+                <div class="flex items-center space-x-3 flex-1 min-w-0">
+                  <div class="w-8 h-8 bg-blue-200 rounded-lg flex items-center justify-center">
+                    <IconShield class="w-4 h-4 text-blue-600" />
+                  </div>
+                  <div class="flex-1 min-w-0">
+                    <p class="text-sm font-medium text-gray-900">NIP-05 Verified</p>
+                    <p class="text-xs text-blue-600 font-mono truncate">{{ userProfile.nip05 }}</p>
+                  </div>
+                </div>
+                <button
+                  @click="copyToClipboard(userProfile.nip05)"
+                  :disabled="loadingStates.copyAction"
+                  class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-blue-600 hover:bg-blue-100 rounded-lg transition-all duration-200 opacity-0 group-hover:opacity-100 disabled:opacity-50"
+                  title="Copy NIP-05"
+                >
+                  <IconLoader v-if="loadingStates.copyAction" class="w-4 h-4 animate-spin" />
+                  <IconCopy v-else class="w-4 h-4" />
+                </button>
+              </div>
 
-          <!-- Website Card -->
-          <div v-if="userProfile?.website" class="bg-white/80 rounded-lg border border-gray-200/50 p-3">
-            <div class="flex items-center space-x-2 mb-2">
-              <IconGlobe class="w-3.5 h-3.5 text-blue-500" />
-              <span class="text-xs font-medium text-gray-600">Website</span>
+              <!-- Website -->
+              <div v-if="userProfile?.website" class="flex items-center justify-between p-3 bg-green-50 rounded-xl hover:bg-green-100 transition-colors group">
+                <div class="flex items-center space-x-3 flex-1 min-w-0">
+                  <div class="w-8 h-8 bg-green-200 rounded-lg flex items-center justify-center">
+                    <IconGlobe class="w-4 h-4 text-green-600" />
+                  </div>
+                  <div class="flex-1 min-w-0">
+                    <p class="text-sm font-medium text-gray-900">Website</p>
+                    <p class="text-xs text-green-600 truncate">{{ userProfile.website }}</p>
+                  </div>
+                </div>
+                <a 
+                  :href="userProfile.website" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-green-600 hover:bg-green-100 rounded-lg transition-all duration-200 opacity-0 group-hover:opacity-100"
+                  title="Visit website"
+                >
+                  <IconExternalLink class="w-4 h-4" />
+                </a>
+              </div>
             </div>
-            <a 
-              :href="userProfile.website" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              class="text-xs text-blue-600 hover:text-blue-700 hover:underline flex items-center space-x-1 bg-blue-50/50 px-2 py-1 rounded transition-colors"
-            >
-              <span class="break-all">{{ userProfile.website }}</span>
-              <IconExternalLink class="w-3 h-3 flex-shrink-0 opacity-60" />
-            </a>
           </div>
         </div>
       </div>
@@ -767,6 +795,13 @@ const toggleRelaySection = () => {
   overflow: hidden;
 }
 
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
 /* Slide down animation for collapsible content */
 .relay-section-enter-active,
 .relay-section-leave-active {
@@ -865,4 +900,3 @@ button:hover:not(:disabled) .group-hover\:scale-110 {
   background-color: rgba(255, 255, 255, 0.95);
 }
 </style>
-```
