@@ -1,4 +1,3 @@
-```vue
 <template>
   <!-- Modal Overlay with Apple-inspired backdrop -->
   <Teleport to="#modal-root">
@@ -803,4 +802,3 @@ button:disabled {
   }
 }
 </style>
-```
