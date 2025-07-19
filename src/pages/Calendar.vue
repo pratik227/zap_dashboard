@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted, inject } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { 
   IconCalendar, 
   IconPlus, 
@@ -19,8 +19,15 @@ import {
   IconEye,
   IconEdit,
   IconTrash,
-  IconShare
+  IconShare,
+  IconX,
+  IconCheck
 } from '@iconify-prerendered/vue-tabler'
+import FullCalendar from '@fullcalendar/vue3'
+import dayGridPlugin from '@fullcalendar/daygrid'
+import timeGridPlugin from '@fullcalendar/timegrid'
+import interactionPlugin from '@fullcalendar/interaction'
+import listPlugin from '@fullcalendar/list'
 import { useNostrAuth } from '../composables/useNostrAuth.js'
 import { useNostrCalendar } from '../composables/useNostrCalendar.js'
 import { formatDate, formatTime, isToday, isSameDay } from '../utils/dateUtils.js'
@@ -44,101 +51,113 @@ const {
   createNewEvent
 } = useNostrCalendar()
 
+// FullCalendar ref
+const fullCalendarRef = ref(null)
+
 // Calendar state
-const currentDate = ref(new Date())
-const selectedDate = ref(new Date())
-const calendarView = ref('month') // month, week, day
-const showEventModal = ref(false)
-const showFilters = ref(false)
+const calendarView = ref('dayGridMonth') // dayGridMonth, timeGridWeek, timeGridDay, listWeek
 const searchQuery = ref('')
 const selectedFilters = ref({
   type: 'all', // all, time-based, date-based
   status: 'all' // all, upcoming, past
 })
+const showFilters = ref(false)
+const showEventModal = ref(false)
+const isEditingEvent = ref(false)
 
-// Calendar navigation
-const navigateMonth = (direction) => {
-  const newDate = new Date(currentDate.value)
-  newDate.setMonth(newDate.getMonth() + direction)
-  currentDate.value = newDate
-}
-
-const navigateWeek = (direction) => {
-  const newDate = new Date(currentDate.value)
-  newDate.setDate(newDate.getDate() + (direction * 7))
-  currentDate.value = newDate
-}
-
-const navigateDay = (direction) => {
-  const newDate = new Date(currentDate.value)
-  newDate.setDate(newDate.getDate() + direction)
-  currentDate.value = newDate
-}
-
-const goToToday = () => {
-  currentDate.value = new Date()
-  selectedDate.value = new Date()
-}
-
-// Calendar grid generation
-const calendarDays = computed(() => {
-  const year = currentDate.value.getFullYear()
-  const month = currentDate.value.getMonth()
-  
-  const firstDay = new Date(year, month, 1)
-  const lastDay = new Date(year, month + 1, 0)
-  const startDate = new Date(firstDay)
-  startDate.setDate(startDate.getDate() - firstDay.getDay())
-  
-  const days = []
-  const current = new Date(startDate)
-  
-  for (let i = 0; i < 42; i++) {
-    days.push({
-      date: new Date(current),
-      isCurrentMonth: current.getMonth() === month,
-      isToday: isToday(current),
-      isSelected: isSameDay(current, selectedDate.value),
-      events: getEventsForDate(current)
-    })
-    current.setDate(current.getDate() + 1)
-  }
-  
-  return days
+// Event form state for modal
+const modalEventForm = ref({
+  title: '',
+  description: '',
+  type: 'time-based',
+  start_date: '',
+  end_date: '',
+  start_time: '',
+  end_time: '',
+  location: '',
+  participants: [],
+  tags: []
 })
 
-const weekDays = computed(() => {
-  const startOfWeek = new Date(currentDate.value)
-  startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay())
-  
-  const days = []
-  for (let i = 0; i < 7; i++) {
-    const date = new Date(startOfWeek)
-    date.setDate(date.getDate() + i)
-    days.push({
-      date,
-      isToday: isToday(date),
-      isSelected: isSameDay(date, selectedDate.value),
-      events: getEventsForDate(date)
-    })
-  }
-  
-  return days
-})
-
-// Get events for a specific date
-const getEventsForDate = (date) => {
-  return filteredEvents.value.filter(event => {
+// Transform events for FullCalendar
+const fullCalendarEvents = computed(() => {
+  return filteredEvents.value.map(event => {
+    let start, end
+    
     if (event.type === 'time-based') {
-      const eventDate = new Date(event.start * 1000)
-      return isSameDay(eventDate, date)
-    } else if (event.type === 'date-based') {
-      const eventDate = new Date(event.start_date)
-      return isSameDay(eventDate, date)
+      start = new Date(event.start * 1000)
+      end = event.end ? new Date(event.end * 1000) : null
+    } else {
+      start = new Date(event.start_date)
+      end = event.end_date ? new Date(event.end_date) : null
     }
-    return false
+    
+    return {
+      id: event.id,
+      title: event.title,
+      start: start,
+      end: end,
+      allDay: event.type === 'date-based',
+      backgroundColor: event.type === 'time-based' ? '#dbeafe' : '#dcfce7',
+      borderColor: event.type === 'time-based' ? '#3b82f6' : '#16a34a',
+      textColor: event.type === 'time-based' ? '#1e40af' : '#15803d',
+      classNames: [
+        'fc-event-custom',
+        `fc-event-${event.type}`,
+        `fc-event-${getEventStatus(event)}`
+      ],
+      extendedProps: {
+        description: event.description,
+        location: event.location,
+        participants: event.participants,
+        tags: event.tags,
+        type: event.type,
+        status: getEventStatus(event),
+        originalEvent: event
+      }
+    }
   })
-}
+})
+
+// FullCalendar options
+const calendarOptions = computed(() => {
+  return {
+    plugins: [
+      dayGridPlugin,
+      timeGridPlugin,
+      interactionPlugin,
+      listPlugin
+    ],
+    headerToolbar: {
+      left: 'prev,next today',
+      center: 'title',
+      right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek'
+    },
+    initialView: calendarView.value,
+    events: fullCalendarEvents.value,
+    editable: true,
+    selectable: true,
+    selectMirror: true,
+    dayMaxEvents: 3,
+    weekends: true,
+    height: 'auto',
+    aspectRatio: 1.35,
+    select: handleDateSelect,
+    eventClick: handleEventClick,
+    eventDrop: handleEventDrop,
+    eventResize: handleEventResize,
+    viewDidMount: handleViewChange,
+    // Styling
+    themeSystem: 'standard',
+    buttonText: {
+      today: 'Today',
+      month: 'Month',
+      week: 'Week',
+      day: 'Day',
+      list: 'List'
+    }
+  }
+})
 
 // Filtered events based on search and filters
 const filteredEvents = computed(() => {
@@ -185,96 +204,202 @@ const filteredEvents = computed(() => {
 })
 
 // Event handlers
-const handleDateClick = (day) => {
-  selectedDate.value = new Date(day.date)
-  if (day.events.length === 1) {
-    viewEvent(day.events[0])
-  } else if (day.events.length > 1) {
-    // Show day view with multiple events
-    calendarView.value = 'day'
-    currentDate.value = new Date(day.date)
+const handleDateSelect = (selectInfo) => {
+  // Open create event modal with pre-filled dates
+  isEditingEvent.value = false
+  modalEventForm.value = {
+    title: '',
+    description: '',
+    type: selectInfo.allDay ? 'date-based' : 'time-based',
+    start_date: selectInfo.startStr.split('T')[0],
+    end_date: selectInfo.endStr.split('T')[0],
+    start_time: selectInfo.allDay ? '' : selectInfo.startStr.split('T')[1]?.substring(0, 5) || '',
+    end_time: selectInfo.allDay ? '' : selectInfo.endStr.split('T')[1]?.substring(0, 5) || '',
+    location: '',
+    participants: [],
+    tags: []
+  }
+  showEventModal.value = true
+  
+  // Clear the selection
+  const calendarApi = fullCalendarRef.value?.getApi()
+  if (calendarApi) {
+    calendarApi.unselect()
   }
 }
 
-const handleEventClick = (event) => {
-  viewEvent(event)
+const handleEventClick = (clickInfo) => {
+  const event = clickInfo.event.extendedProps.originalEvent
+  
+  // Open edit event modal
+  isEditingEvent.value = true
+  selectedEvent.value = event
+  
+  // Populate form
+  modalEventForm.value = {
+    title: event.title,
+    description: event.description,
+    type: event.type,
+    location: event.location || '',
+    participants: [...(event.participants || [])],
+    tags: [...(event.tags || [])]
+  }
+
+  if (event.type === 'time-based') {
+    if (event.start) {
+      const startDate = new Date(event.start * 1000)
+      modalEventForm.value.start_date = startDate.toISOString().split('T')[0]
+      modalEventForm.value.start_time = startDate.toTimeString().split(' ')[0].substring(0, 5)
+    }
+    if (event.end) {
+      const endDate = new Date(event.end * 1000)
+      modalEventForm.value.end_date = endDate.toISOString().split('T')[0]
+      modalEventForm.value.end_time = endDate.toTimeString().split(' ')[0].substring(0, 5)
+    }
+  } else {
+    modalEventForm.value.start_date = event.start_date || ''
+    modalEventForm.value.end_date = event.end_date || ''
+  }
+
   showEventModal.value = true
 }
 
-const handleCreateEvent = async () => {
-  try {
-    await createEvent({ ...eventForm })
-    setView('list')
-    showEventModal.value = false
-  } catch (error) {
-    console.error('Failed to create event:', error)
-  }
-}
-
-const handleUpdateEvent = async () => {
-  if (!selectedEvent.value) return
+const handleEventDrop = async (dropInfo) => {
+  // Handle event drag and drop
+  const event = dropInfo.event.extendedProps.originalEvent
+  const newStart = dropInfo.event.start
+  const newEnd = dropInfo.event.end
   
   try {
-    await updateEvent(selectedEvent.value.id, { ...eventForm })
-    setView('list')
-    showEventModal.value = false
+    const updatedData = { ...event }
+    
+    if (event.type === 'time-based') {
+      updatedData.start = Math.floor(newStart.getTime() / 1000)
+      if (newEnd) {
+        updatedData.end = Math.floor(newEnd.getTime() / 1000)
+      }
+    } else {
+      updatedData.start_date = newStart.toISOString().split('T')[0]
+      if (newEnd) {
+        updatedData.end_date = newEnd.toISOString().split('T')[0]
+      }
+    }
+    
+    await updateEvent(event.id, updatedData)
   } catch (error) {
     console.error('Failed to update event:', error)
+    dropInfo.revert()
   }
 }
 
-const handleDeleteEvent = async (event) => {
-  if (confirm(`Are you sure you want to delete "${event.title}"?`)) {
+const handleEventResize = async (resizeInfo) => {
+  // Handle event resize
+  const event = resizeInfo.event.extendedProps.originalEvent
+  const newEnd = resizeInfo.event.end
+  
+  try {
+    const updatedData = { ...event }
+    
+    if (event.type === 'time-based') {
+      if (newEnd) {
+        updatedData.end = Math.floor(newEnd.getTime() / 1000)
+      }
+    } else {
+      if (newEnd) {
+        updatedData.end_date = newEnd.toISOString().split('T')[0]
+      }
+    }
+    
+    await updateEvent(event.id, updatedData)
+  } catch (error) {
+    console.error('Failed to resize event:', error)
+    resizeInfo.revert()
+  }
+}
+
+const handleViewChange = (viewInfo) => {
+  calendarView.value = viewInfo.view.type
+}
+
+// Modal handlers
+const handleEventFormSubmit = async () => {
+  try {
+    if (isEditingEvent.value && selectedEvent.value) {
+      await updateEvent(selectedEvent.value.id, { ...modalEventForm.value })
+    } else {
+      await createEvent({ ...modalEventForm.value })
+    }
+    closeEventModal()
+  } catch (error) {
+    console.error('Failed to save event:', error)
+  }
+}
+
+const handleEventFormCancel = () => {
+  closeEventModal()
+}
+
+const handleDeleteEvent = async () => {
+  if (!selectedEvent.value) return
+  
+  if (confirm(`Are you sure you want to delete "${selectedEvent.value.title}"?`)) {
     try {
-      await deleteEvent(event.id)
-      showEventModal.value = false
+      await deleteEvent(selectedEvent.value.id)
+      closeEventModal()
     } catch (error) {
       console.error('Failed to delete event:', error)
     }
   }
 }
 
-const handleNostrLogin = async () => {
-  try {
-    await login()
-  } catch (error) {
-    console.error('Login failed:', error)
+const closeEventModal = () => {
+  showEventModal.value = false
+  isEditingEvent.value = false
+  selectedEvent.value = null
+  modalEventForm.value = {
+    title: '',
+    description: '',
+    type: 'time-based',
+    start_date: '',
+    end_date: '',
+    start_time: '',
+    end_time: '',
+    location: '',
+    participants: [],
+    tags: []
   }
 }
 
-// Format event time for display
-const formatEventTime = (event) => {
-  if (event.type === 'time-based') {
-    const start = new Date(event.start * 1000)
-    const end = event.end ? new Date(event.end * 1000) : null
-    
-    if (end && !isSameDay(start, end)) {
-      return `${formatDate(start)} ${formatTime(start)} - ${formatDate(end)} ${formatTime(end)}`
-    } else if (end) {
-      return `${formatTime(start)} - ${formatTime(end)}`
-    } else {
-      return formatTime(start)
-    }
-  } else {
-    const start = new Date(event.start_date)
-    const end = event.end_date ? new Date(event.end_date) : null
-    
-    if (end && !isSameDay(start, end)) {
-      return `${formatDate(start)} - ${formatDate(end)}`
-    } else {
-      return formatDate(start)
-    }
+// Calendar navigation
+const goToToday = () => {
+  const calendarApi = fullCalendarRef.value?.getApi()
+  if (calendarApi) {
+    calendarApi.today()
   }
 }
 
-// Get event type badge color
-const getEventTypeBadge = (type) => {
-  return type === 'time-based' 
-    ? 'bg-blue-100 text-blue-700' 
-    : 'bg-green-100 text-green-700'
+const navigatePrev = () => {
+  const calendarApi = fullCalendarRef.value?.getApi()
+  if (calendarApi) {
+    calendarApi.prev()
+  }
 }
 
-// Get event status
+const navigateNext = () => {
+  const calendarApi = fullCalendarRef.value?.getApi()
+  if (calendarApi) {
+    calendarApi.next()
+  }
+}
+
+const changeView = (viewType) => {
+  const calendarApi = fullCalendarRef.value?.getApi()
+  if (calendarApi) {
+    calendarApi.changeView(viewType)
+  }
+}
+
+// Utility functions
 const getEventStatus = (event) => {
   const now = Date.now() / 1000
   const eventTime = event.type === 'time-based' ? event.start : 
@@ -296,30 +421,25 @@ const getStatusColor = (status) => {
   }
 }
 
-// Month/year display
-const currentMonthYear = computed(() => {
-  return currentDate.value.toLocaleDateString('en-US', { 
-    month: 'long', 
-    year: 'numeric' 
-  })
-})
+const getEventTypeBadge = (type) => {
+  return type === 'time-based' 
+    ? 'bg-blue-100 text-blue-700' 
+    : 'bg-green-100 text-green-700'
+}
 
-const currentWeekRange = computed(() => {
-  const startOfWeek = new Date(currentDate.value)
-  startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay())
-  const endOfWeek = new Date(startOfWeek)
-  endOfWeek.setDate(endOfWeek.getDate() + 6)
-  
-  return `${formatDate(startOfWeek)} - ${formatDate(endOfWeek)}`
-})
+const handleNostrLogin = async () => {
+  try {
+    await login()
+  } catch (error) {
+    console.error('Login failed:', error)
+  }
+}
 
-const currentDayDisplay = computed(() => {
-  return currentDate.value.toLocaleDateString('en-US', { 
-    weekday: 'long',
-    month: 'long', 
-    day: 'numeric',
-    year: 'numeric' 
-  })
+// Form validation
+const isFormValid = computed(() => {
+  return modalEventForm.value.title.trim() &&
+         modalEventForm.value.start_date &&
+         (modalEventForm.value.type === 'date-based' || modalEventForm.value.start_time)
 })
 
 // Initialize
@@ -361,7 +481,7 @@ onMounted(() => {
       <!-- Calendar Header -->
       <div class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm p-6">
         <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-          <!-- Title and Navigation -->
+          <!-- Title and Actions -->
           <div class="flex flex-col sm:flex-row sm:items-center gap-4">
             <div>
               <h1 class="text-2xl font-bold text-gray-900 mb-1 flex items-center space-x-2">
@@ -373,88 +493,22 @@ onMounted(() => {
               </p>
             </div>
             
-            <!-- Calendar Navigation -->
+            <!-- Quick Actions -->
             <div class="flex items-center space-x-2">
-              <button
-                @click="calendarView === 'month' ? navigateMonth(-1) : 
-                        calendarView === 'week' ? navigateWeek(-1) : 
-                        navigateDay(-1)"
-                class="btn-secondary p-2"
-              >
-                <IconChevronLeft class="w-4 h-4" />
+              <button @click="goToToday" class="btn-secondary text-sm">
+                Today
               </button>
               
-              <div class="text-center min-w-[200px]">
-                <div class="font-semibold text-gray-900">
-                  {{ calendarView === 'month' ? currentMonthYear :
-                     calendarView === 'week' ? currentWeekRange :
-                     currentDayDisplay }}
-                </div>
-              </div>
+              <button @click="showFilters = !showFilters" class="btn-secondary">
+                <IconFilter class="w-4 h-4" />
+                Filters
+              </button>
               
-              <button
-                @click="calendarView === 'month' ? navigateMonth(1) : 
-                        calendarView === 'week' ? navigateWeek(1) : 
-                        navigateDay(1)"
-                class="btn-secondary p-2"
-              >
-                <IconChevronRight class="w-4 h-4" />
+              <button @click="createNewEvent" class="btn-primary">
+                <IconPlus class="w-4 h-4" />
+                New Event
               </button>
             </div>
-          </div>
-          
-          <!-- Actions -->
-          <div class="flex items-center space-x-3">
-            <!-- View Toggle -->
-            <div class="flex items-center bg-orange-50 p-1 rounded-lg">
-              <button
-                @click="calendarView = 'month'"
-                :class="[
-                  'px-3 py-2 rounded-md text-sm font-medium transition-all duration-200',
-                  calendarView === 'month'
-                    ? 'bg-gradient-to-r from-orange-400 to-amber-400 text-white shadow-sm'
-                    : 'text-orange-700 hover:bg-orange-100/80'
-                ]"
-              >
-                Month
-              </button>
-              <button
-                @click="calendarView = 'week'"
-                :class="[
-                  'px-3 py-2 rounded-md text-sm font-medium transition-all duration-200',
-                  calendarView === 'week'
-                    ? 'bg-gradient-to-r from-orange-400 to-amber-400 text-white shadow-sm'
-                    : 'text-orange-700 hover:bg-orange-100/80'
-                ]"
-              >
-                Week
-              </button>
-              <button
-                @click="calendarView = 'day'"
-                :class="[
-                  'px-3 py-2 rounded-md text-sm font-medium transition-all duration-200',
-                  calendarView === 'day'
-                    ? 'bg-gradient-to-r from-orange-400 to-amber-400 text-white shadow-sm'
-                    : 'text-orange-700 hover:bg-orange-100/80'
-                ]"
-              >
-                Day
-              </button>
-            </div>
-            
-            <button @click="goToToday" class="btn-secondary text-sm">
-              Today
-            </button>
-            
-            <button @click="showFilters = !showFilters" class="btn-secondary">
-              <IconFilter class="w-4 h-4" />
-              Filters
-            </button>
-            
-            <button @click="createNewEvent" class="btn-primary">
-              <IconPlus class="w-4 h-4" />
-              New Event
-            </button>
           </div>
         </div>
         
@@ -503,175 +557,8 @@ onMounted(() => {
         </div>
       </div>
 
-      <!-- Calendar Views -->
+      <!-- FullCalendar Component -->
       <div class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm overflow-hidden">
-        <!-- Month View -->
-        <div v-if="calendarView === 'month'" class="p-6">
-          <!-- Calendar Grid -->
-          <div class="grid grid-cols-7 gap-1 mb-4">
-            <!-- Day Headers -->
-            <div v-for="day in ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']" 
-                 :key="day" 
-                 class="p-2 text-center text-sm font-medium text-gray-600">
-              {{ day }}
-            </div>
-            
-            <!-- Calendar Days -->
-            <div
-              v-for="day in calendarDays"
-              :key="day.date.toISOString()"
-              @click="handleDateClick(day)"
-              :class="[
-                'min-h-[80px] p-1 border border-gray-100 cursor-pointer transition-all duration-200 hover:bg-orange-50',
-                day.isCurrentMonth ? 'bg-white' : 'bg-gray-50',
-                day.isToday ? 'bg-orange-100 border-orange-300' : '',
-                day.isSelected ? 'ring-2 ring-orange-400' : ''
-              ]"
-            >
-              <div class="flex flex-col h-full">
-                <div :class="[
-                  'text-sm font-medium mb-1',
-                  day.isCurrentMonth ? 'text-gray-900' : 'text-gray-400',
-                  day.isToday ? 'text-orange-600 font-bold' : ''
-                ]">
-                  {{ day.date.getDate() }}
-                </div>
-                
-                <!-- Events -->
-                <div class="flex-1 space-y-1">
-                  <div
-                    v-for="event in day.events.slice(0, 2)"
-                    :key="event.id"
-                    @click.stop="handleEventClick(event)"
-                    :class="[
-                      'text-xs p-1 rounded truncate cursor-pointer transition-colors',
-                      getEventTypeBadge(event.type)
-                    ]"
-                  >
-                    {{ event.title }}
-                  </div>
-                  <div v-if="day.events.length > 2" class="text-xs text-gray-500">
-                    +{{ day.events.length - 2 }} more
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        <!-- Week View -->
-        <div v-else-if="calendarView === 'week'" class="p-6">
-          <div class="grid grid-cols-7 gap-4">
-            <div
-              v-for="day in weekDays"
-              :key="day.date.toISOString()"
-              class="space-y-2"
-            >
-              <div class="text-center">
-                <div class="text-sm font-medium text-gray-600">
-                  {{ day.date.toLocaleDateString('en-US', { weekday: 'short' }) }}
-                </div>
-                <div :class="[
-                  'text-lg font-semibold',
-                  day.isToday ? 'text-orange-600' : 'text-gray-900'
-                ]">
-                  {{ day.date.getDate() }}
-                </div>
-              </div>
-              
-              <div class="space-y-2 min-h-[200px]">
-                <div
-                  v-for="event in day.events"
-                  :key="event.id"
-                  @click="handleEventClick(event)"
-                  :class="[
-                    'p-2 rounded-lg cursor-pointer transition-all duration-200 hover:shadow-md',
-                    getEventTypeBadge(event.type)
-                  ]"
-                >
-                  <div class="font-medium text-sm truncate">{{ event.title }}</div>
-                  <div class="text-xs opacity-75">{{ formatEventTime(event) }}</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        <!-- Day View -->
-        <div v-else-if="calendarView === 'day'" class="p-6">
-          <div class="space-y-4">
-            <div
-              v-for="event in getEventsForDate(currentDate)"
-              :key="event.id"
-              @click="handleEventClick(event)"
-              class="p-4 border border-gray-200 rounded-lg hover:shadow-md transition-all duration-200 cursor-pointer"
-            >
-              <div class="flex items-start justify-between">
-                <div class="flex-1">
-                  <div class="flex items-center space-x-2 mb-2">
-                    <h3 class="font-semibold text-gray-900">{{ event.title }}</h3>
-                    <span :class="['px-2 py-1 rounded-full text-xs font-medium', getEventTypeBadge(event.type)]">
-                      {{ event.type === 'time-based' ? 'Timed' : 'All Day' }}
-                    </span>
-                    <span :class="['text-xs font-medium', getStatusColor(getEventStatus(event))]">
-                      {{ getEventStatus(event) }}
-                    </span>
-                  </div>
-                  
-                  <p class="text-gray-600 text-sm mb-2">{{ event.description }}</p>
-                  
-                  <div class="flex items-center space-x-4 text-sm text-gray-500">
-                    <span class="flex items-center space-x-1">
-                      <IconClock class="w-4 h-4" />
-                      <span>{{ formatEventTime(event) }}</span>
-                    </span>
-                    <span v-if="event.location" class="flex items-center space-x-1">
-                      <IconMapPin class="w-4 h-4" />
-                      <span>{{ event.location }}</span>
-                    </span>
-                  </div>
-                </div>
-                
-                <div class="flex items-center space-x-2">
-                  <button
-                    @click.stop="editEvent(event)"
-                    class="p-2 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
-                  >
-                    <IconEdit class="w-4 h-4" />
-                  </button>
-                  <button
-                    @click.stop="handleDeleteEvent(event)"
-                    class="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                  >
-                    <IconTrash class="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            </div>
-            
-            <!-- No events for day -->
-            <div v-if="getEventsForDate(currentDate).length === 0" class="text-center py-12">
-              <IconCalendar class="w-12 h-12 mx-auto text-gray-300 mb-3" />
-              <h3 class="text-lg font-medium text-gray-900 mb-2">No events today</h3>
-              <p class="text-gray-600 mb-4">Create your first event for this day</p>
-              <button @click="createNewEvent" class="btn-primary">
-                <IconPlus class="w-4 h-4" />
-                Create Event
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Events List -->
-      <div class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm">
-        <div class="p-6 border-b border-orange-100/50">
-          <div class="flex items-center justify-between">
-            <h3 class="text-lg font-semibold text-gray-900">Upcoming Events</h3>
-            <span class="text-sm text-gray-500">{{ filteredEvents.length }} events</span>
-          </div>
-        </div>
-        
         <div v-if="isLoading" class="p-6">
           <div class="flex items-center justify-center space-x-2">
             <IconLoader class="w-5 h-5 animate-spin text-orange-600" />
@@ -679,73 +566,169 @@ onMounted(() => {
           </div>
         </div>
         
-        <div v-else-if="filteredEvents.length === 0" class="p-6 text-center">
-          <IconCalendar class="w-12 h-12 mx-auto text-gray-300 mb-3" />
-          <h4 class="text-lg font-medium text-gray-900 mb-2">No events found</h4>
-          <p class="text-gray-600 mb-4">
-            {{ events.length === 0 ? 'Create your first calendar event' : 'Try adjusting your filters' }}
-          </p>
-          <button @click="createNewEvent" class="btn-primary">
-            <IconPlus class="w-4 h-4" />
-            Create Event
-          </button>
+        <div v-else class="p-6">
+          <FullCalendar 
+            ref="fullCalendarRef"
+            :options="calendarOptions"
+            class="fc-custom-theme"
+          />
         </div>
-        
-        <div v-else class="divide-y divide-orange-100/50">
-          <div
-            v-for="event in filteredEvents.slice(0, 10)"
-            :key="event.id"
-            @click="handleEventClick(event)"
-            class="p-4 hover:bg-orange-25/50 transition-colors cursor-pointer"
-          >
-            <div class="flex items-start justify-between">
-              <div class="flex-1">
-                <div class="flex items-center space-x-2 mb-2">
-                  <h4 class="font-semibold text-gray-900">{{ event.title }}</h4>
-                  <span :class="['px-2 py-1 rounded-full text-xs font-medium', getEventTypeBadge(event.type)]">
-                    {{ event.type === 'time-based' ? 'Timed' : 'All Day' }}
-                  </span>
-                  <span :class="['text-xs font-medium', getStatusColor(getEventStatus(event))]">
-                    {{ getEventStatus(event) }}
-                  </span>
+      </div>
+
+      <!-- Event Statistics -->
+      <div class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm p-6">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">Event Statistics</h3>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div class="text-center">
+            <div class="text-2xl font-bold text-orange-600">{{ filteredEvents.length }}</div>
+            <div class="text-sm text-gray-600">Total Events</div>
+          </div>
+          <div class="text-center">
+            <div class="text-2xl font-bold text-blue-600">
+              {{ filteredEvents.filter(e => e.type === 'time-based').length }}
+            </div>
+            <div class="text-sm text-gray-600">Time-based</div>
+          </div>
+          <div class="text-center">
+            <div class="text-2xl font-bold text-green-600">
+              {{ filteredEvents.filter(e => e.type === 'date-based').length }}
+            </div>
+            <div class="text-sm text-gray-600">Date-based</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Event Modal -->
+    <Teleport to="#modal-root">
+      <transition name="modal-transition">
+        <div v-if="showEventModal" class="fixed inset-0 bg-black/50 backdrop-blur-lg flex items-center justify-center z-[9999] p-4">
+          <div class="bg-white rounded-xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+            <div class="flex justify-between items-center mb-6">
+              <h3 class="text-lg font-semibold text-gray-900">
+                {{ isEditingEvent ? 'Edit Event' : 'Create Event' }}
+              </h3>
+              <button @click="closeEventModal" class="text-gray-500 hover:text-gray-700">
+                <IconX class="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div class="space-y-4">
+              <!-- Title -->
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Title</label>
+                <input
+                  v-model="modalEventForm.title"
+                  type="text"
+                  placeholder="Event title"
+                  class="w-full px-3 py-3 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base"
+                />
+              </div>
+
+              <!-- Type -->
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Event Type</label>
+                <select
+                  v-model="modalEventForm.type"
+                  class="w-full px-3 py-3 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base"
+                >
+                  <option value="time-based">Time-based Event</option>
+                  <option value="date-based">Date-based Event</option>
+                </select>
+              </div>
+
+              <!-- Date and Time -->
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
+                  <input
+                    v-model="modalEventForm.start_date"
+                    type="date"
+                    class="w-full px-3 py-3 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base"
+                  />
                 </div>
-                
-                <p class="text-gray-600 text-sm mb-2">{{ event.description }}</p>
-                
-                <div class="flex items-center space-x-4 text-sm text-gray-500">
-                  <span class="flex items-center space-x-1">
-                    <IconClock class="w-4 h-4" />
-                    <span>{{ formatEventTime(event) }}</span>
-                  </span>
-                  <span v-if="event.location" class="flex items-center space-x-1">
-                    <IconMapPin class="w-4 h-4" />
-                    <span>{{ event.location }}</span>
-                  </span>
-                  <span v-if="event.participants && event.participants.length > 0" class="flex items-center space-x-1">
-                    <IconUsers class="w-4 h-4" />
-                    <span>{{ event.participants.length }} participants</span>
-                  </span>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2">End Date</label>
+                  <input
+                    v-model="modalEventForm.end_date"
+                    type="date"
+                    class="w-full px-3 py-3 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base"
+                  />
                 </div>
               </div>
+
+              <!-- Time fields for time-based events -->
+              <div v-if="modalEventForm.type === 'time-based'" class="grid grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2">Start Time</label>
+                  <input
+                    v-model="modalEventForm.start_time"
+                    type="time"
+                    class="w-full px-3 py-3 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base"
+                  />
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2">End Time</label>
+                  <input
+                    v-model="modalEventForm.end_time"
+                    type="time"
+                    class="w-full px-3 py-3 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base"
+                  />
+                </div>
+              </div>
+
+              <!-- Description -->
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                <textarea
+                  v-model="modalEventForm.description"
+                  rows="3"
+                  placeholder="Event description"
+                  class="w-full px-3 py-3 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base"
+                ></textarea>
+              </div>
+
+              <!-- Location -->
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Location</label>
+                <input
+                  v-model="modalEventForm.location"
+                  type="text"
+                  placeholder="Event location"
+                  class="w-full px-3 py-3 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base"
+                />
+              </div>
               
-              <div class="flex items-center space-x-2">
+              <!-- Actions -->
+              <div class="flex flex-col sm:flex-row items-center justify-end space-y-3 sm:space-y-0 sm:space-x-3 mt-6">
                 <button
-                  @click.stop="editEvent(event)"
-                  class="p-2 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
+                  v-if="isEditingEvent"
+                  @click="handleDeleteEvent"
+                  class="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded-lg font-medium transition-colors"
                 >
-                  <IconEdit class="w-4 h-4" />
+                  <IconTrash class="w-4 h-4 inline mr-2" />
+                  Delete
                 </button>
                 <button
-                  @click.stop="handleDeleteEvent(event)"
-                  class="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                  @click="handleEventFormCancel"
+                  class="w-full sm:w-auto btn-secondary"
                 >
-                  <IconTrash class="w-4 h-4" />
+                  Cancel
+                </button>
+                <button
+                  @click="handleEventFormSubmit"
+                  :disabled="!isFormValid || isLoading"
+                  class="w-full sm:w-auto btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <IconLoader v-if="isLoading" class="w-4 h-4 animate-spin inline mr-2" />
+                  <IconCheck v-else class="w-4 h-4 inline mr-2" />
+                  {{ isEditingEvent ? 'Update' : 'Create' }}
                 </button>
               </div>
             </div>
           </div>
         </div>
-      </div>
-    </div>
+      </transition>
+    </Teleport>
   </div>
 </template>
