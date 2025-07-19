@@ -304,7 +304,7 @@ const shareOnNostr = async () => {
     
     // Create content with custom message or default
     const content = customMessage.value.trim() || 
-      `🎯 Support my campaign: ${props.campaign.title}\n\n${shareUrl.value}\n\n${hashtagString}`
+      `Support my campaign: ${props.campaign.title}\n\n${shareUrl.value}\n\n${hashtagString}`
     
     console.log('Share content:', content)
     
