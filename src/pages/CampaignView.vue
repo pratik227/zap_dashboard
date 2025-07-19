@@ -241,9 +241,9 @@ const recentZaps = computed(() => {
       ...zap,
       // Add sender info for display
       sender: {
-        name: `User ${zap.zapperPubkey?.substring(0, 8)}` || 'Anonymous',
+        name: zap.sender?.name || `User ${zap.zapperPubkey?.substring(0, 8)}` || 'Anonymous',
         picture: generateFallbackAvatar(zap.zapperPubkey),
-        avatar: generateFallbackAvatar(zap.zapperPubkey)
+        avatar: zap.sender?.picture || generateFallbackAvatar(zap.zapperPubkey)
       },
       timeAgo: formatTimeAgo(zap.timestamp)
     }))

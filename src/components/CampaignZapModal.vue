@@ -457,23 +457,17 @@ const predefinedAmounts = [
   { value: 21000, label: '21K', description: 'Bitcoin tribute' }
 ]
 
-// Mock data for demonstration - in real app this would come from campaign aggregated zaps
+// Get real campaign zap data from the campaigns composable
+const { campaignAggregatedZaps } = useCampaigns()
+
+// Get real zaps for this campaign
 const recentZaps = computed(() => {
-  // This should be replaced with actual campaign zap data
-  return [
-    {
-      id: '1',
-      amount: 15000,
-      zapperPubkey: 'abc123',
-      sender: { name: 'Alice', picture: 'https://images.pexels.com/photos/1040881/pexels-photo-1040881.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1' }
-    },
-    {
-      id: '2', 
-      amount: 5000,
-      zapperPubkey: 'def456',
-      sender: { name: 'Bob', picture: 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1' }
-    }
-  ]
+  if (!props.campaign?.id) return []
+  
+  const campaignZaps = campaignAggregatedZaps.value.get(props.campaign.id) || []
+  console.log(`🔍 Campaign ${props.campaign.id.substring(0, 8)}... has ${campaignZaps.length} zaps`)
+  
+  return campaignZaps.slice(0, 10) // Show up to 10 recent supporters
 })
 
 const totalZapCount = computed(() => recentZaps.value.length)
