@@ -601,6 +601,12 @@ const generateInvoice = async () => {
       ]
     })
     
+    // CRITICAL: Add goal tag to zap request for proper campaign tracking
+    if (!zapRequest.tags) {
+      zapRequest.tags = []
+    }
+    zapRequest.tags.push(['goal', campaign.value.id])
+    
     console.log('Created zap request:', zapRequest)
     
     // Get invoice from zap endpoint
