@@ -89,8 +89,15 @@ const fullCalendarEvents = computed(() => {
       end = event.end ? new Date(event.end * 1000) : null
     } else {
       start = new Date(event.start_date)
-      end = event.end_date ? new Date(event.end_date) : null
+      if (event.end_date) {
+        const endDate = new Date(event.end_date)
+        endDate.setDate(endDate.getDate() + 1)
+        end = endDate
+      } else {
+        end = null
+      }
     }
+    console.log(`Event ${event.id} - Start: ${start}, End: ${end}`)
     
     return {
       id: event.id,

@@ -535,3 +535,246 @@
     background: white !important;
   }
 }
+
+/* Responsive font scaling */
+@media (max-width: 640px) {
+  .text-responsive {
+    font-size: 0.875rem; /* 14px */
+  }
+}
+
+@media (min-width: 641px) {
+  .text-responsive {
+    font-size: 1rem; /* 16px */
+  }
+}
+
+/* Line clamp utility */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Improve readability on small screens */
+@media (max-width: 480px) {
+  .leading-relaxed {
+    line-height: 1.75;
+  }
+}
+
+/* Landscape mode optimizations for mobile */
+@media (max-height: 500px) and (orientation: landscape) {
+  .h-full {
+    height: 100vh;
+  }
+
+  .max-h-\[90vh\] {
+    max-height: 85vh;
+  }
+}
+
+/* FullCalendar Custom Theme Integration */
+.fc-custom-theme {
+  /* Override FullCalendar CSS variables to match our orange theme */
+  --fc-button-text-color: #ea580c;
+  --fc-button-bg-color: #fff7ed;
+  --fc-button-border-color: #fed7aa;
+  --fc-button-hover-bg-color: #ffedd5;
+  --fc-button-hover-border-color: #fdba74;
+  --fc-button-active-bg-color: #fb923c;
+  --fc-button-active-border-color: #f97316;
+
+  --fc-event-bg-color: #fff7ed;
+  --fc-event-border-color: #fb923c;
+  --fc-event-text-color: #9a3412;
+  --fc-event-selected-overlay-color: rgba(251, 146, 60, 0.25);
+
+  --fc-border-color: #fed7aa;
+  --fc-daygrid-event-dot-width: 8px;
+
+  /* Today highlight */
+  --fc-today-bg-color: #fff7ed;
+  --fc-neutral-bg-color: #ffffff;
+  --fc-page-bg-color: #ffffff;
+}
+
+/* FullCalendar component styling */
+.fc-custom-theme .fc-header-toolbar {
+  padding: 1rem 1.5rem 0 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.fc-custom-theme .fc-toolbar-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.fc-custom-theme .fc-button {
+  padding: 0.5rem 1rem;
+  font-weight: 500;
+  border-radius: 0.5rem;
+  text-transform: capitalize;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
+.fc-custom-theme .fc-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.fc-custom-theme .fc-button-primary:not(:disabled):active,
+.fc-custom-theme .fc-button-primary:not(:disabled).fc-button-active {
+  background-color: var(--fc-button-active-bg-color);
+  border-color: var(--fc-button-active-border-color);
+  color: white;
+}
+
+/* Event styling */
+.fc-custom-theme .fc-event {
+  border-radius: 0.375rem;
+  padding: 0.25rem 0.5rem;
+  font-weight: 500;
+  font-size: 0.875rem;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  transition: all 0.2s ease;
+}
+
+.fc-custom-theme .fc-event:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+/* Custom event type styling */
+.fc-event-time-based {
+  background-color: #dbeafe !important;
+  border-color: #3b82f6 !important;
+  color: #1e40af !important;
+}
+
+.fc-event-date-based {
+  background-color: #dcfce7 !important;
+  border-color: #16a34a !important;
+  color: #15803d !important;
+}
+
+/* Event status styling */
+.fc-event-past {
+  opacity: 0.7;
+}
+
+.fc-event-ongoing {
+  box-shadow: 0 0 0 2px #10b981;
+}
+
+.fc-event-upcoming {
+  /* Default styling */
+}
+
+/* Calendar grid styling */
+.fc-custom-theme .fc-scrollgrid {
+  border: 1px solid var(--fc-border-color);
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.fc-custom-theme .fc-col-header-cell {
+  background-color: #f9fafb;
+  font-weight: 600;
+  color: #374151;
+  padding: 0.75rem 0.5rem;
+}
+
+.fc-custom-theme .fc-daygrid-day {
+  transition: background-color 0.2s ease;
+}
+
+.fc-custom-theme .fc-daygrid-day:hover {
+  background-color: #fff7ed;
+}
+
+.fc-custom-theme .fc-daygrid-day-number {
+  padding: 0.5rem;
+  font-weight: 500;
+}
+
+.fc-custom-theme .fc-day-today .fc-daygrid-day-number {
+  background-color: #fb923c;
+  color: white;
+  border-radius: 50%;
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0.25rem;
+}
+
+/* List view styling */
+.fc-custom-theme .fc-list-event:hover {
+  background-color: #fff7ed;
+}
+
+.fc-custom-theme .fc-list-day-cushion {
+  background-color: #f9fafb;
+  color: #374151;
+  font-weight: 600;
+}
+
+/* Time grid styling */
+.fc-custom-theme .fc-timegrid-slot {
+  border-color: #f3f4f6;
+}
+
+.fc-custom-theme .fc-timegrid-slot-minor {
+  border-color: #f9fafb;
+}
+
+/* Responsive adjustments for FullCalendar */
+@media (max-width: 768px) {
+  .fc-custom-theme .fc-header-toolbar {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .fc-custom-theme .fc-toolbar-chunk {
+    display: flex;
+    justify-content: center;
+  }
+
+  .fc-custom-theme .fc-button {
+    padding: 0.375rem 0.75rem;
+    font-size: 0.875rem;
+  }
+
+  .fc-custom-theme .fc-toolbar-title {
+    font-size: 1.25rem;
+    text-align: center;
+  }
+}
+
+/* Ensure proper spacing in calendar container */
+.fc-custom-theme .fc {
+  font-family: inherit;
+}
+
+/* Custom scrollbar for calendar */
+.fc-custom-theme .fc-scroller::-webkit-scrollbar {
+  width: 6px;
+}
+
+.fc-custom-theme .fc-scroller::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.fc-custom-theme .fc-scroller::-webkit-scrollbar-thumb {
+  background-color: rgba(251, 146, 60, 0.3);
+  border-radius: 3px;
+}
+
+.fc-custom-theme .fc-scroller::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(251, 146, 60, 0.5);
+}
