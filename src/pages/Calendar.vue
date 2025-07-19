@@ -486,41 +486,29 @@ onMounted(() => {
     <!-- Authenticated Content -->
     <div v-else>
       <!-- Calendar Header -->
-      <div class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm p-6">
-        <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-          <!-- Title and Actions -->
-          <div class="flex flex-col sm:flex-row sm:items-center gap-4">
-            <div>
-              <h1 class="text-2xl font-bold text-gray-900 mb-1 flex items-center space-x-2">
-                <IconCalendar class="w-6 h-6 text-orange-600" />
-                <span>Calendar Events</span>
-              </h1>
-              <p class="text-gray-600 text-sm">
-                View and manage Nostr calendar events (NIP-52)
-              </p>
-            </div>
-            
-            <!-- Quick Actions -->
-            <div class="flex items-center space-x-2">
-              <button @click="goToToday" class="btn-secondary text-sm">
+
+       <div class="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-4">
+
+        <div class="flex items-center space-x-3 mb-4">
+          <button @click="goToToday" class="btn-secondary text-sm">
                 Today
               </button>
-              
+
               <button @click="showFilters = !showFilters" class="btn-secondary">
                 <IconFilter class="w-4 h-4" />
                 Filters
               </button>
-              
+
               <button @click="createNewEvent" class="btn-primary">
                 <IconPlus class="w-4 h-4" />
                 New Event
               </button>
-            </div>
           </div>
         </div>
-        
+      <div class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm p-6"  v-if="showFilters" >
+
         <!-- Filters -->
-        <div v-if="showFilters" class="mt-6 pt-6 border-t border-orange-100/50">
+        <div class="mt-6 pt-6 border-t border-orange-100/50">
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <!-- Search -->
             <div class="relative">
@@ -532,7 +520,7 @@ onMounted(() => {
                 class="w-full pl-10 pr-4 py-2 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 bg-white/80 backdrop-blur-sm text-sm"
               />
             </div>
-            
+
             <!-- Type Filter -->
             <select
               v-model="selectedFilters.type"
@@ -542,7 +530,7 @@ onMounted(() => {
               <option value="time-based">Time-based Events</option>
               <option value="date-based">Date-based Events</option>
             </select>
-            
+
             <!-- Status Filter -->
             <select
               v-model="selectedFilters.status"

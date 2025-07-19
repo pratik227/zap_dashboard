@@ -94,6 +94,11 @@ const pageInfo = computed(() => {
       title: 'Notes',
       description: 'Keep track of your thoughts and ideas',
       icon: IconEdit
+    },
+    'calendar': {
+      title: 'Calendar',
+      description: 'Schedule and manage your zap-related events',
+      icon: IconCalendar
     }
   }
   
