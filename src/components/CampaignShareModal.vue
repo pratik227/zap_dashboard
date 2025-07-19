@@ -240,7 +240,7 @@ shareUrl.value = generateShareUrl()
 
 // Default message placeholder
 const defaultMessagePlaceholder = computed(() => {
-  return `🎯 Support my campaign: ${props.campaign.title}\n\n${shareUrl.value}\n\n#ZapTracker #Bitcoin #Lightning #Nostr`
+  return `Support my campaign: ${props.campaign.title}\n\n${shareUrl.value}\n\n#ZapTracker #Lightning #Nostr`
 })
 
 // Copy to clipboard and trigger native share if available
