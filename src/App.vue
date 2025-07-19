@@ -714,7 +714,7 @@ provide('isPageLoading', isPageLoading)
                 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                   <div class="flex items-center space-x-2">
                     <IconAlertTriangle class="w-5 h-5 text-amber-600 animate-bounce-subtle" />
-                    <span class="text-amber-800 text-sm sm:text-base">No wallet connected. Connect your wallet to view real zap data.</span>
+                    <span class="text-amber-800 text-sm sm:text-base">No NWC wallet connected. Connect it now.</span>
                   </div>
                   <button 
                     @click="showConnectionModal = true"
