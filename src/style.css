@@ -677,7 +677,7 @@
 
 /* Calendar grid styling */
 .fc-custom-theme .fc-scrollgrid {
-  border: 1px solid var(--fc-border-color);
+  /*border: 1px solid var(--fc-border-color);*/
   border-radius: 0.5rem;
   overflow: hidden;
 }

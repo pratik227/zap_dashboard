@@ -565,7 +565,7 @@ onMounted(() => {
       </div>
 
       <!-- FullCalendar Component -->
-      <div class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm overflow-hidden">
+      <div class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm mt-4 overflow-hidden">
         <div v-if="isLoading" class="p-6">
           <div class="flex items-center justify-center space-x-2">
             <IconLoader class="w-5 h-5 animate-spin text-orange-600" />
@@ -583,7 +583,7 @@ onMounted(() => {
       </div>
 
       <!-- Event Statistics -->
-      <div class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm p-6">
+      <div class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm p-6 mt-4">
         <h3 class="text-lg font-semibold text-gray-900 mb-4">Event Statistics</h3>
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div class="text-center">
