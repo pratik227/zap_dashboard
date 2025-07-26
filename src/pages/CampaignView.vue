@@ -59,79 +59,121 @@
             </div>
             
             <h1 class="text-3xl sm:text-4xl lg:text-5xl font-bold mb-4 leading-tight">{{ campaign.title }}</h1>
-            <p class="text-lg sm:text-xl text-white/90 leading-relaxed max-w-3xl">{{ campaign.summary }}</p>
           </div>
         </div>
       </div>
 
       <!-- Main Content Grid -->
-      <div class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8 p-6 sm:p-8 -mt-16 relative z-10">
+      <div class="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-5 gap-6 p-4 sm:p-6 -mt-12 relative z-10">
         <!-- Left Column: Campaign Details & Supporters -->
-        <div class="lg:col-span-2 space-y-8">
-          <!-- Progress Section -->
-          <div class="bg-white/95 backdrop-blur-sm rounded-2xl p-6 sm:p-8 border border-orange-100/50 shadow-lg">
-            <div class="flex items-center justify-between mb-6">
-              <h2 class="text-2xl font-bold text-gray-900 flex items-center space-x-3">
-                <IconTarget class="w-7 h-7 text-orange-600" />
-                <span>Campaign Progress</span>
-              </h2>
-              <div class="text-right">
-                <div class="text-3xl font-bold text-orange-600">{{ progress.percentage }}%</div>
-                <div class="text-sm text-orange-700">Complete</div>
-              </div>
-            </div>
-            
-            <!-- Progress Bar -->
-            <div class="mb-6">
-              <div class="w-full bg-orange-200 rounded-full h-4 overflow-hidden shadow-inner">
-                <div 
-                  class="bg-gradient-to-r from-orange-400 to-amber-400 h-4 rounded-full transition-all duration-1000 ease-out shadow-sm"
-                  :style="{ width: `${Math.min(progress.percentage, 100)}%` }"
-                ></div>
-              </div>
-            </div>
-            
-            <!-- Progress Stats -->
-            <div class="grid grid-cols-2 gap-6">
-              <div class="text-center">
-                <div class="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">
-                  {{ totalZapAmount.toLocaleString() }}
+        <div class="lg:col-span-3 space-y-6">
+          <!-- Compact Campaign Header Card -->
+          <div class="bg-white/95 backdrop-blur-sm rounded-2xl p-4 sm:p-6 border border-orange-100/50 shadow-lg">
+            <!-- Campaign Title & Meta in Single Row -->
+            <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-4">
+              <div class="flex-1 min-w-0">
+                <h1 class="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 leading-tight mb-2">{{ campaign.title }}</h1>
+                <!-- Campaign Description with Read More/Less -->
+                <div class="text-sm sm:text-base text-gray-600 leading-relaxed">
+                  <p v-if="!showFullDescription && campaign.summary.length > 150" class="mb-2">
+                    {{ campaign.summary.substring(0, 150) }}...
+                    <button 
+                      @click="showFullDescription = true"
+                      class="text-orange-600 hover:text-orange-700 font-medium ml-1 transition-colors"
+                    >
+                      Read more
+                    </button>
+                  </p>
+                  <p v-else class="mb-2">
+                    {{ campaign.summary }}
+                    <button 
+                      v-if="campaign.summary.length > 150"
+                      @click="showFullDescription = false"
+                      class="text-orange-600 hover:text-orange-700 font-medium ml-1 transition-colors"
+                    >
+                      Read less
+                    </button>
+                  </p>
                 </div>
-                <div class="text-sm text-gray-600">Sats Raised</div>
               </div>
-              <div class="text-center">
-                <div class="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">
-                  {{ formatAmount(campaign.goalAmount) }}
-                </div>
-                <div class="text-sm text-gray-600">Goal</div>
-              </div>
-            </div>
-            
-            <!-- Status and Time -->
-            <div class="mt-6 flex flex-wrap items-center justify-center gap-4">
-              <span :class="[
-                'px-4 py-2 rounded-full text-sm font-medium',
-                statusColor
-              ]">
-                {{ status.charAt(0).toUpperCase() + status.slice(1) }}
-              </span>
               
-              <div v-if="daysRemaining !== 'No deadline'" class="flex items-center space-x-2 bg-white/60 px-4 py-2 rounded-full">
-                <IconClock class="w-4 h-4 text-orange-600" />
-                <span class="text-sm font-medium text-orange-800">{{ daysRemaining }}</span>
+              <!-- Compact Status Indicators -->
+              <div class="flex flex-row sm:flex-col gap-2 sm:gap-1 flex-shrink-0">
+                <span :class="[
+                  'px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap',
+                  statusColor
+                ]">
+                  {{ status.charAt(0).toUpperCase() + status.slice(1) }}
+                </span>
+                
+                <div v-if="daysRemaining !== 'No deadline'" class="flex items-center space-x-1 bg-orange-50 px-3 py-1 rounded-full">
+                  <IconClock class="w-3 h-3 text-orange-600" />
+                  <span class="text-xs font-medium text-orange-800 whitespace-nowrap">{{ daysRemaining }}</span>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Clean Campaign Progress Section -->
+            <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+              <!-- Header with Progress Percentage -->
+              <div class="flex items-center justify-between p-4 bg-gradient-to-r from-orange-50 to-amber-50 border-b border-orange-100">
+                <h2 class="text-lg font-semibold text-gray-900">Campaign Progress</h2>
+                <div class="text-2xl font-bold text-orange-600">{{ progress.percentage }}%</div>
+              </div>
+              
+              <!-- Progress Bar -->
+              <div class="p-4 pb-3">
+                <div class="w-full bg-gray-200 rounded-full h-3 mb-4">
+                  <div 
+                    class="bg-gradient-to-r from-orange-400 to-amber-400 h-3 rounded-full transition-all duration-700 ease-out"
+                    :style="{ width: `${Math.min(progress.percentage, 100)}%` }"
+                  ></div>
+                </div>
+                
+                <!-- Stats Row -->
+                <div class="flex items-center justify-between text-sm">
+                  <div class="flex items-center space-x-4">
+                    <div>
+                      <span class="font-semibold text-gray-900">{{ formatCurrency(progress.current) }}</span>
+                      <span class="text-gray-500 ml-1">raised</span>
+                    </div>
+                    <div class="w-px h-4 bg-gray-300"></div>
+                    <div>
+                      <span class="font-semibold text-gray-900">{{ totalZapCount }}</span>
+                      <span class="text-gray-500 ml-1">supporter{{ totalZapCount !== 1 ? 's' : '' }}</span>
+                    </div>
+                  </div>
+                  <div>
+                    <span class="font-semibold text-gray-900">{{ formatCurrency(progress.goal) }}</span>
+                    <span class="text-gray-500 ml-1">goal</span>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Time Remaining (if applicable) -->
+              <div v-if="daysRemaining !== 'No deadline'" class="px-4 pb-4">
+                <div class="flex items-center justify-center space-x-2 bg-amber-50 px-3 py-2 rounded-lg">
+                  <IconClock class="w-4 h-4 text-amber-600" />
+                  <span class="text-sm font-medium text-amber-700">{{ daysRemaining }}</span>
+                </div>
               </div>
             </div>
           </div>
 
-          <!-- Supporters Section -->
-          <div class="bg-white/95 backdrop-blur-sm rounded-2xl p-6 sm:p-8 border border-orange-100/50 shadow-lg">
-            <h3 class="text-xl font-bold text-gray-900 mb-6 flex items-center space-x-3">
-              <IconUsers class="w-6 h-6 text-orange-600" />
-              <span>Recent Supporters</span>
-              <span v-if="totalZapCount > 0" class="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
-                {{ totalZapCount }} supporter{{ totalZapCount !== 1 ? 's' : '' }}
-              </span>
-            </h3>
+          <!-- Progress Section -->
+
+          <!-- Compact Supporters Section -->
+          <div class="bg-white/95 backdrop-blur-sm rounded-2xl p-4 sm:p-6 border border-orange-100/50 shadow-lg">
+            <!-- Enhanced Supporters Header -->
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-lg font-bold text-gray-900 flex items-center space-x-2">
+                <IconUsers class="w-5 h-5 text-orange-600" />
+                <span>Supporters</span>
+                <span v-if="totalZapCount > 0" class="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
+                  {{ totalZapCount }} supporter{{ totalZapCount !== 1 ? 's' : '' }}
+                </span>
+              </h3>
+            </div>
             
             <div v-if="recentZaps.length === 0" class="text-center py-12">
               <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -141,42 +183,44 @@
               <p class="text-gray-600">Your contribution will help kickstart this campaign</p>
             </div>
             
-            <div v-else class="space-y-6">
-              <!-- Supporter Grid -->
-              <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-4">
+            <div v-else class="space-y-4">
+              <!-- Enhanced Supporter Grid - Show Latest 7 -->
+              <div class="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-8 gap-4">
                 <div 
-                  v-for="(zap, index) in recentZaps.slice(0, 12)" 
+                  v-for="(zap, index) in displayedSupporters" 
                   :key="zap.id"
-                  class="group relative"
+                  class="group relative text-center transform hover:scale-110 transition-all duration-200"
                 >
                   <!-- Major Supporter (10k+ sats) -->
                   <div 
                     v-if="zap.amount >= 10000"
-                    class="relative transform hover:scale-105 transition-all duration-300"
+                    class="relative"
                   >
-                    <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden border-4 border-gradient-to-r from-yellow-400 to-orange-400 shadow-lg mx-auto">
+                    <div class="w-14 h-14 sm:w-16 sm:h-16 rounded-full overflow-hidden border-3 border-yellow-400 shadow-lg mx-auto relative">
                       <img 
                         :src="getSenderAvatar(zap)" 
                         :alt="zap.sender?.name || 'Supporter'"
                         class="w-full h-full object-cover"
                         @error="$event.target.src = generateFallbackAvatar(zap.zapperPubkey)"
                       />
+                      <div class="absolute -top-1 -right-1 w-5 h-5 bg-yellow-400 rounded-full flex items-center justify-center shadow-sm">
+                        <IconBolt class="w-3 h-3 text-yellow-800" />
+                      </div>
                     </div>
-                    <div class="absolute -top-1 -right-1 w-6 h-6 bg-yellow-400 rounded-full flex items-center justify-center shadow-lg">
-                      <IconBolt class="w-3 h-3 text-yellow-800" />
-                    </div>
-                    <div class="text-center mt-2">
-                      <div class="font-bold text-yellow-600 text-xs sm:text-sm">{{ formatZapAmount(zap.amount) }}</div>
-                      <div class="text-xs text-gray-600 truncate">{{ getSenderName(zap) }}</div>
+                    <div class="mt-2">
+                      <div class="font-bold text-yellow-600 text-sm">{{ formatZapAmount(zap.amount) }}</div>
+                      <div class="text-xs text-gray-600 truncate max-w-full font-medium" :title="getSenderName(zap)">
+                        {{ getSenderName(zap) }}
+                      </div>
                     </div>
                   </div>
                   
                   <!-- Regular Supporter -->
                   <div 
                     v-else
-                    class="relative transform hover:scale-105 transition-all duration-300"
+                    class="relative"
                   >
-                    <div class="w-12 h-12 sm:w-16 sm:h-16 rounded-full overflow-hidden border-2 border-orange-200 shadow-md mx-auto">
+                    <div class="w-12 h-12 sm:w-14 sm:h-14 rounded-full overflow-hidden border-2 border-orange-200 shadow-md mx-auto">
                       <img 
                         :src="getSenderAvatar(zap)" 
                         :alt="zap.sender?.name || 'Supporter'"
@@ -184,23 +228,42 @@
                         @error="$event.target.src = generateFallbackAvatar(zap.zapperPubkey)"
                       />
                     </div>
-                    <div class="text-center mt-2">
-                      <div class="font-medium text-orange-600 text-xs">{{ formatZapAmount(zap.amount) }}</div>
-                      <div class="text-xs text-gray-600 truncate">{{ getSenderName(zap) }}</div>
+                    <div class="mt-2">
+                      <div class="font-semibold text-orange-600 text-sm">{{ formatZapAmount(zap.amount) }}</div>
+                      <div class="text-xs text-gray-600 truncate max-w-full font-medium" :title="getSenderName(zap)">
+                        {{ getSenderName(zap) }}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <!-- Show More Supporters Indicator -->
+                <div 
+                  v-if="totalZapCount > 7"
+                  class="group relative text-center transform hover:scale-110 transition-all duration-200 cursor-pointer"
+                  @click="showAllSupporters = !showAllSupporters"
+                >
+                  <div class="w-12 h-12 sm:w-14 sm:h-14 rounded-full border-2 border-dashed border-gray-300 bg-gray-50 hover:bg-gray-100 hover:border-gray-400 transition-all duration-200 mx-auto flex items-center justify-center">
+                    <IconUsers class="w-6 h-6 text-gray-400 group-hover:text-gray-600" />
+                  </div>
+                  <div class="mt-2">
+                    <div class="font-semibold text-gray-500 text-sm group-hover:text-gray-700">+{{ totalZapCount - 7 }}</div>
+                    <div class="text-xs text-gray-500 font-medium group-hover:text-gray-600">
+                      {{ showAllSupporters ? 'Show less' : 'more' }}
                     </div>
                   </div>
                 </div>
               </div>
               
               <!-- Total Support Summary -->
-              <div class="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-6">
+              <div class="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-4 mt-6">
                 <div class="flex items-center justify-between">
                   <div>
-                    <div class="text-2xl font-bold text-green-800">{{ totalZapAmount.toLocaleString() }} sats</div>
+                    <div class="text-lg font-bold text-green-800">{{ formatCurrency(totalZapAmount) }}</div>
                     <div class="text-sm text-green-600">Total Support Received</div>
                   </div>
                   <div class="text-right">
-                    <div class="text-2xl font-bold text-green-800">{{ totalZapCount }}</div>
+                    <div class="text-lg font-bold text-green-800">{{ totalZapCount }}</div>
                     <div class="text-sm text-green-600">Supporters</div>
                   </div>
                 </div>
@@ -209,29 +272,29 @@
           </div>
 
           <!-- Campaign Description -->
-          <div v-if="campaign.descriptionLong" class="bg-white/95 backdrop-blur-sm rounded-2xl p-6 sm:p-8 border border-orange-100/50 shadow-lg">
-            <h3 class="text-xl font-bold text-gray-900 mb-4">About This Campaign</h3>
-            <div class="prose prose-gray max-w-none">
+          <div v-if="campaign.descriptionLong" class="bg-white/95 backdrop-blur-sm rounded-2xl p-4 sm:p-6 border border-orange-100/50 shadow-lg">
+            <h3 class="text-lg font-bold text-gray-900 mb-3">About This Campaign</h3>
+            <div class="prose prose-sm prose-gray max-w-none">
               <p class="text-gray-700 leading-relaxed whitespace-pre-wrap">{{ campaign.descriptionLong }}</p>
             </div>
           </div>
 
           <!-- Campaign Details -->
-          <div class="bg-white/95 backdrop-blur-sm rounded-2xl p-6 sm:p-8 border border-orange-100/50 shadow-lg">
-            <h3 class="text-lg font-semibold text-gray-900 mb-4">Campaign Details</h3>
+          <div class="bg-white/95 backdrop-blur-sm rounded-2xl p-4 sm:p-6 border border-orange-100/50 shadow-lg">
+            <h3 class="text-lg font-semibold text-gray-900 mb-3">Campaign Details</h3>
             
-            <div class="space-y-4">
+            <div class="space-y-3">
               <!-- Author -->
               <div v-if="campaignAuthor" class="flex items-center justify-between">
                 <span class="text-sm text-gray-600">Created by:</span>
                 <div 
                   @click="openUserProfile"
-                  class="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors"
+                  class="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-1 rounded-lg transition-colors"
                 >
                   <img 
                     :src="campaignAuthor.picture" 
                     :alt="campaignAuthor.name"
-                    class="w-6 h-6 rounded-full object-cover"
+                    class="w-5 h-5 rounded-full object-cover"
                     @error="$event.target.src = generateFallbackAvatar(campaignAuthor.pubkey)"
                   />
                   <span class="text-sm font-medium text-gray-900">{{ campaignAuthor.name }}</span>
@@ -242,13 +305,13 @@
               <div class="flex items-center justify-between">
                 <span class="text-sm text-gray-600">Event ID (NIP-75):</span>
                 <div class="flex items-center space-x-2">
-                  <code class="text-xs bg-gray-100 px-2 py-1 rounded">{{ campaign.id.substring(0, 10) }}...{{ campaign.id.substring(campaign.id.length - 10) }}</code>
+                  <code class="text-xs bg-gray-100 px-2 py-0.5 rounded">{{ campaign.id.substring(0, 8) }}...{{ campaign.id.substring(campaign.id.length - 8) }}</code>
                   <button
                     @click="copyToClipboard(campaign.id, 'eventId')"
-                    class="text-gray-400 hover:text-gray-600 transition-colors"
+                    class="text-gray-400 hover:text-gray-600 transition-colors p-1"
                   >
-                    <IconCheck v-if="copySuccess === 'eventId'" class="w-4 h-4 text-green-600" />
-                    <IconCopy v-else class="w-4 h-4" />
+                    <IconCheck v-if="copySuccess === 'eventId'" class="w-3 h-3 text-green-600" />
+                    <IconCopy v-else class="w-3 h-3" />
                   </button>
                 </div>
               </div>
@@ -261,18 +324,18 @@
                     :href="`https://primal.net/e/${campaign.id}`" 
                     target="_blank" 
                     rel="noopener noreferrer"
-                    class="text-sm text-purple-600 hover:text-purple-800 bg-purple-50 hover:bg-purple-100 px-3 py-1 rounded-lg transition-colors flex items-center space-x-1"
+                    class="text-xs text-purple-600 hover:text-purple-800 bg-purple-50 hover:bg-purple-100 px-2 py-1 rounded-lg transition-colors flex items-center space-x-1"
                   >
-                    <IconExternalLink class="w-4 h-4" />
+                    <IconExternalLink class="w-3 h-3" />
                     <span>Primal</span>
                   </a>
                   <a 
                     :href="`https://yakihonne.com/e/${campaign.id}`" 
                     target="_blank" 
                     rel="noopener noreferrer"
-                    class="text-sm text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-3 py-1 rounded-lg transition-colors flex items-center space-x-1"
+                    class="text-xs text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-2 py-1 rounded-lg transition-colors flex items-center space-x-1"
                   >
-                    <IconMessageCircle class="w-4 h-4" />
+                    <IconMessageCircle class="w-3 h-3" />
                     <span>Yakihonne</span>
                   </a>
                 </div>
@@ -282,13 +345,13 @@
         </div>
 
         <!-- Right Column: Payment Section -->
-        <div class="lg:col-span-1">
+        <div class="lg:col-span-2">
           <div class="sticky top-6">
             <!-- Payment Card -->
             <div class="bg-white/95 backdrop-blur-sm rounded-2xl border border-orange-100/50 shadow-lg overflow-hidden">
               <!-- Payment Header -->
-              <div class="bg-gradient-to-r from-orange-500 to-amber-500 text-white p-6">
-                <h3 class="text-xl font-bold mb-2 flex items-center space-x-2">
+              <div class="bg-gradient-to-r from-orange-500 to-amber-500 text-white p-4 sm:p-6">
+                <h3 class="text-lg sm:text-xl font-bold mb-2 flex items-center space-x-2">
                   <IconBolt class="w-6 h-6" />
                   <span>Support This Campaign</span>
                 </h3>
@@ -296,31 +359,31 @@
               </div>
 
               <!-- Payment Content -->
-              <div class="p-6">
+              <div class="p-4 sm:p-6">
                 <!-- Amount Selection (Step 1) -->
-                <div v-if="currentStep === 'amount'" class="space-y-6">
+                <div v-if="currentStep === 'amount'" class="space-y-4">
                   <!-- Quick Amount Selection -->
                   <div>
-                    <label class="block text-sm font-semibold text-gray-900 mb-4">Choose Amount</label>
+                    <label class="block text-sm font-semibold text-gray-900 mb-3">Choose Amount</label>
                     <div class="grid grid-cols-2 gap-3 mb-4">
                       <button
                         v-for="amount in predefinedAmounts"
                         :key="amount.value"
                         @click="selectAmount(amount.value)"
                         :class="[
-                          'p-4 rounded-xl border-2 text-center transition-all duration-200 hover:scale-105',
+                          'p-3 rounded-xl border-2 text-center transition-all duration-200 hover:scale-105',
                           !isCustomAmount && zapAmount === amount.value
                             ? 'border-orange-400 bg-orange-50 shadow-md'
                             : 'border-gray-200 hover:border-orange-300 hover:bg-orange-25'
                         ]"
                       >
-                        <div class="font-bold text-gray-900">{{ amount.label }}</div>
+                        <div class="font-bold text-gray-900 text-sm">{{ amount.label }}</div>
                         <div class="text-xs text-gray-500">{{ amount.description }}</div>
                       </button>
                     </div>
                     
                     <!-- Custom Amount -->
-                    <div class="space-y-3">
+                    <div class="space-y-2">
                       <div class="flex items-center">
                         <input
                           type="checkbox"
@@ -337,7 +400,7 @@
                           type="number"
                           min="1"
                           placeholder="Enter sats"
-                          class="w-full px-4 py-3 pr-16 border-2 border-gray-200 rounded-xl focus:border-orange-400 focus:ring-0 transition-colors text-lg font-medium"
+                          class="w-full px-3 py-2 pr-12 border-2 border-gray-200 rounded-lg focus:border-orange-400 focus:ring-0 transition-colors text-base font-medium"
                         />
                         <div class="absolute inset-y-0 right-0 flex items-center pr-4">
                           <span class="text-sm font-medium text-gray-500">sats</span>
@@ -348,12 +411,12 @@
                   
                   <!-- Comment -->
                   <div>
-                    <label class="block text-sm font-semibold text-gray-900 mb-3">Message (optional)</label>
+                    <label class="block text-sm font-semibold text-gray-900 mb-2">Message (optional)</label>
                     <textarea
                       v-model="zapComment"
-                      rows="3"
+                      rows="2"
                       placeholder="Add an encouraging message..."
-                      class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-orange-400 focus:ring-0 transition-colors resize-none"
+                      class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-orange-400 focus:ring-0 transition-colors resize-none text-sm"
                     ></textarea>
                   </div>
                   
@@ -361,7 +424,7 @@
                   <button
                     @click="generateInvoice"
                     :disabled="!canProceed || isGeneratingInvoice"
-                    class="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white px-6 py-4 rounded-xl font-bold text-lg transition-all duration-200 flex items-center justify-center space-x-3 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98]"
+                    class="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white px-4 py-3 rounded-xl font-bold text-base transition-all duration-200 flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98]"
                   >
                     <IconLoader v-if="isGeneratingInvoice" class="w-5 h-5 animate-spin" />
                     <IconBolt v-else class="w-5 h-5" />
@@ -370,12 +433,12 @@
                 </div>
 
                 <!-- Payment Options (Step 2) -->
-                <div v-else-if="currentStep === 'payment' && invoice" class="space-y-6">
+                <div v-else-if="currentStep === 'payment' && invoice" class="space-y-4">
                   <!-- Amount Summary -->
-                  <div class="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-xl p-4">
+                  <div class="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-lg p-3">
                     <div class="flex items-center justify-between">
                       <span class="text-sm font-medium text-orange-800">Supporting with:</span>
-                      <span class="text-xl font-bold text-orange-600">{{ effectiveAmount.toLocaleString() }} sats</span>
+                      <span class="text-lg font-bold text-orange-600">{{ effectiveAmount.toLocaleString() }} sats</span>
                     </div>
                     <div v-if="zapComment" class="mt-2 pt-2 border-t border-orange-200">
                       <p class="text-xs text-orange-700 italic">"{{ zapComment }}"</p>
@@ -384,14 +447,14 @@
 
                   <!-- QR Code -->
                   <div class="text-center">
-                    <div class="bg-white p-6 rounded-xl border-2 border-gray-200 inline-block shadow-sm">
+                    <div class="bg-white p-4 rounded-lg border-2 border-gray-200 inline-block shadow-sm">
                       <div v-if="!invoice" class="w-[200px] h-[200px] flex items-center justify-center">
                         <IconLoader class="w-8 h-8 animate-spin text-orange-500" />
                       </div>
                       <QRCodeVue3
                         v-else
                         :value="`lightning:${invoice}`"
-                        :size="200"
+                        :size="180"
                         color="#000000"
                         background-color="#ffffff"
                         error-correction-level="M"
@@ -401,13 +464,13 @@
                   </div>
                   
                   <!-- Payment Buttons -->
-                  <div class="space-y-3">
+                  <div class="space-y-2">
                     <!-- Pay with ZapTracker Wallet -->
                     <button
                       v-if="isWalletConnected"
                       @click="payWithInternalNWC"
                       :disabled="isProcessingPayment"
-                      class="w-full bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white px-6 py-4 rounded-xl font-semibold transition-all duration-200 flex items-center justify-center space-x-3 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98]"
+                      class="w-full bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white px-4 py-3 rounded-lg font-semibold transition-all duration-200 flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg transform hover:scale-[1.01] active:scale-[0.99]"
                     >
                       <IconLoader v-if="isProcessingPayment" class="w-5 h-5 animate-spin" />
                       <IconWallet v-else class="w-5 h-5" />
@@ -417,7 +480,7 @@
                     <!-- Open in External Wallet -->
                     <button
                       @click="openExternalWallet"
-                      class="w-full bg-blue-500 hover:bg-blue-600 text-white px-6 py-4 rounded-xl font-semibold transition-all duration-200 flex items-center justify-center space-x-3 shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98]"
+                      class="w-full bg-blue-500 hover:bg-blue-600 text-white px-4 py-3 rounded-lg font-semibold transition-all duration-200 flex items-center justify-center space-x-2 shadow-md hover:shadow-lg transform hover:scale-[1.01] active:scale-[0.99]"
                     >
                       <IconExternalLink class="w-5 h-5" />
                       <span>Open in Wallet</span>
@@ -425,7 +488,7 @@
                   </div>
                   
                   <!-- Back Button -->
-                  <div class="text-center pt-4 border-t border-gray-200">
+                  <div class="text-center pt-3 border-t border-gray-200">
                     <button 
                       @click="resetToAmountSelection" 
                       class="text-gray-600 hover:text-gray-800 text-sm font-medium flex items-center space-x-1 mx-auto"
@@ -437,13 +500,13 @@
                 </div>
 
                 <!-- Success State -->
-                <div v-else-if="paymentStatus === 'success'" class="text-center py-8">
+                <div v-else-if="paymentStatus === 'success'" class="text-center py-6">
                   <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
                     <IconCheck class="w-8 h-8 text-green-600" />
                   </div>
                   <h4 class="text-xl font-semibold text-green-600 mb-2">Thank You! 🎉</h4>
                   <p class="text-gray-600 mb-4">Your {{ effectiveAmount.toLocaleString() }} sats contribution makes a difference!</p>
-                  <div class="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-xl p-4">
+                  <div class="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-lg p-3">
                     <p class="text-orange-800 font-medium">
                       🚀 Your support helps bring this campaign closer to its goal
                     </p>
@@ -451,8 +514,8 @@
                 </div>
 
                 <!-- Error State -->
-                <div v-else-if="paymentStatus === 'error'" class="space-y-6">
-                  <div class="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
+                <div v-else-if="paymentStatus === 'error'" class="space-y-4">
+                  <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
                     <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
                       <IconAlertCircle class="w-8 h-8 text-red-600" />
                     </div>
@@ -460,7 +523,7 @@
                     <p class="text-sm text-red-700 mb-4">{{ paymentError }}</p>
                     <button 
                       @click="resetToAmountSelection" 
-                      class="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-200 flex items-center justify-center space-x-2 mx-auto"
+                      class="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white px-4 py-2 rounded-lg font-semibold transition-all duration-200 flex items-center justify-center space-x-2 mx-auto"
                     >
                       <IconBolt class="w-4 h-4" />
                       <span>Try Again</span>
@@ -471,7 +534,7 @@
             </div>
 
             <!-- Trust Indicators -->
-            <div class="mt-6 bg-blue-50/80 backdrop-blur-sm border border-blue-200 rounded-xl p-4">
+            <div class="mt-4 bg-blue-50/80 backdrop-blur-sm border border-blue-200 rounded-lg p-3">
               <div class="flex items-start space-x-3">
                 <IconShield class="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
                 <div>
@@ -484,15 +547,15 @@
             </div>
 
             <!-- ZapTracker Branding -->
-            <div class="mt-6 text-center">
+            <div class="mt-4 text-center">
               <a
                 href="/"
-                class="inline-flex items-center space-x-2 text-orange-600 hover:text-orange-700 font-medium text-sm bg-white/60 hover:bg-white/80 backdrop-blur-sm px-4 py-2 rounded-lg transition-colors border border-orange-200/50"
+                class="inline-flex items-center space-x-2 text-orange-600 hover:text-orange-700 font-medium text-xs bg-white/60 hover:bg-white/80 backdrop-blur-sm px-3 py-1.5 rounded-lg transition-colors border border-orange-200/50"
               >
                 <img 
                   src="/new_logo3.png"
                   alt="ZapTracker" 
-                  class="w-4 h-4 object-contain"
+                  class="w-3 h-3 object-contain"
                 />
                 <span>Powered by ZapTracker</span>
               </a>
@@ -578,6 +641,8 @@ const campaignAuthor = ref(null)
 const showShareModal = ref(false)
 const showUserModal = ref(false)
 const copySuccess = ref('')
+const showFullDescription = ref(false)
+const showAllSupporters = ref(false)
 
 // Payment state
 const zapAmount = ref(1000) // Default 1000 sats
@@ -720,6 +785,17 @@ const formatAmount = (amount) => {
   }
 }
 
+// Enhanced currency formatting with K/M suffixes
+const formatCurrency = (amount) => {
+  if (!amount) return '0 sats'
+  
+  if (amount >= 1000000) {
+    return `${(amount / 1000000).toFixed(1)}M sats`
+  } else if (amount >= 1000) {
+    return `${(amount / 1000).toFixed(1)}K sats`
+  }
+  return `${amount.toLocaleString()} sats`
+}
 // Calculate days remaining
 const daysRemaining = computed(() => {
   if (!campaign.value || !campaign.value.closedAt) return 'No deadline'
@@ -779,13 +855,20 @@ const recentZaps = computed(() => {
   })))
   
   return campaignZaps
-    .slice(0, 12)
+    .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)) // Sort by most recent first
     .map(zap => ({
       ...zap,
       timeAgo: formatTimeAgo(zap.timestamp)
     }))
 })
 
+// Display exactly 7 supporters or all if showAllSupporters is true
+const displayedSupporters = computed(() => {
+  if (showAllSupporters.value) {
+    return recentZaps.value
+  }
+  return recentZaps.value.slice(0, 7)
+})
 // Get total zap count for this campaign
 const totalZapCount = computed(() => {
   if (!campaign.value) return 0
@@ -1214,3 +1297,59 @@ textarea:focus-visible {
   overflow: hidden;
 }
 </style>
+/* Compact supporter grid responsive adjustments */
+@media (max-width: 640px) {
+  .grid-cols-4 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 641px) and (max-width: 768px) {
+  .sm\:grid-cols-6 {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+
+/* Enhanced hover states for supporters */
+.group:hover .transform {
+  transform: scale(1.1);
+}
+
+/* Improved text truncation for supporter names */
+.max-w-full {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Compact spacing utilities */
+.space-y-6 > :not([hidden]) ~ :not([hidden]) {
+  margin-top: 1.5rem;
+}
+
+.space-y-4 > :not([hidden]) ~ :not([hidden]) {
+  margin-top: 1rem;
+}
+
+.space-y-3 > :not([hidden]) ~ :not([hidden]) {
+  margin-top: 0.75rem;
+}
+
+/* Mobile-first responsive typography */
+@media (max-width: 640px) {
+  .text-xl {
+    font-size: 1.125rem;
+    line-height: 1.75rem;
+  }
+  
+  .text-2xl {
+    font-size: 1.25rem;
+    line-height: 1.75rem;
+  }
+  
+  .text-3xl {
+    font-size: 1.5rem;
+    line-height: 2rem;
+  }
+}
