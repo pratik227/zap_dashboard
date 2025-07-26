@@ -23,7 +23,7 @@ const DEFAULT_RELAYS = [
   { url: 'wss://relay.primal.net', status: 'disconnected', read: true, write: true },
   { url: 'wss://nostr.wine', status: 'disconnected', read: true, write: true },
   { url: 'wss://relay.nostr.band', status: 'disconnected', read: true, write: false },
-  { url: 'wss://nostr-01.yakihonne.com', status: 'disconnected', read: true, write: false }
+  { url: 'wss://nostr-01.yakihonne.com', status: 'disconnected', read: true, write: false },
 ]
 
 // Connection timeout settings
