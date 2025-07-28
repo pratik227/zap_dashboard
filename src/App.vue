@@ -455,70 +455,77 @@ onMounted(async () => {
     await nostrRelayManager.initialize()
     console.log('✅ Relay manager initialized successfully')
     
-    // Check if we're in a Yakihonne widget
-    const isInYakihonneWidget = () => {
+    // Check if smart widget is available and setup integration
+    const setupSmartWidgetIntegration = () => {
+      console.log('🔍 Checking for smart widget availability in App.vue...');
+      
       try {
-        // Check if we're in an iframe
-        const isIframe = window.self !== window.top;
-        if (!isIframe) return false;
-        
-        // Check if we have window.yakihonneUser or window.nostrProfile
-        if (window.yakihonneUser || window.nostrProfile) {
-          return true;
+        // Check if SWHandler is available
+        if (!SWHandler || !SWHandler.client) {
+          console.log('❌ SWHandler not available in App.vue - smart widget not detected');
+          return false;
         }
         
-        // Check if referrer contains 'yakihonne'
-        const referrer = document.referrer || '';
-        if (referrer.includes('yakihonne')) return true;
+        console.log('✅ Smart widget detected in App.vue, setting up integration...');
         
-        // Check URL parameters or hash for yakihonne
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.has('yakihonne') || window.location.hash.includes('yakihonne')) {
-          return true;
-        }
+        // Notify smart widget parent that the widget is ready
+        SWHandler.client.ready();
+        console.log('📡 Sent ready signal to smart widget parent from App.vue');
         
-        return false;
+        // Listen for messages from smart widget parent
+        const listener = SWHandler.client.listen((data) => {
+          console.log('📨 Received message from smart widget parent in App.vue:', {
+            kind: data.kind,
+            hasData: !!data.data,
+            hasUser: !!(data.data && data.data.user),
+            timestamp: new Date().toISOString()
+          });
+          
+          if (data.kind === 'user-metadata' && data.data && data.data.user) {
+            const user = data.data.user;
+            console.log('✅ Smart widget user data received in App.vue:', {
+              pubkey: user.pubkey ? `${user.pubkey.substring(0, 8)}...` : 'missing',
+              hasProfile: !!user.profile,
+              profileName: user.profile?.display_name || user.profile?.name || 'Unknown',
+              source: 'smart-widget-handler',
+              timestamp: new Date().toISOString()
+            });
+            
+            // Auto-login with the received user data - directly process the profile
+            setTimeout(async () => {
+              console.log('🔄 Processing smart widget user data for auto-login from App.vue...');
+              const { processSmartWidgetProfile, isAuthenticated } = useNostrAuth();
+              
+              // Only process if not already authenticated
+              if (!isAuthenticated.value) {
+                try {
+                  const loggedInUser = await processSmartWidgetProfile(user);
+                  console.log('✅ Smart widget auto-login successful from App.vue:', {
+                    npub: loggedInUser.npub,
+                    displayName: loggedInUser.profile?.display_name || loggedInUser.profile?.name || 'Unknown',
+                    source: 'smart-widget-handler'
+                  });
+                } catch (error) {
+                  console.error('❌ Smart widget auto-login failed from App.vue:', error);
+                }
+              } else {
+                console.log('ℹ️ User already authenticated, skipping smart widget auto-login from App.vue');
+              }
+            }, 1000); // 1 second delay before attempting login
+          } else {
+            console.log('📝 Non-user-metadata message received in App.vue, continuing to listen...');
+          }
+        });
+        
+        return true;
       } catch (error) {
-        console.error('Error checking for Yakihonne widget:', error);
+        console.error('❌ Error setting up smart widget integration in App.vue:', error);
         return false;
       }
     };
     
-    // Setup Yakihonne widget integration if detected
-    if (isInYakihonneWidget()) {
-      console.log('Detected Yakihonne widget, setting up integration...');
-      
-      try {
-        // Notify YakiHonne that the widget is ready
-        SWHandler.client.ready();
-        console.log('Sent ready signal to YakiHonne');
-        
-        // Listen for messages from YakiHonne parent
-        const listener = SWHandler.client.listen((data) => {
-          console.log('Received message from YakiHonne:', data);
-          
-          if (data.kind === 'user-metadata' && data.data && data.data.user) {
-            // Store user data in window for future use
-            window.yakihonneUser = data.data.user;
-            console.log('User data received from YakiHonne message:', data.data.user);
-            
-            // Auto-login with the received user data
-            setTimeout(async () => {
-              console.log('Attempting auto-login with YakiHonne user data...');
-              const { login } = useNostrAuth();
-              try {
-                const user = await login();
-                console.log('Auto-login successful with YakiHonne user data:', user.npub);
-              } catch (error) {
-                console.error('Auto-login failed with YakiHonne user data:', error);
-              }
-            }, 1000); // 1 second delay before attempting login
-          }
-        });
-      } catch (error) {
-        console.error('Error setting up SWHandler:', error);
-      }
-    }
+    // Setup smart widget integration
+    setupSmartWidgetIntegration();
     
     // Initialize content zap tracking
     if (isWalletConnected.value) {
