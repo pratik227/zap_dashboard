@@ -384,128 +384,269 @@ const startUserEventListener = (pubkey) => {
   }
 }
 
-// Login function - UPDATED to get profile from window
-const login = () => {
+// Helper function to check if we're inside a Yakihonne iframe
+const isInYakihonneIframe = () => {
+  try {
+    // Check if we're in an iframe
+    const isIframe = window.self !== window.top;
+    if (!isIframe) return false;
+    
+    // Check if referrer contains 'yakihonne'
+    const referrer = document.referrer || '';
+    if (referrer.includes('yakihonne')) return true;
+    
+    // Check if parent origin contains 'yakihonne'
+    try {
+      const parentOrigin = window.parent.origin || '';
+      if (parentOrigin.includes('yakihonne')) return true;
+    } catch (e) {
+      // Cross-origin access might be blocked
+      console.log('Could not access parent origin, continuing checks...');
+    }
+    
+    // Check URL parameters or hash for yakihonne
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('yakihonne') || window.location.hash.includes('yakihonne')) return true;
+    
+    return false;
+  } catch (error) {
+    console.error('Error checking for Yakihonne iframe:', error);
+    return false;
+  }
+};
+
+// Helper function to get Nostr profile from Yakihonne parent via postMessage
+const getYakihonneNostrProfile = () => {
   return new Promise((resolve, reject) => {
-    isLoading.value = true
-    authError.value = ''
-
-    // Check if user is already logged in (from previous session or direct from YakiHonne)
-    if (isAuthenticated.value && currentUser.value) {
-      console.log('User already logged in:', currentUser.value.npub)
-      isLoading.value = false
-      resolve(currentUser.value)
-      return
-    }
-
-    // --- Path 1: Attempt to get Nostr profile directly from window (e.g., from YakiHonne) ---
-    // Assuming YakiHonne exposes a global object like 'window.yakihonneUser' or 'window.nostrProfile'
-    const directNostrProfile = (window.yakihonneUser || window.nostrProfile || null);
-
-    if (directNostrProfile && directNostrProfile.pubkey) {
-      console.log('Nostr profile detected directly from window:', directNostrProfile.npub || directNostrProfile.pubkey.substring(0,8) + '...');
-
-      // Check if this user is already stored locally
-      const existingUser = localStorage.getItem(NOSTR_USER_KEY);
-      if (existingUser) {
-        try {
-          const userData = JSON.parse(existingUser);
-          if (userData.pubkey === directNostrProfile.pubkey) {
-            console.log('Directly provided user already exists, using stored data:', userData.npub);
-            currentUser.value = userData;
-            startUserEventListener(directNostrProfile.pubkey);
-            isLoading.value = false;
-            resolve(userData);
-            return;
-          }
-        } catch (error) {
-          console.warn('Failed to parse existing user data during direct login attempt:', error);
-          // Fall through to fetch and store if parsing fails or user doesn't match
-        }
+    console.log('Attempting to get Nostr profile from Yakihonne parent via postMessage...');
+    
+    // Function to handle incoming messages from parent
+    const messageHandler = (event) => {
+      console.log('Received postMessage in iframe:', event.data);
+      
+      // Verify origin (in production, be more strict with allowed origins)
+      if (event.origin && !event.origin.includes('yakihonne')) {
+        console.warn('Ignoring message from untrusted origin:', event.origin);
+        return;
       }
-
-      // If not stored or a new user, fetch and store the profile
-      fetchAndStoreProfile(directNostrProfile.pubkey)
-        .then(userData => {
-          currentUser.value = userData;
-          startUserEventListener(userData.pubkey);
-          isLoading.value = false;
-          resolve(userData);
-        })
-        .catch(error => {
-          console.error('Error fetching/storing direct profile:', error);
-          authError.value = error.message;
-          isLoading.value = false;
-          reject(error);
-        });
-
-      return; // Exit the function as we're handling direct login
-    }
-
-    // --- Path 2: Original sign-in flow (if no profile is directly found on window) ---
-
-    // Listen for auth events from Nostr extension
-    const handleAuth = async (event) => {
-      try {
-        console.log('Nostr auth event received from extension:', event.detail);
-
-        if (window.nostr && window.nostr.getPublicKey) {
-          const pubkey = await window.nostr.getPublicKey();
-          console.log('Got pubkey from nostr extension:', pubkey);
-
-          // Check if this user is already stored from extension login
-          const existingUser = localStorage.getItem(NOSTR_USER_KEY);
-          if (existingUser) {
-            try {
-              const userData = JSON.parse(existingUser);
-              if (userData.pubkey === pubkey) {
-                console.log('User from extension already exists, using stored data:', userData.npub);
-                currentUser.value = userData;
-                startUserEventListener(pubkey);
-                document.removeEventListener('nlAuth', handleAuth);
-                resolve(userData);
-                return;
-              }
-            } catch (error) {
-              console.warn('Failed to parse existing user data during extension login:', error);
-            }
-          }
-
-          // Fetch and store profile for new user from extension
-          const userData = await fetchAndStoreProfile(pubkey);
-          currentUser.value = userData;
-          startUserEventListener(pubkey);
-          document.removeEventListener('nlAuth', handleAuth);
-          resolve(userData);
-        } else {
-          throw new Error('Nostr extension not available for sign-in');
-        }
-      } catch (error) {
-        console.error('Auth error during extension login:', error);
-        authError.value = error.message;
-        document.removeEventListener('nlAuth', handleAuth);
-        reject(error);
-      } finally {
-        isLoading.value = false;
+      
+      // Check if the message contains a Nostr profile
+      if (event.data && event.data.pubkey) {
+        console.log('Yakihonne Nostr profile received via postMessage:', event.data);
+        window.removeEventListener('message', messageHandler);
+        clearTimeout(timeoutId);
+        resolve(event.data);
       }
     };
-
-    // Add event listener for extension login
-    document.addEventListener('nlAuth', handleAuth);
-
-    // Dispatch login event to trigger extension interaction
-    document.dispatchEvent(new Event('nlLaunch'));
-
-    // Timeout for extension login
-    setTimeout(() => {
-      if (isLoading.value) {
-        document.removeEventListener('nlAuth', handleAuth);
-        isLoading.value = false;
-        authError.value = 'Login timeout (Nostr extension) - please try again';
-        reject(new Error('Login timeout (Nostr extension)'));
-      }
-    }, 60000);
+    
+    // Listen for messages from parent window
+    window.addEventListener('message', messageHandler);
+    
+    // Request Nostr profile from parent
+    try {
+      console.log('Requesting Nostr profile from Yakihonne parent...');
+      window.parent.postMessage({ type: 'REQUEST_NOSTR_PROFILE' }, '*');
+    } catch (error) {
+      console.error('Error requesting Nostr profile from parent:', error);
+      // Continue listening in case parent sends profile without request
+    }
+    
+    // Set timeout to avoid hanging if no response
+    const timeoutId = setTimeout(() => {
+      console.log('Timeout waiting for Yakihonne Nostr profile');
+      window.removeEventListener('message', messageHandler);
+      reject(new Error('Timeout waiting for Yakihonne Nostr profile'));
+    }, 5000);
   });
+};
+
+// Login function - UPDATED to handle Yakihonne iframe integration
+const login = () => {
+  return new Promise((resolve, reject) => {
+    isLoading.value = true;
+    authError.value = '';
+    
+    console.log('Login function called, checking authentication state...');
+
+    // Check if user is already logged in (from previous session)
+    if (isAuthenticated.value && currentUser.value) {
+      console.log('User already logged in:', currentUser.value.npub);
+      isLoading.value = false;
+      resolve(currentUser.value);
+      return;
+    }
+    
+    // --- Path 1: Check if we're in a Yakihonne iframe ---
+    if (isInYakihonneIframe()) {
+      console.log('Detected Yakihonne iframe environment, attempting to get profile...');
+      
+      // First check if profile was already received and stored in window
+      const directNostrProfile = (window.yakihonneUser || window.nostrProfile || null);
+      
+      if (directNostrProfile && directNostrProfile.pubkey) {
+        console.log('Nostr profile already available in window:', 
+          directNostrProfile.npub || directNostrProfile.pubkey.substring(0,8) + '...');
+        
+        processYakihonneProfile(directNostrProfile)
+          .then(userData => resolve(userData))
+          .catch(error => reject(error));
+        return;
+      }
+      
+      // If not available in window, try to get via postMessage
+      getYakihonneNostrProfile()
+        .then(profile => {
+          console.log('Successfully received Yakihonne profile via postMessage:', profile);
+          // Store in window for future reference
+          window.yakihonneUser = profile;
+          
+          return processYakihonneProfile(profile);
+        })
+        .then(userData => resolve(userData))
+        .catch(error => {
+          console.error('Failed to get Yakihonne profile via postMessage:', error);
+          console.log('Falling back to standard Nostr extension auth...');
+          // Fall back to standard Nostr extension auth
+          startStandardNostrAuth(resolve, reject);
+        });
+      return;
+    }
+    
+    // --- Path 2: Standard Nostr extension auth ---
+    startStandardNostrAuth(resolve, reject);
+  });
+};
+
+// Helper function to process Yakihonne profile
+const processYakihonneProfile = async (profile) => {
+  console.log('Processing Yakihonne profile:', profile);
+  
+  // Check if this user is already stored locally
+  const existingUser = localStorage.getItem(NOSTR_USER_KEY);
+  if (existingUser) {
+    try {
+      const userData = JSON.parse(existingUser);
+      if (userData.pubkey === profile.pubkey) {
+        console.log('Yakihonne user already exists in storage, using stored data:', userData.npub);
+        currentUser.value = userData;
+        startUserEventListener(profile.pubkey);
+        isLoading.value = false;
+        return userData;
+      }
+    } catch (error) {
+      console.warn('Failed to parse existing user data during Yakihonne login attempt:', error);
+    }
+  }
+  
+  // Create user data from Yakihonne profile
+  try {
+    // If profile has all needed data, create user directly without fetching
+    const npub = profile.npub || nip19.npubEncode(profile.pubkey);
+    
+    const userData = {
+      pubkey: profile.pubkey,
+      npub: npub,
+      profile: {
+        name: profile.name || profile.display_name || `User ${profile.pubkey.substring(0, 8)}`,
+        display_name: profile.display_name || profile.name || null,
+        about: profile.about || 'Nostr user',
+        picture: profile.picture || null,
+        nip05: profile.nip05 || null,
+        lud16: profile.lud16 || null,
+        lud06: profile.lud06 || null,
+        website: profile.website || null,
+        banner: profile.banner || null
+      },
+      lastUpdated: new Date().toISOString(),
+      profileEvent: null,
+      source: 'yakihonne' // Mark the source for tracking
+    };
+    
+    console.log('Created user data from Yakihonne profile:', userData);
+    currentUser.value = userData;
+    saveUserToStorage(userData);
+    startUserEventListener(profile.pubkey);
+    isLoading.value = false;
+    return userData;
+  } catch (error) {
+    console.error('Error creating user from Yakihonne profile:', error);
+    
+    // Fall back to fetching profile from relays
+    console.log('Falling back to fetching profile from relays for pubkey:', profile.pubkey);
+    const userData = await fetchAndStoreProfile(profile.pubkey);
+    userData.source = 'yakihonne'; // Mark the source
+    currentUser.value = userData;
+    startUserEventListener(userData.pubkey);
+    isLoading.value = false;
+    return userData;
+  }
+};
+
+// Helper function to start standard Nostr extension auth
+const startStandardNostrAuth = (resolve, reject) => {
+  console.log('Starting standard Nostr extension auth flow...');
+  
+  // Listen for auth events from Nostr extension
+  const handleAuth = async (event) => {
+    try {
+      console.log('Nostr auth event received from extension:', event.detail);
+
+      if (window.nostr && window.nostr.getPublicKey) {
+        const pubkey = await window.nostr.getPublicKey();
+        console.log('Got pubkey from nostr extension:', pubkey);
+
+        // Check if this user is already stored from extension login
+        const existingUser = localStorage.getItem(NOSTR_USER_KEY);
+        if (existingUser) {
+          try {
+            const userData = JSON.parse(existingUser);
+            if (userData.pubkey === pubkey) {
+              console.log('User from extension already exists, using stored data:', userData.npub);
+              currentUser.value = userData;
+              startUserEventListener(pubkey);
+              document.removeEventListener('nlAuth', handleAuth);
+              resolve(userData);
+              return;
+            }
+          } catch (error) {
+            console.warn('Failed to parse existing user data during extension login:', error);
+          }
+        }
+
+        // Fetch and store profile for new user from extension
+        const userData = await fetchAndStoreProfile(pubkey);
+        currentUser.value = userData;
+        startUserEventListener(pubkey);
+        document.removeEventListener('nlAuth', handleAuth);
+        resolve(userData);
+      } else {
+        throw new Error('Nostr extension not available for sign-in');
+      }
+    } catch (error) {
+      console.error('Auth error during extension login:', error);
+      authError.value = error.message;
+      document.removeEventListener('nlAuth', handleAuth);
+      reject(error);
+    } finally {
+      isLoading.value = false;
+    }
+  };
+
+  // Add event listener for extension login
+  document.addEventListener('nlAuth', handleAuth);
+
+  // Dispatch login event to trigger extension interaction
+  document.dispatchEvent(new Event('nlLaunch'));
+
+  // Timeout for extension login
+  setTimeout(() => {
+    if (isLoading.value) {
+      document.removeEventListener('nlAuth', handleAuth);
+      isLoading.value = false;
+      authError.value = 'Login timeout (Nostr extension) - please try again';
+      reject(new Error('Login timeout (Nostr extension)'));
+    }
+  }, 60000);
 };
 
 // Logout function
@@ -563,45 +704,84 @@ const logout = () => {
 }
 
 // Initialize auth and relays
-const initAuthAndRelays = async () => {
-  console.log('Initializing Nostr auth and relays...')
-
-  try {
-    // Load user from storage
-    const hasUser = loadUserFromStorage()
-
-    // Load or initialize relays
-    if (!loadRelaysFromStorage()) {
-      console.log('No saved relays found, using defaults')
-      userRelays.value = [...DEFAULT_RELAYS]
-      saveRelaysToStorage(userRelays.value)
-    }
-
-    // Initialize relay manager with user relays
-    await nostrRelayManager.initialize(userRelays.value)
-
-    // Set up relay manager event listeners
-    nostrRelayManager.addEventListener((event) => {
-      if (event.type === 'relayConnected' || event.type === 'relayDisconnected' ||
-          event.type === 'relayHealthy' || event.type === 'relayUnhealthy') {
-        syncRelayStatuses()
-      }
-    })
-
-    // Sync initial statuses
-    syncRelayStatuses()
-
-    // If user exists, start listening for their events
-    if (hasUser && currentUser.value) {
-      setTimeout(() => {
-        startUserEventListener(currentUser.value.pubkey)
-      }, 2000)
-    }
-  } catch (error) {
-    console.error('Failed to initialize auth and relays:', error)
-    authError.value = 'Failed to initialize Nostr connection'
+const initAuthAndRelays = () => {
+  console.log('Initializing auth and relays...');
+  
+  // Load relays from storage or use defaults
+  if (!loadRelaysFromStorage()) {
+    console.log('No relays in storage, using defaults');
+    userRelays.value = DEFAULT_RELAYS;
+    saveRelaysToStorage(userRelays.value);
   }
-}
+  
+  // Initialize relay manager with relays
+  nostrRelayManager.initialize(userRelays.value)
+    .then(() => {
+      syncRelayStatuses();
+      console.log('Relay manager initialized with', userRelays.value.length, 'relays');
+    })
+    .catch(error => {
+      console.error('Failed to initialize relay manager:', error);
+      relayError.value = 'Failed to initialize relays';
+    });
+  
+  // Try to load user from storage
+  if (loadUserFromStorage()) {
+    console.log('User loaded from storage, attempting to connect to relays...');
+    
+    // Start listening for user events
+    if (currentUser.value && currentUser.value.pubkey) {
+      startUserEventListener(currentUser.value.pubkey);
+    }
+    
+    // Initialize NWC if user has wallet
+    if (currentUser.value && currentUser.value.nwcUrl) {
+      initializeNWC(currentUser.value.nwcUrl);
+    }
+  } else {
+    console.log('No user in storage');
+    
+    // Check if we're in Yakihonne iframe and attempt auto-login
+    if (isInYakihonneIframe()) {
+      console.log('In Yakihonne iframe with no stored user, attempting auto-login...');
+      
+      // Set up message listener for Yakihonne profile
+      window.addEventListener('message', (event) => {
+        console.log('Received message in iframe during initialization:', event.data);
+        
+        // Verify origin (in production, be more strict with allowed origins)
+        if (event.origin && !event.origin.includes('yakihonne')) {
+          console.warn('Ignoring message from untrusted origin:', event.origin);
+          return;
+        }
+        
+        // Check if the message contains a Nostr profile
+        if (event.data && event.data.pubkey) {
+          console.log('Yakihonne Nostr profile received during initialization:', event.data);
+          
+          // Store in window for future reference
+          window.yakihonneUser = event.data;
+          
+          // Auto-login if not already authenticated
+          if (!isAuthenticated.value) {
+            console.log('Auto-logging in with received Yakihonne profile...');
+            login()
+              .then(user => console.log('Auto-login successful:', user.npub))
+              .catch(error => console.error('Auto-login failed:', error));
+          }
+        }
+      });
+      
+      // Request profile from parent
+      try {
+        console.log('Requesting Nostr profile from Yakihonne parent during initialization...');
+        window.parent.postMessage({ type: 'REQUEST_NOSTR_PROFILE' }, '*');
+      } catch (error) {
+        console.error('Error requesting Nostr profile from parent during initialization:', error);
+      }
+    }
+  }
+};
 
 // Refresh user profile
 const refreshUserProfile = async () => {
