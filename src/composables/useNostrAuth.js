@@ -3,6 +3,7 @@ import { SimplePool } from 'nostr-tools/pool'
 import * as nip19 from 'nostr-tools/nip19'
 import { nostrRelayManager } from '../utils/nostrRelayManager.js'
 import { initializeNWC } from '../utils/nwcClient.js'
+import SWHandler from 'smart-widget-handler'
 
 // Global state for Nostr authentication
 const currentUser = ref(null)
@@ -384,83 +385,88 @@ const startUserEventListener = (pubkey) => {
   }
 }
 
-// Helper function to check if we're inside a Yakihonne iframe
-const isInYakihonneIframe = () => {
+// Helper function to check if we're inside a Yakihonne widget
+const isInYakihonneWidget = () => {
   try {
-    // Check if we're in an iframe
+    // Check if SWHandler is available and we're in an iframe
     const isIframe = window.self !== window.top;
     if (!isIframe) return false;
+    
+    // Check if we have window.yakihonneUser or window.nostrProfile
+    if (window.yakihonneUser || window.nostrProfile) {
+      return true;
+    }
     
     // Check if referrer contains 'yakihonne'
     const referrer = document.referrer || '';
     if (referrer.includes('yakihonne')) return true;
     
-    // Check if parent origin contains 'yakihonne'
-    try {
-      const parentOrigin = window.parent.origin || '';
-      if (parentOrigin.includes('yakihonne')) return true;
-    } catch (e) {
-      // Cross-origin access might be blocked
-      console.log('Could not access parent origin, continuing checks...');
-    }
-    
     // Check URL parameters or hash for yakihonne
     const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.has('yakihonne') || window.location.hash.includes('yakihonne')) return true;
+    if (urlParams.has('yakihonne') || window.location.hash.includes('yakihonne')) {
+      return true;
+    }
     
     return false;
   } catch (error) {
-    console.error('Error checking for Yakihonne iframe:', error);
+    console.error('Error checking for Yakihonne widget:', error);
     return false;
   }
 };
 
-// Helper function to get Nostr profile from Yakihonne parent via postMessage
+// Helper function to get Nostr profile from Yakihonne using smart-widget-handler
 const getYakihonneNostrProfile = () => {
   return new Promise((resolve, reject) => {
-    console.log('Attempting to get Nostr profile from Yakihonne parent via postMessage...');
+    // Set a timeout to reject after 5 seconds
+    const timeoutId = setTimeout(() => {
+      if (listener) listener.close();
+      reject(new Error('Timeout waiting for Yakihonne profile'));
+    }, 5000);
     
-    // Function to handle incoming messages from parent
-    const messageHandler = (event) => {
-      console.log('Received postMessage in iframe:', event.data);
-      
-      // Verify origin (in production, be more strict with allowed origins)
-      if (event.origin && !event.origin.includes('yakihonne')) {
-        console.warn('Ignoring message from untrusted origin:', event.origin);
-        return;
-      }
-      
-      // Check if the message contains a Nostr profile
-      if (event.data && event.data.pubkey) {
-        console.log('Yakihonne Nostr profile received via postMessage:', event.data);
-        window.removeEventListener('message', messageHandler);
-        clearTimeout(timeoutId);
-        resolve(event.data);
-      }
-    };
-    
-    // Listen for messages from parent window
-    window.addEventListener('message', messageHandler);
-    
-    // Request Nostr profile from parent
-    try {
-      console.log('Requesting Nostr profile from Yakihonne parent...');
-      window.parent.postMessage({ type: 'REQUEST_NOSTR_PROFILE' }, '*');
-    } catch (error) {
-      console.error('Error requesting Nostr profile from parent:', error);
-      // Continue listening in case parent sends profile without request
+    // Check if we already have the user data in window
+    if (window.yakihonneUser) {
+      clearTimeout(timeoutId);
+      console.log('Using cached Yakihonne user from window.yakihonneUser:', window.yakihonneUser);
+      resolve(window.yakihonneUser);
+      return;
     }
     
-    // Set timeout to avoid hanging if no response
-    const timeoutId = setTimeout(() => {
-      console.log('Timeout waiting for Yakihonne Nostr profile');
-      window.removeEventListener('message', messageHandler);
-      reject(new Error('Timeout waiting for Yakihonne Nostr profile'));
-    }, 5000);
+    if (window.nostrProfile) {
+      clearTimeout(timeoutId);
+      console.log('Using cached Yakihonne user from window.nostrProfile:', window.nostrProfile);
+      resolve(window.nostrProfile);
+      return;
+    }
+    
+    try {
+      // Notify YakiHonne that the widget is ready
+      SWHandler.client.ready();
+      console.log('Sent ready signal to YakiHonne');
+      
+      // Listen for messages from YakiHonne parent
+      const listener = SWHandler.client.listen((data) => {
+        console.log('Received message from YakiHonne:', data);
+        
+        if (data.kind === 'user-metadata' && data.data && data.data.user) {
+          // When user-metadata is received, clear timeout and resolve
+          clearTimeout(timeoutId);
+          if (listener) listener.close();
+          
+          // Store user data in window for future use
+          window.yakihonneUser = data.data.user;
+          console.log('User data received from YakiHonne message:', data.data.user);
+          resolve(data.data.user);
+        }
+      });
+    } catch (error) {
+      console.error('Error setting up SWHandler listener:', error);
+      clearTimeout(timeoutId);
+      reject(error);
+    }
   });
 };
 
-// Login function - UPDATED to handle Yakihonne iframe integration
+// Login function - UPDATED to handle Yakihonne widget integration using smart-widget-handler
 const login = () => {
   return new Promise((resolve, reject) => {
     isLoading.value = true;
@@ -476,9 +482,9 @@ const login = () => {
       return;
     }
     
-    // --- Path 1: Check if we're in a Yakihonne iframe ---
-    if (isInYakihonneIframe()) {
-      console.log('Detected Yakihonne iframe environment, attempting to get profile...');
+    // --- Path 1: Check if we're in a Yakihonne widget ---
+    if (isInYakihonneWidget()) {
+      console.log('Detected Yakihonne widget environment, attempting to get profile...');
       
       // First check if profile was already received and stored in window
       const directNostrProfile = (window.yakihonneUser || window.nostrProfile || null);
@@ -493,10 +499,10 @@ const login = () => {
         return;
       }
       
-      // If not available in window, try to get via postMessage
+      // If not available in window, try to get via smart-widget-handler
       getYakihonneNostrProfile()
         .then(profile => {
-          console.log('Successfully received Yakihonne profile via postMessage:', profile);
+          console.log('Successfully received Yakihonne profile via smart-widget-handler:', profile);
           // Store in window for future reference
           window.yakihonneUser = profile;
           
@@ -504,7 +510,7 @@ const login = () => {
         })
         .then(userData => resolve(userData))
         .catch(error => {
-          console.error('Failed to get Yakihonne profile via postMessage:', error);
+          console.error('Failed to get Yakihonne profile via smart-widget-handler:', error);
           console.log('Falling back to standard Nostr extension auth...');
           // Fall back to standard Nostr extension auth
           startStandardNostrAuth(resolve, reject);

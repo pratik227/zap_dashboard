@@ -25,6 +25,7 @@ import { useNotifications } from './composables/useNotifications.js'
 import { nostrRelayManager } from './utils/nostrRelayManager.js'
 import { useNostrNotes } from './composables/useNostrNotes.js'
 import { useNostrAuth } from './composables/useNostrAuth.js'
+import SWHandler from 'smart-widget-handler'
 
 // Track processed event IDs to prevent duplicates
 const processedEventIds = new Set() // Track processed event IDs to prevent duplicates
@@ -454,24 +455,21 @@ onMounted(async () => {
     await nostrRelayManager.initialize()
     console.log('✅ Relay manager initialized successfully')
     
-    // Check if we're in a Yakihonne iframe
-    const isInYakihonneIframe = () => {
+    // Check if we're in a Yakihonne widget
+    const isInYakihonneWidget = () => {
       try {
         // Check if we're in an iframe
         const isIframe = window.self !== window.top;
         if (!isIframe) return false;
         
+        // Check if we have window.yakihonneUser or window.nostrProfile
+        if (window.yakihonneUser || window.nostrProfile) {
+          return true;
+        }
+        
         // Check if referrer contains 'yakihonne'
         const referrer = document.referrer || '';
         if (referrer.includes('yakihonne')) return true;
-        
-        // Check if parent origin contains 'yakihonne'
-        try {
-          const parentOrigin = window.parent.origin || '';
-          if (parentOrigin.includes('yakihonne')) return true;
-        } catch (e) {
-          // Cross-origin access might be restricted
-        }
         
         // Check URL parameters or hash for yakihonne
         const urlParams = new URLSearchParams(window.location.search);
@@ -481,26 +479,45 @@ onMounted(async () => {
         
         return false;
       } catch (error) {
-        console.error('Error checking for Yakihonne iframe:', error);
+        console.error('Error checking for Yakihonne widget:', error);
         return false;
       }
     };
     
-    // Auto-login if we're in a Yakihonne iframe with a delay to ensure everything is loaded
-    if (isInYakihonneIframe()) {
-      console.log('Detected Yakihonne iframe, will attempt auto-login after delay...');
+    // Setup Yakihonne widget integration if detected
+    if (isInYakihonneWidget()) {
+      console.log('Detected Yakihonne widget, setting up integration...');
       
-      // Add delay to ensure everything is properly initialized
-      setTimeout(async () => {
-        console.log('Attempting auto-login for Yakihonne iframe now...');
-        const { login } = useNostrAuth();
-        try {
-          const user = await login();
-          console.log('Auto-login successful for Yakihonne iframe:', user.npub);
-        } catch (error) {
-          console.error('Auto-login failed for Yakihonne iframe:', error);
-        }
-      }, 2000); // 2 second delay before attempting login
+      try {
+        // Notify YakiHonne that the widget is ready
+        SWHandler.client.ready();
+        console.log('Sent ready signal to YakiHonne');
+        
+        // Listen for messages from YakiHonne parent
+        const listener = SWHandler.client.listen((data) => {
+          console.log('Received message from YakiHonne:', data);
+          
+          if (data.kind === 'user-metadata' && data.data && data.data.user) {
+            // Store user data in window for future use
+            window.yakihonneUser = data.data.user;
+            console.log('User data received from YakiHonne message:', data.data.user);
+            
+            // Auto-login with the received user data
+            setTimeout(async () => {
+              console.log('Attempting auto-login with YakiHonne user data...');
+              const { login } = useNostrAuth();
+              try {
+                const user = await login();
+                console.log('Auto-login successful with YakiHonne user data:', user.npub);
+              } catch (error) {
+                console.error('Auto-login failed with YakiHonne user data:', error);
+              }
+            }, 1000); // 1 second delay before attempting login
+          }
+        });
+      } catch (error) {
+        console.error('Error setting up SWHandler:', error);
+      }
     }
     
     // Initialize content zap tracking
