@@ -384,139 +384,176 @@ const startUserEventListener = (pubkey) => {
   }
 }
 
-// Login function
+// Login function - UPDATED to get profile from window
 const login = () => {
   return new Promise((resolve, reject) => {
     isLoading.value = true
     authError.value = ''
-    
-    // Check if user is already logged in
+
+    // Check if user is already logged in (from previous session or direct from YakiHonne)
     if (isAuthenticated.value && currentUser.value) {
       console.log('User already logged in:', currentUser.value.npub)
       isLoading.value = false
       resolve(currentUser.value)
       return
     }
-    
-    // Listen for auth events
+
+    // --- Path 1: Attempt to get Nostr profile directly from window (e.g., from YakiHonne) ---
+    // Assuming YakiHonne exposes a global object like 'window.yakihonneUser' or 'window.nostrProfile'
+    const directNostrProfile = (window.yakihonneUser || window.nostrProfile || null);
+
+    if (directNostrProfile && directNostrProfile.pubkey) {
+      console.log('Nostr profile detected directly from window:', directNostrProfile.npub || directNostrProfile.pubkey.substring(0,8) + '...');
+
+      // Check if this user is already stored locally
+      const existingUser = localStorage.getItem(NOSTR_USER_KEY);
+      if (existingUser) {
+        try {
+          const userData = JSON.parse(existingUser);
+          if (userData.pubkey === directNostrProfile.pubkey) {
+            console.log('Directly provided user already exists, using stored data:', userData.npub);
+            currentUser.value = userData;
+            startUserEventListener(directNostrProfile.pubkey);
+            isLoading.value = false;
+            resolve(userData);
+            return;
+          }
+        } catch (error) {
+          console.warn('Failed to parse existing user data during direct login attempt:', error);
+          // Fall through to fetch and store if parsing fails or user doesn't match
+        }
+      }
+
+      // If not stored or a new user, fetch and store the profile
+      fetchAndStoreProfile(directNostrProfile.pubkey)
+        .then(userData => {
+          currentUser.value = userData;
+          startUserEventListener(userData.pubkey);
+          isLoading.value = false;
+          resolve(userData);
+        })
+        .catch(error => {
+          console.error('Error fetching/storing direct profile:', error);
+          authError.value = error.message;
+          isLoading.value = false;
+          reject(error);
+        });
+
+      return; // Exit the function as we're handling direct login
+    }
+
+    // --- Path 2: Original sign-in flow (if no profile is directly found on window) ---
+
+    // Listen for auth events from Nostr extension
     const handleAuth = async (event) => {
       try {
-        console.log('Nostr auth event received:', event.detail)
-        
+        console.log('Nostr auth event received from extension:', event.detail);
+
         if (window.nostr && window.nostr.getPublicKey) {
-          const pubkey = await window.nostr.getPublicKey()
-          console.log('Got pubkey from nostr extension:', pubkey)
-          
-          // Check if this user is already stored
-          const existingUser = localStorage.getItem(NOSTR_USER_KEY)
+          const pubkey = await window.nostr.getPublicKey();
+          console.log('Got pubkey from nostr extension:', pubkey);
+
+          // Check if this user is already stored from extension login
+          const existingUser = localStorage.getItem(NOSTR_USER_KEY);
           if (existingUser) {
             try {
-              const userData = JSON.parse(existingUser)
+              const userData = JSON.parse(existingUser);
               if (userData.pubkey === pubkey) {
-                console.log('User already exists, using stored data:', userData.npub)
-                currentUser.value = userData
-                
-                // Start listening for user events
-                startUserEventListener(pubkey)
-                
-                // Clean up event listener
-                document.removeEventListener('nlAuth', handleAuth)
-                
-                resolve(userData)
-                return
+                console.log('User from extension already exists, using stored data:', userData.npub);
+                currentUser.value = userData;
+                startUserEventListener(pubkey);
+                document.removeEventListener('nlAuth', handleAuth);
+                resolve(userData);
+                return;
               }
             } catch (error) {
-              console.warn('Failed to parse existing user data:', error)
+              console.warn('Failed to parse existing user data during extension login:', error);
             }
           }
-          
-          // Fetch and store profile for new user
-          const userData = await fetchAndStoreProfile(pubkey)
-          
-          // Start listening for user events
-          startUserEventListener(pubkey)
-          
-          // Clean up event listener
-          document.removeEventListener('nlAuth', handleAuth)
-          
-          resolve(userData)
+
+          // Fetch and store profile for new user from extension
+          const userData = await fetchAndStoreProfile(pubkey);
+          currentUser.value = userData;
+          startUserEventListener(pubkey);
+          document.removeEventListener('nlAuth', handleAuth);
+          resolve(userData);
         } else {
-          throw new Error('Nostr extension not available')
+          throw new Error('Nostr extension not available for sign-in');
         }
       } catch (error) {
-        console.error('Auth error:', error)
-        authError.value = error.message
-        document.removeEventListener('nlAuth', handleAuth)
-        reject(error)
+        console.error('Auth error during extension login:', error);
+        authError.value = error.message;
+        document.removeEventListener('nlAuth', handleAuth);
+        reject(error);
       } finally {
-        isLoading.value = false
+        isLoading.value = false;
       }
-    }
-    
-    // Add event listener
-    document.addEventListener('nlAuth', handleAuth)
-    
-    // Dispatch login event
-    document.dispatchEvent(new Event('nlLaunch'))
-    
-    // Timeout after 60 seconds
+    };
+
+    // Add event listener for extension login
+    document.addEventListener('nlAuth', handleAuth);
+
+    // Dispatch login event to trigger extension interaction
+    document.dispatchEvent(new Event('nlLaunch'));
+
+    // Timeout for extension login
     setTimeout(() => {
       if (isLoading.value) {
-        document.removeEventListener('nlAuth', handleAuth)
-        isLoading.value = false
-        authError.value = 'Login timeout - please try again'
-        reject(new Error('Login timeout'))
+        document.removeEventListener('nlAuth', handleAuth);
+        isLoading.value = false;
+        authError.value = 'Login timeout (Nostr extension) - please try again';
+        reject(new Error('Login timeout (Nostr extension)'));
       }
-    }, 60000)
-  })
-}
+    }, 60000);
+  });
+};
 
 // Logout function
 const logout = () => {
   try {
     // Dispatch logout event
     document.dispatchEvent(new Event('nlLogout'))
-    
+
     // Clear state
     currentUser.value = null
     authError.value = ''
     userRelays.value = []
-    
+
     // Clear all Nostr-related localStorage data
     const nostrKeys = [
       // Authentication data
       NOSTR_USER_KEY, // 'nostrUser'
       NOSTR_RELAYS_KEY, // 'nostrRelays'
-      
+
       // Connection data
       'nostr_connections',
       'active_connection_id',
       'nwc_url',
-      
+
       // Notification data
       'notification_settings',
       'last_transaction_timestamp',
       'last_balance',
       'processed_transactions',
       'notifications_list',
-      
+
       // Content data
       'user_content_items'
     ]
-    
+
     nostrKeys.forEach(key => {
       localStorage.removeItem(key)
     })
-    
+
     // Clean up NWC client and relay manager
     initializeNWC(null)
     nostrRelayManager.cleanup()
-    
+
     console.log('User logged out successfully - cleared all Nostr data from localStorage')
-    
+
     // Reload the page to reset all components
     window.location.reload()
-    
+
     return true
   } catch (error) {
     console.error('Logout error:', error)
@@ -528,32 +565,32 @@ const logout = () => {
 // Initialize auth and relays
 const initAuthAndRelays = async () => {
   console.log('Initializing Nostr auth and relays...')
-  
+
   try {
     // Load user from storage
     const hasUser = loadUserFromStorage()
-    
+
     // Load or initialize relays
     if (!loadRelaysFromStorage()) {
       console.log('No saved relays found, using defaults')
       userRelays.value = [...DEFAULT_RELAYS]
       saveRelaysToStorage(userRelays.value)
     }
-    
+
     // Initialize relay manager with user relays
     await nostrRelayManager.initialize(userRelays.value)
-    
+
     // Set up relay manager event listeners
     nostrRelayManager.addEventListener((event) => {
-      if (event.type === 'relayConnected' || event.type === 'relayDisconnected' || 
+      if (event.type === 'relayConnected' || event.type === 'relayDisconnected' ||
           event.type === 'relayHealthy' || event.type === 'relayUnhealthy') {
         syncRelayStatuses()
       }
     })
-    
+
     // Sync initial statuses
     syncRelayStatuses()
-    
+
     // If user exists, start listening for their events
     if (hasUser && currentUser.value) {
       setTimeout(() => {
@@ -571,7 +608,7 @@ const refreshUserProfile = async () => {
   if (!currentUser.value) {
     throw new Error('No user logged in')
   }
-  
+
   console.log('Refreshing user profile...')
   return await fetchAndStoreProfile(currentUser.value.pubkey)
 }
@@ -613,14 +650,14 @@ export function useNostrAuth() {
     authError,
     userRelays,
     relayError,
-    
+
     // Computed
     isAuthenticated,
     userProfile,
     connectedRelays,
     readRelays,
     writeRelays,
-    
+
     // Actions
     login,
     logout,
@@ -633,7 +670,7 @@ export function useNostrAuth() {
     validateRelayUrl,
     initAuthAndRelays,
     startUserEventListener,
-    
+
     // Utilities
     syncRelayStatuses
   }
