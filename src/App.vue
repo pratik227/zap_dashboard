@@ -24,6 +24,7 @@ import { useNostrConnections } from './composables/useNostrConnections.js'
 import { useNotifications } from './composables/useNotifications.js'
 import { nostrRelayManager } from './utils/nostrRelayManager.js'
 import { useNostrNotes } from './composables/useNostrNotes.js'
+import { useNostrAuth } from './composables/useNostrAuth.js'
 
 // Track processed event IDs to prevent duplicates
 const processedEventIds = new Set() // Track processed event IDs to prevent duplicates
@@ -452,6 +453,50 @@ onMounted(async () => {
     // Initialize the relay manager first
     await nostrRelayManager.initialize()
     console.log('✅ Relay manager initialized successfully')
+    
+    // Check if we're in a Yakihonne iframe
+    const isInYakihonneIframe = () => {
+      try {
+        // Check if we're in an iframe
+        const isIframe = window.self !== window.top;
+        if (!isIframe) return false;
+        
+        // Check if referrer contains 'yakihonne'
+        const referrer = document.referrer || '';
+        if (referrer.includes('yakihonne')) return true;
+        
+        // Check if parent origin contains 'yakihonne'
+        try {
+          const parentOrigin = window.parent.origin || '';
+          if (parentOrigin.includes('yakihonne')) return true;
+        } catch (e) {
+          // Cross-origin access might be restricted
+        }
+        
+        // Check URL parameters or hash for yakihonne
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has('yakihonne') || window.location.hash.includes('yakihonne')) {
+          return true;
+        }
+        
+        return false;
+      } catch (error) {
+        console.error('Error checking for Yakihonne iframe:', error);
+        return false;
+      }
+    };
+    
+    // Auto-login if we're in a Yakihonne iframe
+    if (isInYakihonneIframe()) {
+      console.log('Detected Yakihonne iframe, attempting auto-login...');
+      const { login } = useNostrAuth();
+      try {
+        const user = await login();
+        console.log('Auto-login successful for Yakihonne iframe:', user.npub);
+      } catch (error) {
+        console.error('Auto-login failed for Yakihonne iframe:', error);
+      }
+    }
     
     // Initialize content zap tracking
     if (isWalletConnected.value) {
