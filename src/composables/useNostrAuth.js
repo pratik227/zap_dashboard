@@ -385,76 +385,31 @@ const startUserEventListener = (pubkey) => {
   }
 }
 
-// Helper function to check if we're inside a Yakihonne widget
-const isInYakihonneWidget = () => {
-  try {
-    // Check if SWHandler is available and we're in an iframe
-    const isIframe = window.self !== window.top;
-    if (!isIframe) return false;
-    
-    // Check if we have window.yakihonneUser or window.nostrProfile
-    if (window.yakihonneUser || window.nostrProfile) {
-      return true;
-    }
-    
-    // Check if referrer contains 'yakihonne'
-    const referrer = document.referrer || '';
-    if (referrer.includes('yakihonne')) return true;
-    
-    // Check URL parameters or hash for yakihonne
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.has('yakihonne') || window.location.hash.includes('yakihonne')) {
-      return true;
-    }
-    
-    return false;
-  } catch (error) {
-    console.error('Error checking for Yakihonne widget:', error);
-    return false;
-  }
-};
 
-// Helper function to get Nostr profile from Yakihonne using smart-widget-handler
-const getYakihonneNostrProfile = () => {
+
+// Helper function to get Nostr profile using smart-widget-handler
+const getSmartWidgetProfile = () => {
   return new Promise((resolve, reject) => {
     // Set a timeout to reject after 5 seconds
     const timeoutId = setTimeout(() => {
-      if (listener) listener.close();
-      reject(new Error('Timeout waiting for Yakihonne profile'));
+      reject(new Error('Timeout waiting for smart widget profile'));
     }, 5000);
     
-    // Check if we already have the user data in window
-    if (window.yakihonneUser) {
-      clearTimeout(timeoutId);
-      console.log('Using cached Yakihonne user from window.yakihonneUser:', window.yakihonneUser);
-      resolve(window.yakihonneUser);
-      return;
-    }
-    
-    if (window.nostrProfile) {
-      clearTimeout(timeoutId);
-      console.log('Using cached Yakihonne user from window.nostrProfile:', window.nostrProfile);
-      resolve(window.nostrProfile);
-      return;
-    }
-    
     try {
-      // Notify YakiHonne that the widget is ready
+      // Notify the parent that the widget is ready
       SWHandler.client.ready();
-      console.log('Sent ready signal to YakiHonne');
+      console.log('Sent ready signal to smart widget parent');
       
-      // Listen for messages from YakiHonne parent
+      // Listen for messages from parent
       const listener = SWHandler.client.listen((data) => {
-        console.log('Received message from YakiHonne:', data);
+        console.log('Received message from smart widget parent:', data);
         
         if (data.kind === 'user-metadata' && data.data && data.data.user) {
           // When user-metadata is received, clear timeout and resolve
           clearTimeout(timeoutId);
           if (listener) listener.close();
           
-          // Store user data in window for future use
-          window.yakihonneUser = data.data.user;
-          console.log('User data received from YakiHonne message:', data.data.user);
+          console.log('User data received from smart widget:', data.data.user);
           resolve(data.data.user);
         }
       });
@@ -466,7 +421,7 @@ const getYakihonneNostrProfile = () => {
   });
 };
 
-// Login function - UPDATED to handle Yakihonne widget integration using smart-widget-handler
+// Login function - handles both smart widget and standard Nostr extension auth
 const login = () => {
   return new Promise((resolve, reject) => {
     isLoading.value = true;
@@ -482,50 +437,24 @@ const login = () => {
       return;
     }
     
-    // --- Path 1: Check if we're in a Yakihonne widget ---
-    if (isInYakihonneWidget()) {
-      console.log('Detected Yakihonne widget environment, attempting to get profile...');
-      
-      // First check if profile was already received and stored in window
-      const directNostrProfile = (window.yakihonneUser || window.nostrProfile || null);
-      
-      if (directNostrProfile && directNostrProfile.pubkey) {
-        console.log('Nostr profile already available in window:', 
-          directNostrProfile.npub || directNostrProfile.pubkey.substring(0,8) + '...');
-        
-        processYakihonneProfile(directNostrProfile)
-          .then(userData => resolve(userData))
-          .catch(error => reject(error));
-        return;
-      }
-      
-      // If not available in window, try to get via smart-widget-handler
-      getYakihonneNostrProfile()
-        .then(profile => {
-          console.log('Successfully received Yakihonne profile via smart-widget-handler:', profile);
-          // Store in window for future reference
-          window.yakihonneUser = profile;
-          
-          return processYakihonneProfile(profile);
-        })
-        .then(userData => resolve(userData))
-        .catch(error => {
-          console.error('Failed to get Yakihonne profile via smart-widget-handler:', error);
-          console.log('Falling back to standard Nostr extension auth...');
-          // Fall back to standard Nostr extension auth
-          startStandardNostrAuth(resolve, reject);
-        });
-      return;
-    }
-    
-    // --- Path 2: Standard Nostr extension auth ---
-    startStandardNostrAuth(resolve, reject);
+    // Try smart widget authentication first, then fall back to standard auth
+    getSmartWidgetProfile()
+      .then(profile => {
+        console.log('Successfully received profile via smart-widget-handler:', profile);
+        return processSmartWidgetProfile(profile);
+      })
+      .then(userData => resolve(userData))
+      .catch(error => {
+        console.log('Smart widget auth failed, falling back to standard Nostr extension auth:', error.message);
+        // Fall back to standard Nostr extension auth
+        startStandardNostrAuth(resolve, reject);
+      });
   });
 };
 
-// Helper function to process Yakihonne profile
-const processYakihonneProfile = async (profile) => {
-  console.log('Processing Yakihonne profile:', profile);
+// Helper function to process smart widget profile
+const processSmartWidgetProfile = async (profile) => {
+  console.log('Processing smart widget profile:', profile);
   
   // Check if this user is already stored locally
   const existingUser = localStorage.getItem(NOSTR_USER_KEY);
@@ -533,18 +462,18 @@ const processYakihonneProfile = async (profile) => {
     try {
       const userData = JSON.parse(existingUser);
       if (userData.pubkey === profile.pubkey) {
-        console.log('Yakihonne user already exists in storage, using stored data:', userData.npub);
+        console.log('Smart widget user already exists in storage, using stored data:', userData.npub);
         currentUser.value = userData;
         startUserEventListener(profile.pubkey);
         isLoading.value = false;
         return userData;
       }
     } catch (error) {
-      console.warn('Failed to parse existing user data during Yakihonne login attempt:', error);
+      console.warn('Failed to parse existing user data during smart widget login attempt:', error);
     }
   }
   
-  // Create user data from Yakihonne profile
+  // Create user data from smart widget profile
   try {
     // If profile has all needed data, create user directly without fetching
     const npub = profile.npub || nip19.npubEncode(profile.pubkey);
@@ -565,22 +494,22 @@ const processYakihonneProfile = async (profile) => {
       },
       lastUpdated: new Date().toISOString(),
       profileEvent: null,
-      source: 'yakihonne' // Mark the source for tracking
+      source: 'smart-widget' // Mark the source for tracking
     };
     
-    console.log('Created user data from Yakihonne profile:', userData);
+    console.log('Created user data from smart widget profile:', userData);
     currentUser.value = userData;
     saveUserToStorage(userData);
     startUserEventListener(profile.pubkey);
     isLoading.value = false;
     return userData;
   } catch (error) {
-    console.error('Error creating user from Yakihonne profile:', error);
+    console.error('Error creating user from smart widget profile:', error);
     
     // Fall back to fetching profile from relays
     console.log('Falling back to fetching profile from relays for pubkey:', profile.pubkey);
     const userData = await fetchAndStoreProfile(profile.pubkey);
-    userData.source = 'yakihonne'; // Mark the source
+    userData.source = 'smart-widget'; // Mark the source
     currentUser.value = userData;
     startUserEventListener(userData.pubkey);
     isLoading.value = false;
