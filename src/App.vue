@@ -486,16 +486,21 @@ onMounted(async () => {
       }
     };
     
-    // Auto-login if we're in a Yakihonne iframe
+    // Auto-login if we're in a Yakihonne iframe with a delay to ensure everything is loaded
     if (isInYakihonneIframe()) {
-      console.log('Detected Yakihonne iframe, attempting auto-login...');
-      const { login } = useNostrAuth();
-      try {
-        const user = await login();
-        console.log('Auto-login successful for Yakihonne iframe:', user.npub);
-      } catch (error) {
-        console.error('Auto-login failed for Yakihonne iframe:', error);
-      }
+      console.log('Detected Yakihonne iframe, will attempt auto-login after delay...');
+      
+      // Add delay to ensure everything is properly initialized
+      setTimeout(async () => {
+        console.log('Attempting auto-login for Yakihonne iframe now...');
+        const { login } = useNostrAuth();
+        try {
+          const user = await login();
+          console.log('Auto-login successful for Yakihonne iframe:', user.npub);
+        } catch (error) {
+          console.error('Auto-login failed for Yakihonne iframe:', error);
+        }
+      }, 2000); // 2 second delay before attempting login
     }
     
     // Initialize content zap tracking
