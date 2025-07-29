@@ -1,0 +1,611 @@
+Smart widget handler
+A lightweight library for handling secure communication between Nostr web applications and nested iframes. It simplifies the parent-child window messaging pattern with a clean API for both client and host applications.
+
+Installation
+bash
+
+npm install smart-widget-handler
+or
+
+bash
+
+yarn add smart-widget-handler
+Overview
+Smart Widget Handler provides two main interfaces:
+
+Client: For applications running within iframes that need to communicate with their parent
+Host: For parent applications that need to communicate with embedded iframes
+Usage
+Import
+javascript
+
+import SWHandler from 'smart-widget-handler';
+
+// Access client methods
+const { client } = SWHandler;
+
+// Access host methods
+const { host } = SWHandler;
+Client API (Iframe Application)
+The client API helps iframe applications communicate with their parent.
+
+Notify Parent About Readiness
+Tell the parent that the iframe is loaded and ready:
+
+jsx
+
+import React, { useEffect } from 'react';
+import SWHandler from 'smart-widget-handler';
+
+function WidgetApp() {
+  useEffect(() => {
+    // Notify parent application that this widget is ready
+    SWHandler.client.ready();
+
+    // Or specify a parent origin
+    // SWHandler.client.ready('https://parent-domain.com');
+  }, []);
+
+  return <div>Widget content</div>;
+}
+Listen for Messages (client)
+Listen for messages from the parent:
+
+jsx
+
+import React, { useEffect, useState } from 'react';
+import SWHandler from 'smart-widget-handler';
+
+function WidgetApp() {
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    // Notify parent we're ready
+    SWHandler.client.ready();
+
+    // Set up listener for parent messages
+    const listener = SWHandler.client.listen((data) => {
+      console.log('Received message from parent:', data);
+
+      // Handle user metadata
+      if (data.kind === 'user-metadata') {
+        setUser(data.data.user);
+      }
+    });
+
+    // Clean up listener on component unmount
+    return () => listener.close();
+  }, []);
+
+  return (
+    <div>
+      {user ? (
+        <div>Hello, {user.name || user.display_name}!</div>
+      ) : (
+        <div>Loading user data...</div>
+      )}
+    </div>
+  );
+}
+Request Event Signing
+Request the parent to sign a Nostr event:
+
+jsx
+
+import React from 'react';
+import SWHandler from 'smart-widget-handler';
+
+function SignButton() {
+  const handleSignRequest = () => {
+    const eventDraft = {
+      content: 'This is a test note',
+      tags: [['t', 'test']],
+      kind: 1
+    };
+
+    SWHandler.client.requestEventSign(
+      eventDraft,
+      'https://parent-domain.com' // parent origin
+    );
+  };
+
+  return (
+    <button onClick={handleSignRequest}>
+      Sign Note
+    </button>
+  );
+}
+Request Event Signing and Publishing
+Request the parent to sign and publish a Nostr event:
+
+jsx
+
+import React, { useState } from 'react';
+import SWHandler from 'smart-widget-handler';
+
+function PublishForm() {
+  const [content, setContent] = useState('');
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+
+    const eventDraft = {
+      content,
+      tags: [['t', 'widget-post']],
+      kind: 1
+    };
+
+    SWHandler.client.requestEventPublish(
+      eventDraft,
+      'https://parent-domain.com' // parent origin
+    );
+  };
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <textarea
+        value={content}
+        onChange={(e) => setContent(e.target.value)}
+        placeholder="What's on your mind?"
+      />
+      <button type="submit">Publish Note</button>
+    </form>
+  );
+}
+Requesting Payment
+Request the host to initiate a Lightning payment:
+
+js
+
+import SWHandler from "smart-widget-handler";
+
+const paymentRequest = {
+  address: "lnbc1...", // or LNURL, or Lightning address
+  amount: 1000, // sats (ignored if address is a BOLT11 invoice)
+  nostrPubkey: "npub1example...", // optional
+  nostrEventIDEncode: "note1example...", // optional
+};
+
+SWHandler.client.requestPayment(paymentRequest, "https://myapp.com");
+Send Custom Data
+Send custom string data to the parent:
+
+jsx
+
+import React from 'react';
+import SWHandler from 'smart-widget-handler';
+
+function CustomActionButton() {
+  const sendCustomData = () => {
+    SWHandler.client.sendContext(
+      JSON.stringify({
+        customAction: 'doSomething',
+        data: { value: 123 }
+      }),
+      'https://parent-domain.com' // parent origin
+    );
+  };
+
+  return (
+    <button onClick={sendCustomData}>
+      Trigger Custom Action
+    </button>
+  );
+}
+Host API (Parent Application)
+The host API helps parent applications communicate with embedded iframes.
+
+Listen for Messages (host)
+Listen for messages from the iframe:
+
+jsx
+
+import React, { useEffect, useRef } from 'react';
+import SWHandler from 'smart-widget-handler';
+
+function WidgetContainer() {
+  const iframeRef = useRef(null);
+
+  useEffect(() => {
+    const listener = SWHandler.host.listen((data) => {
+      console.log('Received message from iframe:', data);
+
+      if (data.kind === 'sign-event') {
+        // Handle sign request
+        // ...
+      }
+    });
+
+    return () => listener.close();
+  }, []);
+
+  return (
+    <div className="widget-container">
+      <iframe
+        ref={iframeRef}
+        src="https://trusted-widget.com"
+        title="Nostr Widget"
+      />
+    </div>
+  );
+}
+Send User Context
+Send Nostr user data to the iframe:
+
+jsx
+
+import React, { useEffect, useRef } from 'react';
+import SWHandler from 'smart-widget-handler';
+
+function WidgetContainer({ userProfile }) {
+  const iframeRef = useRef(null);
+
+  useEffect(() => {
+    // Wait for iframe to load
+    const handleIframeLoad = () => {
+      SWHandler.host.sendContext(
+        userProfile,
+        window.location.origin, // host origin (optional, defaults to "*")
+        'https://trusted-widget.com', // iframe origin
+        iframeRef.current // iframe element reference
+      );
+    };
+
+    const iframe = iframeRef.current;
+    if (iframe) {
+      iframe.addEventListener('load', handleIframeLoad);
+      return () => iframe.removeEventListener('load', handleIframeLoad);
+    }
+  }, [userProfile]);
+
+  return (
+    <iframe
+      ref={iframeRef}
+      src="https://trusted-widget.com"
+      title="Nostr Widget"
+    />
+  );
+}
+
+// Usage
+function App() {
+  const userProfile = {
+    pubkey: '00000000000000000000000000000000000000000000000000000000000000000',
+    display_name: 'User',
+    name: 'username',
+    picture: 'https://example.com/avatar.jpg',
+    banner: 'https://example.com/banner.jpg',
+    nip05: 'user@example.com',
+    lud16: 'user@lightning.wallet',
+    lud06: 'lightning:address',
+    website: 'https://example.com',
+    hasWallet: false // optional for when the connected user has at least one conencted wallet
+  };
+
+  return (
+    <WidgetContainer userProfile={userProfile} />
+  );
+}
+Send Nostr Event
+Send a signed/published Nostr event to the iframe:
+
+jsx
+
+import React, { useRef } from 'react';
+import SWHandler from 'smart-widget-handler';
+
+function WidgetWithEventHandling() {
+  const iframeRef = useRef(null);
+
+  const sendSignedEvent = () => {
+    const nostrEvent = {
+      pubkey: '00000000000000000000000000000000000000000000000000000000000000000',
+      id: 'event_id',
+      content: 'Hello from Nostr!',
+      created_at: Math.floor(Date.now() / 1000),
+      tags: [['p', 'recipient_pubkey']],
+      sig: 'signature',
+      kind: 1
+    };
+
+    SWHandler.host.sendEvent(
+      nostrEvent,
+      'success', // or 'error'
+      'https://trusted-widget.com', // iframe origin
+      iframeRef.current // iframe element reference
+    );
+  };
+
+  return (
+    <div>
+      <iframe
+        ref={iframeRef}
+        src="https://trusted-widget.com"
+        title="Nostr Widget"
+      />
+      <button onClick={sendSignedEvent}>
+        Send Signed Event to Widget
+      </button>
+    </div>
+  );
+}
+Send Error
+Send an error message to the iframe:
+
+jsx
+
+import React, { useRef } from 'react';
+import SWHandler from 'smart-widget-handler';
+
+function WidgetWithErrorHandling() {
+  const iframeRef = useRef(null);
+
+  const sendError = () => {
+    SWHandler.host.sendError(
+      'An error occurred while processing your request',
+      'https://trusted-widget.com', // iframe origin
+      iframeRef.current // iframe element reference
+    );
+  };
+
+  return (
+    <div>
+      <iframe
+        ref={iframeRef}
+        src="https://trusted-widget.com"
+        title="Nostr Widget"
+      />
+      <button onClick={sendError}>
+        Simulate Error
+      </button>
+    </div>
+  );
+}
+Sending Payment Response
+Send a payment response from the host to the client:
+
+js
+
+import SWHandler from "smart-widget-handler";
+
+const paymentResponse = {
+  status: true, // true for success, false for error
+  preImage: "abcdef123456...", // optional, only for successful payments
+};
+
+SWHandler.host.sendPaymentResponse(paymentResponse, "https://trusted-widget.com", <YOUR_IFRAME_ELEMENT>);
+Complete Example
+Client (Iframe) Application - React
+jsx
+
+import React, { useState, useEffect } from 'react';
+import SWHandler from 'smart-widget-handler';
+
+function WidgetApp() {
+  const [user, setUser] = useState(null);
+  const [signedEvents, setSignedEvents] = useState([]);
+  const [content, setContent] = useState('');
+
+  useEffect(() => {
+    // Notify parent we're ready
+    SWHandler.client.ready();
+
+    // Set up listener for parent messages
+    const listener = SWHandler.client.listen((data) => {
+      console.log('Received message from parent:', data);
+
+      if (data.kind === 'user-metadata') {
+        setUser(data.data.user);
+      } else if (data.kind === 'nostr-event' && data.data.status === 'success') {
+        // Add the signed event to our list
+        setSignedEvents(prev => [...prev, data.data.event]);
+      }
+    });
+
+    // Clean up on unmount
+    return () => listener.close();
+  }, []);
+
+  const handlePublish = () => {
+    if (!content.trim()) return;
+
+    SWHandler.client.requestEventPublish(
+      {
+        content,
+        tags: [],
+        kind: 1
+      },
+      window.location.ancestorOrigins[0]
+    );
+
+    // Clear the input
+    setContent('');
+  };
+
+  if (!user) {
+    return <div>Loading user data...</div>;
+  }
+
+  return (
+    <div className="widget-container">
+      <div className="user-info">
+        <img src={user.picture} alt={user.name} width="50" height="50" />
+        <h2>{user.display_name || user.name}</h2>
+      </div>
+
+      <div className="publish-form">
+        <textarea
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+          placeholder="What's on your mind?"
+          rows={4}
+        />
+        <button onClick={handlePublish}>Publish Note</button>
+      </div>
+
+      {signedEvents.length > 0 && (
+        <div className="events-list">
+          <h3>Your Notes</h3>
+          {signedEvents.map((event) => (
+            <div key={event.id} className="event-card">
+              <p>{event.content}</p>
+              <small>
+                {new Date(event.created_at * 1000).toLocaleString()}
+              </small>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default WidgetApp;
+Host (Parent) Application - React
+jsx
+
+import React, { useEffect, useRef, useState } from 'react';
+import SWHandler from 'smart-widget-handler';
+
+function WidgetHostApp() {
+  const iframeRef = useRef(null);
+  const [widgetReady, setWidgetReady] = useState(false);
+
+  // User profile data
+  const userProfile = {
+    pubkey: '00000000000000000000000000000000000000000000000000000000000000000',
+    display_name: 'User Name',
+    name: 'username',
+    picture: 'https://example.com/avatar.jpg',
+    banner: 'https://example.com/banner.jpg',
+    nip05: 'user@example.com',
+    lud16: 'user@lightning.wallet',
+    lud06: 'lightning:address',
+    website: 'https://example.com'
+  };
+
+  useEffect(() => {
+    // Listen for messages from the widget
+    const listener = SWHandler.host.listen((data) => {
+      console.log('Message from widget:', data);
+
+      if (data.kind === 'app-loaded') {
+        setWidgetReady(true);
+
+        // Send user data to the widget
+        SWHandler.host.sendContext(
+          userProfile,
+          window.location.origin,
+          'https://trusted-widget.com',
+          iframeRef.current
+        );
+      } else if (data.kind === 'sign-publish') {
+        // Handle sign and publish request
+        const eventToSign = data.data;
+
+        // After signing the event (typically with a Nostr signer)
+        const signedEvent = {
+          ...eventToSign,
+          pubkey: userProfile.pubkey,
+          created_at: Math.floor(Date.now() / 1000),
+          id: 'calculated_id', // Would be calculated from event data
+          sig: 'generated_signature' // Would be generated from private key
+        };
+
+        // Send signed event back to iframe
+        SWHandler.host.sendEvent(
+          signedEvent,
+          'success',
+          'https://trusted-widget.com',
+          iframeRef.current
+        );
+
+        // In a real app, you would then publish to relays
+        console.log('Publishing event to relays:', signedEvent);
+      }
+    });
+
+    return () => listener.close();
+  }, []);
+
+  return (
+    <div className="app-container">
+      <h1>Host Application</h1>
+
+      <div className="widget-wrapper">
+        <h2>Embedded Widget</h2>
+        <iframe
+          ref={iframeRef}
+          src="https://trusted-widget.com"
+          title="Nostr Widget"
+          width="100%"
+          height="500px"
+          style={{ border: '1px solid #ccc', borderRadius: '8px' }}
+        />
+      </div>
+
+      <div className="widget-status">
+        Widget Status: {widgetReady ? 'Ready' : 'Loading...'}
+      </div>
+    </div>
+  );
+}
+
+export default WidgetHostApp;
+TypeScript Support
+Smart Widget Handler includes TypeScript definitions for all functions and interfaces.
+
+API Reference
+Client
+Method	Description	Parameters
+ready(parentOrigin)	Notify parent about readiness	parentOrigin: Parent origin (optional)
+listen(callback)	Listen for parent messages	callback: Function to handle messages
+requestEventSign(context, origin)	Request event signing	context: Nostr event draft
+origin: Parent origin
+requestEventPublish(context, origin)	Request event signing and publishing	context: Nostr event draft
+origin: Parent origin
+sendContext(context, origin)	Send custom data	context: String data
+origin: Parent origin
+Host
+Method	Description	Parameters
+listen(callback)	Listen for iframe messages	callback: Function to handle messages
+sendContext(context, host_origin, origin, iframe)	Send user data	context: User data object
+host_origin: Parent origin (optional)
+origin: Iframe origin
+iframe: Iframe element
+sendEvent(context, status, origin, iframe)	Send Nostr event	context: Nostr event object
+status: 'success' or 'error'
+origin: Iframe origin
+iframe: Iframe element
+sendError(errMessage, origin, iframe)	Send error message	errMessage: Error message string
+origin: Iframe origin
+iframe: Iframe element
+Message Types
+The library uses different message types identified by the data.kind property to handle various communication scenarios between host and client. Here's a comprehensive list of all available message types:
+
+Message Type	Direction	Description
+user-metadata	Host → Client	Contains Nostr account information of the connected user
+nostr-event	Host → Client	Contains a signed and/or published Nostr event
+err-msg	Host → Client	Contains an error message from the host
+payment-response	Host → Client	Contains the result of a payment request (success/failure)
+app-loaded	Client → Host	Notifies the host that the client widget is loaded and ready
+sign-event	Client → Host	Requests the host to sign a Nostr event
+sign-publish	Client → Host	Requests the host to sign and publish a Nostr event
+payment-request	Client → Host	Requests the host to make a Lightning payment
+custom-data	Client → Host	Contains custom data sent from the client to the host
+When implementing listeners with SWHandler.host.listen() or SWHandler.client.listen(), you can filter and handle these message types based on your application's needs.
+
+Use Cases
+Nostr Widgets: Create widgets that can request signing or publishing of events
+
+Web Applications: Create plugin systems with secure iframe communication
+
+Microfrontends: Facilitate communication between independently deployed frontend components
+
+Nostr Clients: Embed third-party widgets securely while sharing user context
+
+Payment Applications: Securely embed payment windows into applications
+
+smart widget previewer
+
+Previous
