@@ -1,19 +1,11 @@
 {
-  "id": "zap-tracker-widget",
-  "name": "Zap Tracker",
-  "description": "Track and publish zaps using Nostr",
-  "version": "1.0.0",
-  "author": "Pratik Patel",
-  "url": "https://zap-tracker.netlify.app",
-  "entrypoint": "index.html",
-  "icon": "https://zap-tracker.netlify.app/icon.png",
-  "permissions": [
-    "context:receive",
-    "nostr:publish"
-  ],
-  "tags": [
-    "zap",
-    "nostr",
-    "widget"
-  ]
+  "pubkey": "8535603a45cb8472b6749c0f9fa5d8a93cc223ef6572b47fbb72916c1eb809d7",
+  "widget": {
+    "title": "ZapTracker",
+    "appUrl": "https://zap-dashboard-nu.vercel.app/",
+    "iconUrl": "https://zap-tracker-yaki-honne-widget.vercel.app/logo.png",
+    "imageUrl": "https://zap-tracker-yaki-honne-widget.vercel.app/dashboard.png",
+    "buttonTitle": "ZapTracker",
+    "tags": ["zap", "nostr", "widget"]
+  }
 }
