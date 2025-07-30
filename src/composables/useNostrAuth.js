@@ -3,7 +3,7 @@ import { SimplePool } from 'nostr-tools/pool'
 import * as nip19 from 'nostr-tools/nip19'
 import SWHandler from 'smart-widget-handler'
 
-// Global state for Nostr authentication
+// Global state for Nostr authentication - ensure all values are properly initialized
 const currentUser = ref(null)
 const isLoading = ref(false)
 const authError = ref('')
@@ -13,6 +13,11 @@ const relayError = ref('')
 // Smart widget handler state
 const isInWidget = ref(false)
 const widgetListener = ref(null)
+
+// Ensure userRelays is always an array
+if (!Array.isArray(userRelays.value)) {
+  userRelays.value = []
+}
 
 // Storage keys
 const NOSTR_USER_KEY = 'nostrUser'
@@ -283,7 +288,7 @@ const initSmartWidgetHandler = () => {
   // Only initialize if we're actually in an iframe and don't already have a user
   try {
     // Check if we're in an iframe (widget context) and SWHandler is available
-    if (window.self !== window.top && typeof SWHandler !== 'undefined') {
+    if (window.self !== window.top && typeof SWHandler !== 'undefined' && SWHandler !== null) {
       console.log('Detected iframe context, setting up smart widget handler')
       isInWidget.value = true
       
@@ -316,6 +321,8 @@ const initSmartWidgetHandler = () => {
       }
       
       return true // Successfully initialized widget handler
+    } else {
+      console.log('Not in widget context or SWHandler not available')
     }
   } catch (error) {
     console.log('Smart widget handler not available or failed to initialize:', error)
@@ -719,9 +726,9 @@ const refreshUserProfile = async () => {
 // Computed properties
 const isAuthenticated = computed(() => !!currentUser.value)
 const userProfile = computed(() => currentUser.value?.profile || null)
-const connectedRelays = computed(() => userRelays.value.filter(relay => relay.status === 'connected'))
-const readRelays = computed(() => userRelays.value.filter(relay => relay.read && relay.status === 'connected'))
-const writeRelays = computed(() => userRelays.value.filter(relay => relay.write && relay.status === 'connected'))
+const connectedRelays = computed(() => (userRelays.value || []).filter(relay => relay.status === 'connected'))
+const readRelays = computed(() => (userRelays.value || []).filter(relay => relay.read && relay.status === 'connected'))
+const writeRelays = computed(() => (userRelays.value || []).filter(relay => relay.write && relay.status === 'connected'))
 
 // Watch for changes and save to storage
 watch(currentUser, (newUser) => {
