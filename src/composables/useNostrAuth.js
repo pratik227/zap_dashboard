@@ -3,6 +3,7 @@ import { SimplePool } from 'nostr-tools/pool'
 import * as nip19 from 'nostr-tools/nip19'
 import { nostrRelayManager } from '../utils/nostrRelayManager.js'
 import { initializeNWC } from '../utils/nwcClient.js'
+import SWHandler from 'smart-widget-handler'
 
 // Global state for Nostr authentication
 const currentUser = ref(null)
@@ -10,6 +11,8 @@ const isLoading = ref(false)
 const authError = ref('')
 const userRelays = ref([])
 const relayError = ref('')
+const isInWidget = ref(false)
+const widgetListener = ref(null)
 
 // Storage keys
 const NOSTR_USER_KEY = 'nostrUser'
@@ -345,48 +348,142 @@ const removeRelay = (url) => {
   return true
 }
 
+// Widget detection and setup functions
+const detectWidgetContext = () => {
+  try {
+    // Check if we're running in an iframe
+    const inIframe = window.self !== window.top
+    console.log('Widget context detection - in iframe:', inIframe)
+    return inIframe
+  } catch (error) {
+    console.log('Widget context detection - iframe check failed, assuming in widget:', error)
+    return true // Assume we're in a widget if we can't access parent
+  }
+}
+
+const setupWidgetListener = () => {
+  return new Promise((resolve, reject) => {
+    console.log('Setting up widget listener...')
+    
+    try {
+      // Set up listener for messages from parent (host)
+      const listener = SWHandler.client.listen((data) => {
+        console.log('Received message from parent:', data)
+        
+        if (data.kind === 'user-metadata') {
+          console.log('Received user metadata from widget:', data.data.user)
+          resolve(data.data.user)
+        } else if (data.kind === 'err-msg') {
+          console.error('Widget error:', data.data)
+          reject(new Error(data.data))
+        }
+      })
+      
+      widgetListener.value = listener
+      
+      // Notify parent that we're ready
+      SWHandler.client.ready()
+      console.log('Notified parent widget that client is ready')
+      
+      // Set timeout for widget authentication
+      setTimeout(() => {
+        reject(new Error('Widget authentication timeout'))
+      }, 5000)
+      
+    } catch (error) {
+      console.error('Failed to setup widget listener:', error)
+      reject(error)
+    }
+  })
+}
+
+const processSmartWidgetProfile = (widgetUser) => {
+  console.log('Processing smart widget profile:', widgetUser)
+  
+  if (!widgetUser || !widgetUser.pubkey) {
+    throw new Error('Invalid widget user data - missing pubkey')
+  }
+  
+  // Convert pubkey to npub format
+  const npub = nip19.npubEncode(widgetUser.pubkey)
+  
+  // Create user data structure
+  const userData = {
+    pubkey: widgetUser.pubkey,
+    npub: npub,
+    profile: {
+      name: widgetUser.name || '',
+      display_name: widgetUser.display_name || widgetUser.name || '',
+      about: widgetUser.about || '',
+      picture: widgetUser.picture || '',
+      banner: widgetUser.banner || '',
+      nip05: widgetUser.nip05 || '',
+      lud16: widgetUser.lud16 || '',
+      lud06: widgetUser.lud06 || '',
+      website: widgetUser.website || '',
+      updated_at: Math.floor(Date.now() / 1000)
+    },
+    source: 'widget',
+    loginTime: Date.now()
+  }
+  
+  console.log('Created widget user data:', userData)
+  return userData
+}
+
+const cleanupWidgetResources = () => {
+  if (widgetListener.value) {
+    console.log('Cleaning up widget listener')
+    try {
+      widgetListener.value.close()
+    } catch (error) {
+      console.warn('Error closing widget listener:', error)
+    }
+    widgetListener.value = null
+  }
+}
+
 // Start listening for user events using relay manager
 const startUserEventListener = (pubkey) => {
-  if (!pubkey) return
-
-  try {
-    // Subscribe to user's events using relay manager
-    const sub = nostrRelayManager.subscribeToEvents([
-      {
-        kinds: [1, 6, 7], // Notes, reposts, reactions
-        authors: [pubkey],
-        limit: 50
-      },
-      {
-        kinds: [1, 6, 7], // Events mentioning the user
-        '#p': [pubkey],
-        limit: 50
+  console.log('Starting user event listener for:', pubkey)
+  
+  // Use relay manager to listen for user events
+  nostrRelayManager.subscribeToUserEvents(pubkey, (event) => {
+    console.log('Received user event:', event)
+    
+    // Handle profile updates (kind 0)
+    if (event.kind === 0) {
+      try {
+        const profile = JSON.parse(event.content)
+        console.log('Profile update received:', profile)
+        
+        // Update current user profile
+        if (currentUser.value && currentUser.value.pubkey === event.pubkey) {
+          currentUser.value = {
+            ...currentUser.value,
+            profile: {
+              ...currentUser.value.profile,
+              ...profile,
+              updated_at: event.created_at
+            }
+          }
+          console.log('Updated current user profile:', currentUser.value)
+        }
+      } catch (error) {
+        console.error('Failed to parse profile update:', error)
       }
-    ], {
-      onevent: (event) => {
-        // console.log('Received user event:', event)
-        // Emit custom event for other parts of the app
-        document.dispatchEvent(new CustomEvent('nostr:event', { detail: event }))
-      },
-      oneose: () => {
-        console.log('End of stored events for user:', pubkey)
-      },
-      onclose: (reasons) => {
-        console.log('User event subscription closed:', reasons)
-      }
-    })
-
-    console.log('Started listening for events for user:', pubkey)
-    return sub
-  } catch (error) {
-    console.error('Failed to start user event listener:', error)
-    return null
-  }
+    }
+    
+    // Handle other event types as needed
+    // Kind 3: Contact list
+    // Kind 10002: Relay list
+    // etc.
+  })
 }
 
 // Login function
 const login = () => {
-  return new Promise((resolve, reject) => {
+  return new Promise(async (resolve, reject) => {
     isLoading.value = true
     authError.value = ''
     
@@ -397,6 +494,41 @@ const login = () => {
       resolve(currentUser.value)
       return
     }
+    
+    // First, try widget authentication if we're in a widget context
+    const inWidget = detectWidgetContext()
+    isInWidget.value = inWidget
+    
+    if (inWidget) {
+      console.log('Detected widget context, attempting widget authentication...')
+      
+      try {
+        // Try to get user data from widget
+        const widgetUser = await setupWidgetListener()
+        console.log('Widget authentication successful:', widgetUser)
+        
+        // Process widget profile data
+        const userData = processSmartWidgetProfile(widgetUser)
+        
+        // Set current user
+        currentUser.value = userData
+        
+        // Start listening for user events
+        startUserEventListener(userData.pubkey)
+        
+        isLoading.value = false
+        resolve(userData)
+        return
+        
+      } catch (widgetError) {
+        console.warn('Widget authentication failed, falling back to standard auth:', widgetError)
+        // Continue to standard authentication below
+        isInWidget.value = false
+      }
+    }
+    
+    // Standard Nostr extension authentication (fallback)
+    console.log('Attempting standard Nostr extension authentication...')
     
     // Listen for auth events
     const handleAuth = async (event) => {
@@ -474,6 +606,9 @@ const login = () => {
 // Logout function
 const logout = () => {
   try {
+    // Clean up widget resources first
+    cleanupWidgetResources()
+    
     // Dispatch logout event
     document.dispatchEvent(new Event('nlLogout'))
     
@@ -481,6 +616,7 @@ const logout = () => {
     currentUser.value = null
     authError.value = ''
     userRelays.value = []
+    isInWidget.value = false
     
     // Clear all Nostr-related localStorage data
     const nostrKeys = [
@@ -596,6 +732,8 @@ watch(userRelays, (newRelays) => {
 
 // Cleanup on unmount
 onUnmounted(() => {
+  // Clean up widget resources
+  cleanupWidgetResources()
   // Relay manager cleanup is handled by the manager itself
 })
 
@@ -613,6 +751,7 @@ export function useNostrAuth() {
     authError,
     userRelays,
     relayError,
+    isInWidget,
     
     // Computed
     isAuthenticated,

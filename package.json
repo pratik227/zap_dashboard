@@ -16,6 +16,7 @@
     "nostr-tools": "^2.15.0",
     "qrcode-reader-vue3": "^3.1.4",
     "qrcode-vue3": "^1.6.8",
+    "smart-widget-handler": "^1.0.34",
     "vue": "^3.4.38",
     "vue-echarts": "^6.6.1",
     "vue-qrcode-reader": "^5.7.2",
