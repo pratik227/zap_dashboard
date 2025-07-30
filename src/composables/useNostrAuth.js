@@ -1,11 +1,9 @@
 import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue'
 import { SimplePool } from 'nostr-tools/pool'
 import * as nip19 from 'nostr-tools/nip19'
-// Smart-widget-handler enables seamless authentication when running inside host applications like Yakihonne
-// It provides a communication channel between parent and iframe for sharing authentication context
 import SWHandler from 'smart-widget-handler'
 
-// Global state for Nostr authentication - ensure all values are properly initialized
+// Global state for Nostr authentication
 const currentUser = ref(null)
 const isLoading = ref(false)
 const authError = ref('')
@@ -13,16 +11,8 @@ const userRelays = ref([])
 const relayError = ref('')
 
 // Smart widget handler state
-// isInWidget tracks if we're operating within an iframe (widget context) with SWHandler available
 const isInWidget = ref(false)
-// widgetListener holds the listener reference for smart-widget-handler communication
-// Used to receive authentication context from parent applications like Yakihonne
 const widgetListener = ref(null)
-
-// Ensure userRelays is always an array
-if (!Array.isArray(userRelays.value)) {
-  userRelays.value = []
-}
 
 // Storage keys
 const NOSTR_USER_KEY = 'nostrUser'
@@ -256,24 +246,7 @@ const createMinimalUserData = (pubkey) => {
   return userData
 }
 
-/**
- * Processes user profile data received from parent application via smart-widget-handler
- * Converts the widget profile format to our internal user data structure
- * Sets currentUser and saves to storage for persistence
- * 
- * @param {Object} widgetProfile - User profile data from smart-widget-handler
- * @param {string} widgetProfile.pubkey - The user's Nostr public key
- * @param {string} [widgetProfile.name] - User's name
- * @param {string} [widgetProfile.display_name] - User's display name
- * @param {string} [widgetProfile.about] - User's about text
- * @param {string} [widgetProfile.picture] - URL to user's profile picture
- * @param {string} [widgetProfile.banner] - URL to user's banner image
- * @param {string} [widgetProfile.nip05] - User's NIP-05 identifier
- * @param {string} [widgetProfile.lud16] - User's Lightning address
- * @param {string} [widgetProfile.lud06] - User's LNURL
- * @param {string} [widgetProfile.website] - User's website URL
- * @returns {Object} Processed user data object
- */
+// Process smart widget profile data
 const processSmartWidgetProfile = (widgetProfile) => {
   console.log('Processing smart widget profile:', widgetProfile)
   
@@ -305,137 +278,365 @@ const processSmartWidgetProfile = (widgetProfile) => {
   return userData
 }
 
-/**
- * Initializes the smart-widget-handler communication with parent application
- * 
- * This function:
- * 1. Detects if we're running inside an iframe (widget context)
- * 2. Checks if smart-widget-handler is available
- * 3. Sets up listeners for user-metadata messages from parent application
- * 4. Processes user profile when received from parent
- * 
- * The smart-widget-handler enables seamless authentication by receiving the user's
- * Nostr public key and profile information from a parent application (like Yakihonne),
- * avoiding the need for users to log in again via Nostr extension.
- * 
- * @returns {boolean} True if widget handler was successfully initialized, false otherwise
- */
+// Initialize smart widget handler
 const initSmartWidgetHandler = () => {
-  // Only initialize if we're actually in an iframe and SWHandler is available
+  console.log('Initializing smart widget handler...')
+  
   try {
-    // Check if we're in an iframe (widget context) and SWHandler is available
-    if (window.self !== window.top && typeof SWHandler !== 'undefined' && SWHandler !== null) {
+    // Check if we're in an iframe (widget context)
+    if (window.self !== window.top) {
       console.log('Detected iframe context, setting up smart widget handler')
       isInWidget.value = true
       
-      // Only set up if we don't already have a listener
-      if (!widgetListener.value) {
-        // Notify parent that we're ready
-        SWHandler.client.ready()
+      // Notify parent that we're ready
+      SWHandler.client.ready()
+      
+      // Set up listener for parent messages
+      widgetListener.value = SWHandler.client.listen((data) => {
+        console.log('Received message from parent:', data)
         
-        // Set up listener for parent messages
-        widgetListener.value = SWHandler.client.listen((data) => {
-          console.log('Received message from parent:', data)
-          
-          if (data.kind === 'user-metadata' && data.data && data.data.user) {
-            try {
-              const userData = processSmartWidgetProfile(data.data.user)
-              console.log('Successfully authenticated via smart widget:', userData)
-              
-              // Start listening for user events
-              startUserEventListener(userData.pubkey)
-              
-              isLoading.value = false
-              authError.value = ''
-            } catch (error) {
-              console.error('Error processing widget profile:', error)
-              authError.value = 'Failed to process widget authentication'
-              isLoading.value = false
-            }
+        if (data.kind === 'user-metadata' && data.data && data.data.user) {
+          try {
+            const userData = processSmartWidgetProfile(data.data.user)
+            console.log('Successfully authenticated via smart widget:', userData)
+            
+            // Start listening for user events
+            startUserEventListener(userData.pubkey)
+            
+            isLoading.value = false
+            authError.value = ''
+          } catch (error) {
+            console.error('Error processing widget profile:', error)
+            authError.value = 'Failed to process widget authentication'
+            isLoading.value = false
           }
-        })
-      }
+        }
+      })
       
       return true // Successfully initialized widget handler
-    } else {
-      console.log('Not in widget context or SWHandler not available')
     }
   } catch (error) {
     console.log('Smart widget handler not available or failed to initialize:', error)
-    // Don't set isInWidget to true if there's an error
   }
   
   return false // Not in widget context or failed to initialize
 }
 
-/**
- * Login function with smart-widget-handler integration
- * 
- * Authentication flow:
- * 1. First checks if running in widget context (iframe)
- * 2. If in widget context, attempts smart-widget-handler authentication
- *    a. Sets up a 5-second timeout for widget authentication
- *    b. Watches for successful authentication via widget
- *    c. Falls back to traditional Nostr extension login if widget auth fails/times out
- * 3. If not in widget context, uses traditional Nostr extension login directly
- * 
- * This approach provides seamless authentication for users already logged into
- * parent applications like Yakihonne, while maintaining backward compatibility
- * for standalone usage.
- * 
- * @returns {Promise<Object>} Promise resolving to user data or rejecting with error
- */
+// Clean up smart widget handler
+const cleanupSmartWidgetHandler = () => {
+  if (widgetListener.value) {
+    console.log('Cleaning up smart widget handler listener')
+    widgetListener.value.close()
+    widgetListener.value = null
+  }
+  isInWidget.value = false
+}
+
+// Check relay status using proper connection testing with ensureRelay
+const checkRelayStatus = async (url) => {
+  const relay = userRelays.value.find(r => r.url === url)
+  if (!relay) return false
+
+  relay.status = 'checking'
+
+  try {
+    const currentPool = initPool()
+
+    // Use ensureRelay with connection timeout to test the relay
+    await currentPool.ensureRelay(url, {
+      connectionTimeout: RELAY_CHECK_TIMEOUT
+    })
+
+    // If ensureRelay succeeds, the relay is connected
+    relay.status = 'connected'
+    console.log(`Relay ${url} is connected`)
+    return true
+
+  } catch (error) {
+    // If ensureRelay throws an error, the relay is disconnected
+    console.error(`Failed to check relay ${url}:`, error.message || error)
+    relay.status = 'disconnected'
+    return false
+  }
+}
+
+// Check all relay statuses with proper error handling
+const checkAllRelayStatuses = debounce(async () => {
+  console.log('Checking all relay statuses...')
+  relayError.value = ''
+
+  try {
+    // Check relays in parallel but with individual error handling
+    const promises = userRelays.value.map(async (relay) => {
+      try {
+        return await checkRelayStatus(relay.url)
+      } catch (error) {
+        console.warn(`Error checking relay ${relay.url}:`, error)
+        relay.status = 'disconnected'
+        return false
+      }
+    })
+
+    await Promise.allSettled(promises)
+    console.log('Relay status check completed')
+
+    // Save updated relay statuses
+    saveRelaysToStorage(userRelays.value)
+
+    // Check if we have any connected relays
+    const connectedCount = userRelays.value.filter(r => r.status === 'connected').length
+    if (connectedCount === 0) {
+      relayError.value = 'No relays are currently reachable'
+    }
+
+  } catch (error) {
+    console.error('Failed to check relay statuses:', error)
+    relayError.value = 'Failed to check relay statuses'
+  }
+}, 1000)
+
+// Validate relay URL
+const validateRelayUrl = (url) => {
+  if (!url || typeof url !== 'string') {
+    return 'Relay URL is required'
+  }
+
+  if (!url.startsWith('wss://') && !url.startsWith('ws://')) {
+    return 'Relay URL must start with wss:// or ws://'
+  }
+
+  try {
+    new URL(url)
+    return null // Valid
+  } catch {
+    return 'Invalid relay URL format'
+  }
+}
+
+// Add relay
+const addRelay = async (url, options = { read: true, write: true }) => {
+  const validation = validateRelayUrl(url)
+  if (validation) {
+    throw new Error(validation)
+  }
+
+  // Check for duplicate
+  const existingRelay = userRelays.value.find(relay => relay.url === url)
+  if (existingRelay) {
+    throw new Error('Relay already exists')
+  }
+
+  const newRelay = {
+    url: url.trim(),
+    status: 'checking',
+    read: options.read,
+    write: options.write
+  }
+
+  userRelays.value.push(newRelay)
+  saveRelaysToStorage(userRelays.value)
+
+  // Check status of new relay
+  await checkRelayStatus(url)
+
+  console.log('Added relay:', url)
+  return newRelay
+}
+
+// Remove relay
+const removeRelay = (url) => {
+  const index = userRelays.value.findIndex(relay => relay.url === url)
+  if (index === -1) {
+    throw new Error('Relay not found')
+  }
+
+  userRelays.value.splice(index, 1)
+  saveRelaysToStorage(userRelays.value)
+
+  console.log('Removed relay:', url)
+  return true
+}
+
+// Start listening for user events with proper subscription management
+const startUserEventListener = (pubkey) => {
+  if (!pubkey || !pool) return
+
+  const currentPool = initPool()
+  const relayUrls = userRelays.value
+    .filter(relay => relay.read && relay.status === 'connected')
+    .map(relay => relay.url)
+
+  if (relayUrls.length === 0) {
+    console.warn('No connected read relays for event listening')
+    return
+  }
+
+  // Close existing subscription if any
+  const existingSub = activeSubscriptions.get(pubkey)
+  if (existingSub) {
+    existingSub.close()
+  }
+
+  try {
+    // Subscribe to user's events using proper nostr-tools pattern
+    const sub = currentPool.subscribeMany(relayUrls, [
+      {
+        kinds: [1, 6, 7], // Notes, reposts, reactions
+        authors: [pubkey],
+        limit: 50
+      },
+      {
+        kinds: [1, 6, 7], // Events mentioning the user
+        '#p': [pubkey],
+        limit: 50
+      }
+    ], {
+      onevent: (event) => {
+        console.log('Received user event:', event)
+        // Emit custom event for other parts of the app
+        document.dispatchEvent(new CustomEvent('nostr:event', { detail: event }))
+      },
+      oneose: () => {
+        console.log('End of stored events for user:', pubkey)
+      },
+      onclose: (reasons) => {
+        console.log('User event subscription closed:', reasons)
+        activeSubscriptions.delete(pubkey)
+      },
+      maxWait: QUERY_TIMEOUT
+    })
+
+    activeSubscriptions.set(pubkey, sub)
+    console.log('Started listening for events for user:', pubkey)
+  } catch (error) {
+    console.error('Failed to start user event listener:', error)
+  }
+}
+
+// Stop listening for user events
+const stopUserEventListener = (pubkey) => {
+  const sub = activeSubscriptions.get(pubkey)
+  if (sub) {
+    sub.close()
+    activeSubscriptions.delete(pubkey)
+    console.log('Stopped listening for events for user:', pubkey)
+  }
+}
+
+// Login function with smart-widget-handler integration
 const login = () => {
   return new Promise((resolve, reject) => {
     isLoading.value = true
     authError.value = ''
 
-    // Check if we're in a widget context (iframe) and not already logged in
-    // If so, attempt to authenticate via smart-widget-handler first
-    if (window.self !== window.top && !currentUser.value) {
-      console.log('Detected widget context, trying smart widget authentication...')
+    // First, try smart-widget-handler if we're in a widget context
+    if (initSmartWidgetHandler()) {
+      console.log('Using smart widget authentication...')
       
-      if (initSmartWidgetHandler()) {
-        // Set up a timeout for widget authentication
-        const widgetTimeout = setTimeout(() => {
-          if (isLoading.value && !currentUser.value) {
-            console.log('Widget authentication timeout, falling back to Nostr extension')
-            fallbackToNostrExtension(resolve, reject)
-          }
-        }, 5000) // 5 second timeout for widget auth
-        
-        // Watch for successful widget authentication
-        const stopWatching = watch(currentUser, (newUser) => {
-          if (newUser && newUser.fromWidget) {
-            clearTimeout(widgetTimeout)
-            stopWatching()
-            resolve(newUser)
-          }
-        })
-        
-        return
-      }
+      // Set up a timeout for widget authentication
+      const widgetTimeout = setTimeout(() => {
+        if (isLoading.value && !currentUser.value) {
+          console.log('Widget authentication timeout, falling back to Nostr extension')
+          fallbackToNostrExtension(resolve, reject)
+        }
+      }, 5000) // 5 second timeout for widget auth
+      
+      // Watch for successful widget authentication
+      const stopWatching = watch(currentUser, (newUser) => {
+        if (newUser && newUser.fromWidget) {
+          clearTimeout(widgetTimeout)
+          stopWatching()
+          resolve(newUser)
+        }
+      })
+      
+      return
     }
     
-    // Use traditional Nostr extension login
+    // If not in widget context, use traditional Nostr extension login
     fallbackToNostrExtension(resolve, reject)
   })
 }
 
-/**
- * Initialize authentication and relays with smart-widget-handler support
- * 
- * Initialization flow:
- * 1. First attempts to load user from localStorage (for persistent sessions)
- * 2. If no user in storage and in iframe context, tries smart-widget-handler authentication
- *    a. Sets a timeout for widget authentication
- *    b. Falls back to default initialization if widget auth times out
- * 3. If not in iframe or user already loaded from storage, skips widget authentication
- * 4. Initializes pool and loads/checks relays regardless of authentication method
- * 
- * This approach ensures users stay logged in across page refreshes while also
- * supporting seamless authentication via parent applications when available.
- */
+// Fallback to traditional Nostr extension authentication
+const fallbackToNostrExtension = (resolve, reject) => {
+  console.log('Using traditional Nostr extension authentication...')
+  
+  // Listen for auth events
+  const handleAuth = async (event) => {
+    try {
+      console.log('Nostr auth event received:', event.detail)
+
+      if (window.nostr && window.nostr.getPublicKey) {
+        const pubkey = await window.nostr.getPublicKey()
+        console.log('Got pubkey from nostr extension:', pubkey)
+
+        // Fetch and store profile
+        const userData = await fetchAndStoreProfile(pubkey)
+
+        // Start listening for user events
+        startUserEventListener(pubkey)
+
+        // Clean up event listener
+        document.removeEventListener('nlAuth', handleAuth)
+
+        resolve(userData)
+      } else {
+        throw new Error('Nostr extension not available')
+      }
+    } catch (error) {
+      console.error('Auth error:', error)
+      authError.value = error.message
+      document.removeEventListener('nlAuth', handleAuth)
+      reject(error)
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  // Add event listener
+  document.addEventListener('nlAuth', handleAuth)
+
+  // Dispatch login event
+  document.dispatchEvent(new Event('nlLaunch'))
+
+  // Timeout after 60 seconds
+  setTimeout(() => {
+    if (isLoading.value) {
+      document.removeEventListener('nlAuth', handleAuth)
+      isLoading.value = false
+      authError.value = 'Login timeout - please try again'
+      reject(new Error('Login timeout'))
+    }
+  }, 60000)
+}
+
+// Logout function
+const logout = () => {
+  try {
+    // Stop event listeners
+    if (currentUser.value) {
+      stopUserEventListener(currentUser.value.pubkey)
+    }
+    
+    // Clean up smart widget handler
+    cleanupSmartWidgetHandler()
+    
+    // Clear user data
+    currentUser.value = null
+    authError.value = ''
+    
+    // Clear storage
+    localStorage.removeItem(NOSTR_USER_KEY)
+    
+    console.log('Logout completed')
+  } catch (error) {
+    console.error('Error during logout:', error)
+    authError.value = 'Error during logout'
+  }
+}
+
+// Initialize auth and relays with smart-widget-handler support
 const initAuthAndRelays = async () => {
   console.log('Initializing Nostr auth and relays...')
 
@@ -443,31 +644,24 @@ const initAuthAndRelays = async () => {
     // Initialize pool
     initPool()
 
-    // Load user from storage first (for persistent sessions)
-    // Load user from storage first (this ensures existing functionality works)
-    const hasStoredUser = loadUserFromStorage()
+    // First, try to initialize smart-widget-handler for automatic authentication
+    const widgetInitialized = initSmartWidgetHandler()
     
-    // Only try smart-widget-handler if we're actually in an iframe and don't have a stored user
-    if (!hasStoredUser && window.self !== window.top) {
-      console.log('No stored user and in iframe context, trying smart widget handler...')
-      const widgetInitialized = initSmartWidgetHandler()
+    if (widgetInitialized) {
+      console.log('Smart widget handler initialized, waiting for parent authentication...')
+      isLoading.value = true
       
-      if (widgetInitialized) {
-        console.log('Smart widget handler initialized, waiting for parent authentication...')
-        isLoading.value = true
-        
-        // Set up a timeout for widget authentication during initialization
-        setTimeout(() => {
-          if (isLoading.value && !currentUser.value) {
-            console.log('Widget authentication timeout during initialization')
-            isLoading.value = false
-          }
-        }, 3000) // 3 second timeout for initial widget auth
-      }
-    } else if (hasStoredUser) {
-      console.log('User loaded from storage successfully')
+      // Set up a timeout for widget authentication during initialization
+      setTimeout(() => {
+        if (isLoading.value && !currentUser.value) {
+          console.log('Widget authentication timeout during initialization, loading from storage')
+          isLoading.value = false
+          loadUserFromStorage()
+        }
+      }, 3000) // 3 second timeout for initial widget auth
     } else {
-      console.log('No stored user, running in standalone mode')
+      // Load user from storage if not in widget context
+      loadUserFromStorage()
     }
 
     // Load or initialize relays
@@ -514,9 +708,9 @@ const refreshUserProfile = async () => {
 // Computed properties
 const isAuthenticated = computed(() => !!currentUser.value)
 const userProfile = computed(() => currentUser.value?.profile || null)
-const connectedRelays = computed(() => (userRelays.value || []).filter(relay => relay.status === 'connected'))
-const readRelays = computed(() => (userRelays.value || []).filter(relay => relay.read && relay.status === 'connected'))
-const writeRelays = computed(() => (userRelays.value || []).filter(relay => relay.write && relay.status === 'connected'))
+const connectedRelays = computed(() => userRelays.value.filter(relay => relay.status === 'connected'))
+const readRelays = computed(() => userRelays.value.filter(relay => relay.read && relay.status === 'connected'))
+const writeRelays = computed(() => userRelays.value.filter(relay => relay.write && relay.status === 'connected'))
 
 // Watch for changes and save to storage
 watch(currentUser, (newUser) => {
