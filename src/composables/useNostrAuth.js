@@ -280,43 +280,46 @@ const processSmartWidgetProfile = (widgetProfile) => {
 
 // Initialize smart widget handler
 const initSmartWidgetHandler = () => {
-  console.log('Initializing smart widget handler...')
-  
+  // Only initialize if we're actually in an iframe and don't already have a user
   try {
-    // Check if we're in an iframe (widget context)
-    if (window.self !== window.top) {
+    // Check if we're in an iframe (widget context) and SWHandler is available
+    if (window.self !== window.top && typeof SWHandler !== 'undefined') {
       console.log('Detected iframe context, setting up smart widget handler')
       isInWidget.value = true
       
-      // Notify parent that we're ready
-      SWHandler.client.ready()
-      
-      // Set up listener for parent messages
-      widgetListener.value = SWHandler.client.listen((data) => {
-        console.log('Received message from parent:', data)
+      // Only set up if we don't already have a listener
+      if (!widgetListener.value) {
+        // Notify parent that we're ready
+        SWHandler.client.ready()
         
-        if (data.kind === 'user-metadata' && data.data && data.data.user) {
-          try {
-            const userData = processSmartWidgetProfile(data.data.user)
-            console.log('Successfully authenticated via smart widget:', userData)
-            
-            // Start listening for user events
-            startUserEventListener(userData.pubkey)
-            
-            isLoading.value = false
-            authError.value = ''
-          } catch (error) {
-            console.error('Error processing widget profile:', error)
-            authError.value = 'Failed to process widget authentication'
-            isLoading.value = false
+        // Set up listener for parent messages
+        widgetListener.value = SWHandler.client.listen((data) => {
+          console.log('Received message from parent:', data)
+          
+          if (data.kind === 'user-metadata' && data.data && data.data.user) {
+            try {
+              const userData = processSmartWidgetProfile(data.data.user)
+              console.log('Successfully authenticated via smart widget:', userData)
+              
+              // Start listening for user events
+              startUserEventListener(userData.pubkey)
+              
+              isLoading.value = false
+              authError.value = ''
+            } catch (error) {
+              console.error('Error processing widget profile:', error)
+              authError.value = 'Failed to process widget authentication'
+              isLoading.value = false
+            }
           }
-        }
-      })
+        })
+      }
       
       return true // Successfully initialized widget handler
     }
   } catch (error) {
     console.log('Smart widget handler not available or failed to initialize:', error)
+    // Don't set isInWidget to true if there's an error
   }
   
   return false // Not in widget context or failed to initialize
@@ -529,31 +532,33 @@ const login = () => {
     isLoading.value = true
     authError.value = ''
 
-    // First, try smart-widget-handler if we're in a widget context
-    if (initSmartWidgetHandler()) {
-      console.log('Using smart widget authentication...')
+    // Check if we're in a widget context and try smart-widget-handler first
+    if (window.self !== window.top && !currentUser.value) {
+      console.log('Detected widget context, trying smart widget authentication...')
       
-      // Set up a timeout for widget authentication
-      const widgetTimeout = setTimeout(() => {
-        if (isLoading.value && !currentUser.value) {
-          console.log('Widget authentication timeout, falling back to Nostr extension')
-          fallbackToNostrExtension(resolve, reject)
-        }
-      }, 5000) // 5 second timeout for widget auth
-      
-      // Watch for successful widget authentication
-      const stopWatching = watch(currentUser, (newUser) => {
-        if (newUser && newUser.fromWidget) {
-          clearTimeout(widgetTimeout)
-          stopWatching()
-          resolve(newUser)
-        }
-      })
-      
-      return
+      if (initSmartWidgetHandler()) {
+        // Set up a timeout for widget authentication
+        const widgetTimeout = setTimeout(() => {
+          if (isLoading.value && !currentUser.value) {
+            console.log('Widget authentication timeout, falling back to Nostr extension')
+            fallbackToNostrExtension(resolve, reject)
+          }
+        }, 5000) // 5 second timeout for widget auth
+        
+        // Watch for successful widget authentication
+        const stopWatching = watch(currentUser, (newUser) => {
+          if (newUser && newUser.fromWidget) {
+            clearTimeout(widgetTimeout)
+            stopWatching()
+            resolve(newUser)
+          }
+        })
+        
+        return
+      }
     }
     
-    // If not in widget context, use traditional Nostr extension login
+    // Use traditional Nostr extension login
     fallbackToNostrExtension(resolve, reject)
   })
 }
@@ -644,24 +649,30 @@ const initAuthAndRelays = async () => {
     // Initialize pool
     initPool()
 
-    // First, try to initialize smart-widget-handler for automatic authentication
-    const widgetInitialized = initSmartWidgetHandler()
+    // Load user from storage first (this ensures existing functionality works)
+    const hasStoredUser = loadUserFromStorage()
     
-    if (widgetInitialized) {
-      console.log('Smart widget handler initialized, waiting for parent authentication...')
-      isLoading.value = true
+    // Only try smart-widget-handler if we're actually in an iframe and don't have a stored user
+    if (!hasStoredUser && window.self !== window.top) {
+      console.log('No stored user and in iframe context, trying smart widget handler...')
+      const widgetInitialized = initSmartWidgetHandler()
       
-      // Set up a timeout for widget authentication during initialization
-      setTimeout(() => {
-        if (isLoading.value && !currentUser.value) {
-          console.log('Widget authentication timeout during initialization, loading from storage')
-          isLoading.value = false
-          loadUserFromStorage()
-        }
-      }, 3000) // 3 second timeout for initial widget auth
+      if (widgetInitialized) {
+        console.log('Smart widget handler initialized, waiting for parent authentication...')
+        isLoading.value = true
+        
+        // Set up a timeout for widget authentication during initialization
+        setTimeout(() => {
+          if (isLoading.value && !currentUser.value) {
+            console.log('Widget authentication timeout during initialization')
+            isLoading.value = false
+          }
+        }, 3000) // 3 second timeout for initial widget auth
+      }
+    } else if (hasStoredUser) {
+      console.log('User loaded from storage successfully')
     } else {
-      // Load user from storage if not in widget context
-      loadUserFromStorage()
+      console.log('No stored user, running in standalone mode')
     }
 
     // Load or initialize relays
