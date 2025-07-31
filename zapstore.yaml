@@ -8,14 +8,17 @@ description: |
 repository: https://github.com/pratik227/zap_dashboard
 homepage: https://zap-tracker.vercel.app/
 license: MIT
-tags: nostr lightning bitcoin zap tracker android
+tags: nostr lightning bitcoin zap tracker android creator
 icon: public/new_logo3.png
 images:
-  - public/dashboard.png
-  - public/wallet.png
-  - public/analytics.png
-  - public/zaps.png
-  - public/chat_zap_2.png
+  - public/ZapStore_Preview_1.png
+  - public/ZapStore_Preview_2.png
+  - public/ZapStore_Preview_3.png
+  - public/ZapStore_Preview_4.png
+  - public/ZapStore_Preview_5.png
+  - public/ZapStore_Preview_66.png
+  - public/ZapStore_Preview_7.png
+  - public/ZapStore_Preview_8.png
 changelog: CHANGELOG.md
 blossom_servers:
   - https://cdn.zapstore.dev
