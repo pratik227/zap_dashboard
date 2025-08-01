@@ -585,10 +585,10 @@ onUnmounted(() => {
                   <span class="text-sm text-gray-600">Views</span>
                   <span class="font-medium text-gray-900">{{ selectedContent.views || 0 }}</span>
                 </div>
-                <div class="flex items-center justify-between">
-                  <span class="text-sm text-gray-600">Unlocks</span>
-                  <span class="font-medium text-gray-900">{{ selectedContent.unlocks || 0 }}</span>
-                </div>
+<!--                <div class="flex items-center justify-between">-->
+<!--                  <span class="text-sm text-gray-600">Unlocks</span>-->
+<!--                  <span class="font-medium text-gray-900">{{ selectedContent.unlocks || 0 }}</span>-->
+<!--                </div>-->
                 <div class="flex items-center justify-between">
                   <span class="text-sm text-gray-600">Revenue</span>
                   <span class="font-medium text-orange-600">{{ (selectedContent.revenue || 0).toLocaleString() }} sats</span>
