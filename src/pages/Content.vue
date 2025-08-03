@@ -614,8 +614,8 @@ onUnmounted(() => {
               
               <!-- Article Content -->
               <main class="px-8 py-8">
-                <div class="prose prose-lg max-w-none">
-                  <div class="text-gray-800 leading-relaxed whitespace-pre-wrap">{{ selectedContent.fullContent }}</div>
+                <div class="prose prose-lg max-w-none text-gray-800 leading-relaxed">
+                  <div class="whitespace-pre-wrap">{{ selectedContent.fullContent || selectedContent.content || 'No content available' }}</div>
                 </div>
               </main>
               
