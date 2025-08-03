@@ -60,13 +60,14 @@ const props = defineProps({
 const emit = defineEmits(['submit', 'cancel', 'save-draft'])
 
 // State for edit confirmation
-const showEditConfirmation = ref(true) // Start with confirmation when editing
+const showEditConfirmation = ref(false) // Only show for published content
 const editUnderstanding = ref(false)
 
 // Watch for editing prop changes
 watch(() => props.isEditing, (isEditing) => {
   if (isEditing) {
-    showEditConfirmation.value = true
+    // Only show confirmation for published content with nostrEventId
+    showEditConfirmation.value = !!(props.form.nostrEventId && props.form.status === 'published')
     editUnderstanding.value = false
   } else {
     showEditConfirmation.value = false
@@ -813,23 +814,26 @@ Write naturally and let your thoughts flow. Your content will be published as a 
           
           <!-- Right: Action Buttons -->
           <div class="flex items-center space-x-3">
+            <!-- Next Button -->
             <button
-              @click="handleBackWithSave"
-              class="btn-secondary"
+              v-if="currentStep < wizardSteps.length - 1"
+              @click="nextStep"
+              :disabled="!canProceed"
+              class="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <IconArrowLeft class="w-4 h-4" />
-              <span class="hidden sm:inline">Back</span>
+              <span>Next</span>
+              <IconChevronRight class="w-4 h-4" />
             </button>
-          </div>
-        </div>
-        
-        <!-- Step Validation Messages -->
-        <div v-if="!isStepValid && currentStep < wizardSteps.length - 1" class="mt-3 flex items-center space-x-2 text-sm text-amber-600">
-          <IconAlertCircle class="w-4 h-4" />
-          <span>Please complete all required fields to continue</span>
-        </div>
-      </div>
-      </div>
+            
+            <!-- Final Step Actions -->
+            <div v-else class="flex items-center space-x-3">
+              <button
+                @click="handleSaveDraft"
+                :disabled="!isFormValid || isLoading"
+                class="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <IconDeviceFloppy class="w-4 h-4" />
+                Save Draft
     </div>
   </div>
 </template>
