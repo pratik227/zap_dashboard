@@ -551,7 +551,7 @@ onUnmounted(() => {
                           day: 'numeric' 
                         }) }}</span>
                         <span>•</span>
-                        <span>{{ Math.ceil(selectedContent.fullContent.split(' ').length / 200) }} min read</span>
+                        <span>{{ Math.ceil((selectedContent.fullContent || '').split(' ').length / 200) }} min read</span>
                       </div>
                     </div>
                   </div>

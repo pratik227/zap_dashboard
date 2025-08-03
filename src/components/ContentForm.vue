@@ -235,7 +235,7 @@ const suggestedTags = computed(() => {
 
 // Auto-save functionality
 const autoSave = async () => {
-  if (hasUnsavedChanges.value && props.isAuthenticated && isFormValid.value && !isLoading.value) {
+  if (hasUnsavedChanges.value && props.isAuthenticated && isFormValid.value && !props.isLoading) {
     try {
       // Silent auto-save - don't emit to parent to avoid UI disruption
       // Just update the timestamp to show it was saved
