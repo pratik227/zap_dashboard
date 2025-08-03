@@ -368,7 +368,6 @@ updateReadingTime()
             </div>
           </div>
         </div>
-      </div>
 
         <!-- Content -->
         <div class="p-6 space-y-6">
@@ -474,8 +473,9 @@ updateReadingTime()
         </div>
       </div>
     </div>
+
     <!-- Main Content (when not showing edit confirmation) -->
-    <div v-if="!showEditConfirmation" class="space-y-6">
+    <div v-else class="space-y-6">
       <!-- Streamlined Header -->
       <div class="bg-gradient-to-r from-orange-400 to-amber-400 text-white rounded-xl p-6 shadow-lg">
       <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -806,6 +806,13 @@ Write naturally and let your thoughts flow. Your content will be published as a 
               <IconChevronLeft class="w-4 h-4" />
               Previous
             </button>
+            <button
+              @click="handleBackWithSave"
+              class="btn-secondary"
+            >
+              <IconArrowLeft class="w-4 h-4" />
+              <span class="hidden sm:inline">Back</span>
+            </button>
           </div>
           
           <!-- Right: Action Buttons -->
@@ -845,6 +852,7 @@ Write naturally and let your thoughts flow. Your content will be published as a 
         </div>
       </div>
       </div>
+    </div>
     </div>
   </div>
 </template>
