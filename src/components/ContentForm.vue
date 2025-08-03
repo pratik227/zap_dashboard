@@ -516,29 +516,6 @@ Write naturally and let your thoughts flow. Your content will be published as a 
               ></textarea>
             </div>
             
-            <!-- Quick Markdown Reference -->
-            <details class="mt-3 bg-gray-50 border border-gray-200 rounded-lg p-3">
-              <summary class="font-medium text-gray-700 cursor-pointer text-sm flex items-center space-x-2">
-                <IconInfoCircle class="w-4 h-4" />
-                <span>Markdown Quick Reference</span>
-              </summary>
-              <div class="mt-3 grid grid-cols-2 gap-4 text-xs text-gray-600">
-                <div>
-                  <code class="block bg-white p-2 rounded border">
-                    # Heading 1<br>
-                    ## Heading 2<br>
-                    **Bold** *Italic*
-                  </code>
-                </div>
-                <div>
-                  <code class="block bg-white p-2 rounded border">
-                    - List item<br>
-                    1. Numbered<br>
-                    [Link](url)
-                  </code>
-                </div>
-              </div>
-            </details>
           </div>
         </div>
 
