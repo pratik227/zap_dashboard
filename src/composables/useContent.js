@@ -336,6 +336,7 @@ export function useContent() {
       }
       
       eventTemplate.tags.push(['content-type', content.type])
+      eventTemplate.tags.push(['client', 'ZapTracker'])
 
       publishingStatus.value = 'Signing with your Nostr key...'
       publishingProgress.value = 50
