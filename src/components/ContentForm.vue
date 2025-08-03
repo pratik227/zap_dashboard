@@ -851,6 +851,7 @@ Write naturally and let your thoughts flow. Your content will be published as a 
     </div>
   </div>
 </template>
+</template>
 
 <style scoped>
 /* Custom scrollbar for preview panel */
