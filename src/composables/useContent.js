@@ -260,6 +260,43 @@ export function useContent() {
         throw new Error('Content not found or access denied')
       }
 
+      const contentToDelete = contentItems.value[index]
+      
+      // If content was published to Nostr, publish a deletion request
+      if (contentToDelete.nostrEventId && window.nostr) {
+        try {
+          console.log('Publishing deletion request for content:', contentToDelete.nostrEventId)
+          
+          // Create deletion event (kind:5)
+          const deletionEvent = {
+            kind: 5, // Deletion
+            created_at: Math.floor(Date.now() / 1000),
+            tags: [['e', contentToDelete.nostrEventId]], // Reference to the event being deleted
+            content: 'Content deleted by author'
+          }
+
+          // Sign the deletion event
+          const signedDeletionEvent = await window.nostr.signEvent(deletionEvent)
+          
+          // Verify the signed deletion event
+          const isDeletionValid = verifyEvent(signedDeletionEvent)
+          if (!isDeletionValid) {
+            console.warn('Deletion event signature verification failed, but continuing with local deletion...')
+          } else {
+            // Publish deletion event to Nostr relays
+            const deletionResult = await nostrRelayManager.publishEvent(signedDeletionEvent)
+            
+            if (deletionResult.successful > 0) {
+              console.log('✅ Deletion request published successfully to', deletionResult.successful, 'relays')
+            } else {
+              console.warn('⚠️ Failed to publish deletion request, but continuing with local deletion')
+            }
+          }
+        } catch (deletionError) {
+          console.warn('⚠️ Failed to publish deletion request:', deletionError.message, 'but continuing with local deletion')
+        }
+      }
+
       contentItems.value.splice(index, 1)
       return true
     } catch (err) {
