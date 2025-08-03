@@ -32,7 +32,9 @@ const contentForm = reactive({
   type: CONTENT_TYPES.ARTICLE,
   content: '',
   tags: [],
-  coverImage: ''
+  coverImage: '',
+  monetizationModel: 'free',
+  price: 0
 })
 
 // UI state
