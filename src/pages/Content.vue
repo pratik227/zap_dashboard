@@ -73,6 +73,11 @@ const {
   getZapCount
 } = useContent()
 
+// Ensure contentForm has all required properties
+if (!contentForm.description) {
+  contentForm.description = ''
+}
+
 const { getAllContentZaps } = useContentZaps()
 
 
