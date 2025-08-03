@@ -32,7 +32,7 @@ import {
   IconCalendar,
   IconGlobe,
   IconHash,
-  IconImage,
+  IconPhoto,
   IconType,
   IconAlignLeft,
   IconSave,
@@ -966,7 +966,7 @@ Remember: Great content provides value, tells a story, and keeps readers engaged
           <!-- Cover Image -->
           <div>
             <label class="block text-sm font-semibold text-gray-900 mb-3 flex items-center space-x-2">
-              <IconImage class="w-4 h-4 text-orange-600" />
+              <IconPhoto class="w-4 h-4 text-orange-600" />
               <span>Cover Image (Optional)</span>
             </label>
             <input
