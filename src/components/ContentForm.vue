@@ -153,6 +153,23 @@ const estimatedReadTime = ref(0)
 const lastSaved = ref(null)
 const hasUnsavedChanges = ref(false)
 
+// Content helpers - moved before watch statements
+const updateWordCount = () => {
+  const previewWords = props.form.previewText.trim().split(/\s+/).filter(word => word.length > 0).length
+  const fullWords = props.form.fullContent.trim().split(/\s+/).filter(word => word.length > 0).length
+  
+  wordCount.value = {
+    preview: previewWords,
+    full: fullWords
+  }
+}
+
+const updateReadingTime = () => {
+  const wordsPerMinute = 200 // Average reading speed
+  const totalWords = wordCount.value.full
+  estimatedReadTime.value = Math.ceil(totalWords / wordsPerMinute)
+}
+
 // Watch for form changes to track unsaved changes
 watch(() => props.form, () => {
   hasUnsavedChanges.value = true
@@ -239,23 +256,6 @@ const scrollToTop = () => {
       element.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }
   })
-}
-
-// Content helpers
-const updateWordCount = () => {
-  const previewWords = props.form.previewText.trim().split(/\s+/).filter(word => word.length > 0).length
-  const fullWords = props.form.fullContent.trim().split(/\s+/).filter(word => word.length > 0).length
-  
-  wordCount.value = {
-    preview: previewWords,
-    full: fullWords
-  }
-}
-
-const updateReadingTime = () => {
-  const wordsPerMinute = 200 // Average reading speed
-  const totalWords = wordCount.value.full
-  estimatedReadTime.value = Math.ceil(totalWords / wordsPerMinute)
 }
 
 // Tag management
