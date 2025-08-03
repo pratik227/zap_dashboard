@@ -189,8 +189,26 @@ const insertVideo = () => {
 
 // Emoji picker
 const handleEmojiSelect = (emoji) => {
-  insertAtCursor(emoji.i, '', '')
-  showEmojiPicker.value = false
+  const textarea = contentTextarea.value
+  
+  if (textarea) {
+    const cursorPos = textarea.selectionStart
+    const textBefore = props.form.content.substring(0, cursorPos)
+    const textAfter = props.form.content.substring(textarea.selectionEnd)
+    
+    // Update content with emoji
+    props.form.content = textBefore + emoji.i + textAfter
+    
+    // Reset emoji picker state
+    showEmojiPicker.value = false
+    
+    // Focus back on textarea and set cursor position after the emoji
+    nextTick(() => {
+      textarea.focus()
+      const newCursorPos = cursorPos + emoji.i.length
+      textarea.setSelectionRange(newCursorPos, newCursorPos)
+    })
+  }
 }
 
 // Keyboard shortcuts
@@ -485,10 +503,11 @@ onUnmounted(() => {
                 <button
                   @click="showEmojiPicker = !showEmojiPicker"
                   type="button"
-                  class="p-2 text-gray-600 hover:text-yellow-600 hover:bg-yellow-50 rounded-lg transition-all duration-200 group"
+                  class="p-2 text-gray-500 hover:text-orange-600 hover:bg-orange-100/50 rounded transition-colors flex items-center space-x-1"
                   title="Insert Emoji"
                 >
-                  <span class="text-lg leading-none group-hover:scale-110 transition-transform inline-block">😊</span>
+                  <span class="text-xl leading-none">😊</span>
+                  <span class="text-sm">Emoji</span>
                 </button>
                 
                 <!-- Emoji Picker -->
