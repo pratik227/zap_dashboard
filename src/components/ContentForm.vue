@@ -834,6 +834,20 @@ Write naturally and let your thoughts flow. Your content will be published as a 
               >
                 <IconDeviceFloppy class="w-4 h-4" />
                 Save Draft
+              </button>
+              
+              <button
+                @click="handleSubmit"
+                :disabled="!isFormValid || isLoading"
+                class="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <IconSend class="w-4 h-4" />
+                {{ isLoading ? 'Publishing...' : 'Publish' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
