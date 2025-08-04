@@ -221,13 +221,13 @@ const getSalesTooltip = (item) => {
             >
               <IconShare class="w-4 h-4" />
             </button>
-            <button
-              @click="$emit('share', item)"
-              class="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-              title="Share"
-            >
-              <IconCopy class="w-4 h-4" />
-            </button>
+<!--            <button-->
+<!--              @click="$emit('share', item)"-->
+<!--              class="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"-->
+<!--              title="Share"-->
+<!--            >-->
+<!--              <IconCopy class="w-4 h-4" />-->
+<!--            </button>-->
             <button
               @click="$emit('delete', item)"
               class="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"

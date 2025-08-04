@@ -482,8 +482,8 @@ onUnmounted(() => {
       <!-- Content Preview -->
       <div v-else-if="currentView === 'preview' && selectedContent">
         <!-- Compact Header -->
-        <div class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm mb-6">
-          <div class="p-4 border-b border-orange-100/50">
+        <div class="mb-6">
+          <div class="">
             <div class="flex items-center justify-between">
               <div class="flex items-center space-x-3">
                 <h2 class="text-lg font-semibold text-gray-900">Content Preview</h2>
