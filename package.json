@@ -9,8 +9,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@getalby/bitcoin-connect": "^3.8.2",
     "@getalby/sdk": "^5.1.0",
     "@iconify-prerendered/vue-tabler": "^0.28.1749100890",
+    "bech32": "^2.0.0",
     "echarts": "^5.4.3",
     "lucide-vue-next": "^0.294.0",
     "nostr-tools": "^2.15.0",

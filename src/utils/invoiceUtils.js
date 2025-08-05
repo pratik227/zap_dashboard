@@ -186,3 +186,30 @@ function generateDeterministicHashFromInvoice(invoice) {
   const hexHash = Math.abs(hash).toString(16).padStart(16, '0')
   return hexHash.repeat(4).substring(0, 64)
 }
+
+/**
+ * Extract amount from a BOLT11 invoice (basic implementation)
+ * @param {string} bolt11 - BOLT11 invoice string
+ * @returns {number} - Amount in sats
+ */
+export function extractAmountFromBolt11(bolt11) {
+  try {
+    // Very basic bolt11 parsing - in production use a proper library
+    const match = bolt11.match(/lnbc(\d+)([munp]?)/)
+    if (match) {
+      const amount = parseInt(match[1])
+      const unit = match[2]
+      
+      switch (unit) {
+        case 'm': return amount * 100000 // mBTC to sats
+        case 'u': return amount * 100    // μBTC to sats
+        case 'n': return Math.round(amount * 0.1) // nBTC to sats
+        case 'p': return Math.round(amount * 0.0001) // pBTC to sats
+        default: return Math.floor(amount / 1000) // msats to sats
+      }
+    }
+    return 0
+  } catch (error) {
+    return 0
+  }
+}

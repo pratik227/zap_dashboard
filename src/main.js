@@ -1,6 +1,14 @@
 import { createApp } from 'vue'
 import './style.css'
 import App from './App.vue'
+import { init } from '@getalby/bitcoin-connect'
+
+// Initialize Bitcoin Connect for universal Lightning payments
+init({
+  appName: 'ZapTracker',
+  showBalance: false,
+  filters: undefined // Allow all wallet types
+})
 
 const app = createApp(App)
 

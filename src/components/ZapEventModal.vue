@@ -272,6 +272,7 @@ const getEventKindName = (kind) => {
     case 5: return 'Deletion'
     case 6: return 'Repost'
     case 7: return 'Reaction'
+    case 9041: return 'Campaign'
     case 9735: return 'Zap Receipt'
     case 30023: return 'Long-form Content'
     default: return `Kind ${kind}`

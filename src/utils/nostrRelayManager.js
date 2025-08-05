@@ -433,6 +433,11 @@ class NostrRelayManager {
   emitEvent(type, data) {
     this.eventListeners.forEach(listener => {
       try {
+        if (typeof listener !== 'function') {
+          console.warn('Invalid event listener found, removing:', typeof listener)
+          this.eventListeners.delete(listener)
+          return
+        }
         // Defensive type check before calling
         if (typeof listener === 'function') {
         listener({ type, data, timestamp: new Date().toISOString() })
