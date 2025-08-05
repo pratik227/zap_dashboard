@@ -106,28 +106,77 @@ onMounted(() => {
 
 // Dynamic stats based on real data and time range
 const stats = computed(() => {
-  // Get comprehensive period comparison data
-  const periodData = getPeriodComparison(combinedZapData.value, selectedTimeRange.value)
+  // Fixed 30-day comparison logic (same as chart)
+  const allZaps = combinedZapData.value.filter(zap => zap.eventId) // Only NIP-57 zaps
   
-  console.log('📊 Dashboard stats calculation:', {
-    timeRange: selectedTimeRange.value,
-    totalZaps: periodData.current.totalZaps,
-    totalSats: periodData.current.totalSats,
-    changes: periodData.changes,
-    currentPeriodCount: periodData.currentPeriodCount,
-    previousPeriodCount: periodData.previousPeriodCount
+  // Current 30 days (same logic as chart)
+  const now = new Date()
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+  const currentPeriodZaps = allZaps.filter(zap => {
+    const zapDate = new Date(zap.timestamp)
+    return zapDate >= thirtyDaysAgo && zapDate <= now
+  })
+  
+  // Previous 30 days (30-60 days ago)
+  const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000)
+  const previousPeriodZaps = allZaps.filter(zap => {
+    const zapDate = new Date(zap.timestamp)
+    return zapDate >= sixtyDaysAgo && zapDate < thirtyDaysAgo
+  })
+  
+  // Calculate metrics for current period
+  const currentTotalZaps = currentPeriodZaps.length
+  const currentTotalSats = currentPeriodZaps.reduce((sum, zap) => sum + zap.amount, 0)
+  const currentUniqueSupporters = new Set(currentPeriodZaps.map(zap => zap.sender?.pubkey || zap.zapperPubkey || 'anonymous')).size
+  const currentAvgZap = currentTotalZaps > 0 ? Math.round(currentTotalSats / currentTotalZaps) : 0
+  
+  // Calculate metrics for previous period
+  const previousTotalZaps = previousPeriodZaps.length
+  const previousTotalSats = previousPeriodZaps.reduce((sum, zap) => sum + zap.amount, 0)
+  const previousUniqueSupporters = new Set(previousPeriodZaps.map(zap => zap.sender?.pubkey || zap.zapperPubkey || 'anonymous')).size
+  const previousAvgZap = previousTotalZaps > 0 ? Math.round(previousTotalSats / previousTotalZaps) : 0
+  
+  // Calculate percentage changes
+  const calculateChange = (current, previous) => {
+    if (previous === 0 && current === 0) {
+      return { percentage: 0, trend: 'neutral', isNew: false }
+    }
+    if (previous === 0 && current > 0) {
+      return { percentage: 100, trend: 'positive', isNew: true }
+    }
+    if (previous > 0 && current === 0) {
+      return { percentage: -100, trend: 'negative', isNew: false }
+    }
+    
+    const percentage = Math.round(((current - previous) / previous) * 100)
+    const trend = percentage > 0 ? 'positive' : percentage < 0 ? 'negative' : 'neutral'
+    
+    return { percentage, trend, isNew: false }
+  }
+  
+  const changes = {
+    totalZaps: calculateChange(currentTotalZaps, previousTotalZaps),
+    totalSats: calculateChange(currentTotalSats, previousTotalSats),
+    uniqueSupporters: calculateChange(currentUniqueSupporters, previousUniqueSupporters),
+    avgZap: calculateChange(currentAvgZap, previousAvgZap)
+  }
+  
+  console.log('📊 30-Day Dashboard Stats:', {
+    current: { totalZaps: currentTotalZaps, totalSats: currentTotalSats, uniqueSupporters: currentUniqueSupporters, avgZap: currentAvgZap },
+    previous: { totalZaps: previousTotalZaps, totalSats: previousTotalSats, uniqueSupporters: previousUniqueSupporters, avgZap: previousAvgZap },
+    changes,
+    currentPeriodCount: currentPeriodZaps.length,
+    previousPeriodCount: previousPeriodZaps.length
   })
   
   return {
-    ...periodData.current,
-    totalUSD: satsToUSD(periodData.current.totalSats),
+    totalZaps: currentTotalZaps,
+    totalSats: currentTotalSats,
+    uniqueSupporters: currentUniqueSupporters,
+    avgZap: currentAvgZap,
+    totalUSD: satsToUSD(currentTotalSats),
     walletBalance: walletBalance.value,
-    changes: periodData.changes,
-    periodInfo: {
-      timeRange: selectedTimeRange.value,
-      currentPeriodCount: periodData.currentPeriodCount,
-      previousPeriodCount: periodData.previousPeriodCount
-    }
+    changes
   }
 })
 
@@ -295,14 +344,14 @@ const formatTimeAgo = (timestamp) => {
 
 // Get percentage change data for a specific metric
 const getPercentageChange = (metricType) => {
-  const change = stats.value.changes?.[metricType]
+  const change = stats.value.changes[metricType]
   
   if (!change) {
-    console.warn(`No change data found for metric: ${metricType}`)
+    console.warn(`No change data found for metric: ${metricType}`, stats.value.changes)
     return { percentage: 0, trend: 'neutral', isNew: false }
   }
   
-  console.log(`📈 Percentage change for ${metricType}:`, change)
+  console.log(`📈 Displaying percentage change for ${metricType}:`, change)
   return change
 }
 
@@ -348,13 +397,10 @@ const getTrendColorClass = (change) => {
             <span>{{ combinedZapData.filter(zap => zap.eventId).length > 0 ? welcomeMessage : 'Connect your wallet to get started!' }}</span>
           </h1>
           <p class="text-orange-50 text-sm sm:text-base">
-            <span v-if="combinedZapData.filter(zap => zap.eventId).length > 0">
+            <span v-if="stats.totalZaps > 0">
               You've received {{ stats.totalZaps }} zaps worth {{ stats.totalSats.toLocaleString() }} sats
-              <span v-if="selectedTimeRange !== 'all'" class="opacity-75">
-                ({{ getTimeRangeDisplayText(selectedTimeRange) }}
-                <span v-if="stats.periodInfo && stats.periodInfo.previousPeriodCount > 0" class="ml-1">
-                  vs {{ stats.periodInfo.previousPeriodCount }} in previous period
-                </span>)
+              <span class="opacity-75">
+                (last 30 days vs previous 30 days)
               </span>
             </span>
             <span v-else>
