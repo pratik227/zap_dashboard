@@ -157,7 +157,7 @@ const getSalesTooltip = (item) => {
               <div class="flex items-center space-x-2 mb-1">
                 <h3 class="font-semibold text-gray-900 truncate">{{ item.title }}</h3>
                 <span :class="[
-                  'px-2 py-1 rounded-full text-xs font-medium',
+                  'px-2 py-1 rounded-full text-xs font-medium capitalize',
                   getStatusColor(item.status)
                 ]">
                   {{ item.status }}
@@ -221,13 +221,13 @@ const getSalesTooltip = (item) => {
             >
               <IconShare class="w-4 h-4" />
             </button>
-            <button
-              @click="$emit('share', item)"
-              class="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-              title="Share"
-            >
-              <IconCopy class="w-4 h-4" />
-            </button>
+<!--            <button-->
+<!--              @click="$emit('share', item)"-->
+<!--              class="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"-->
+<!--              title="Share"-->
+<!--            >-->
+<!--              <IconCopy class="w-4 h-4" />-->
+<!--            </button>-->
             <button
               @click="$emit('delete', item)"
               class="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
@@ -253,7 +253,7 @@ const getSalesTooltip = (item) => {
               <button
                 @click="openDropdownId = openDropdownId === item.id ? null : item.id"
                 class="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
-                title="More actions"
+                title="Edit (Creates new post, deletes original)"
               >
                 <IconDots class="w-3.5 h-3.5" />
               </button>
@@ -268,7 +268,7 @@ const getSalesTooltip = (item) => {
                   class="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-600 flex items-center space-x-2"
                 >
                   <IconEdit class="w-3.5 h-3.5" />
-                  <span>Edit</span>
+                  <span>Edit (New Post)</span>
                 </button>
                 
                 <button
@@ -305,9 +305,10 @@ const getSalesTooltip = (item) => {
           <div class="text-center">
             <p class="text-sm font-medium text-orange-600">Price</p>
             <p class="text-lg font-bold text-gray-900">
-              {{ item.monetizationModel === 'free' ? 'Free' : item.price.toLocaleString() + ' sats' }}
+              Free
             </p>
           </div>
+          <!--
           <div class="text-center">
             <p class="text-sm font-medium text-gray-600">
               {{ item.monetizationModel === 'subscription' ? 'Subscribers' : 'Unlocks' }}
@@ -316,6 +317,7 @@ const getSalesTooltip = (item) => {
               {{ item.monetizationModel === 'subscription' ? item.subscribers : item.unlocks }}
             </p>
           </div>
+          -->
           <div class="text-center">
             <p class="text-sm font-medium text-green-600">Revenue</p>
             <p class="text-lg font-bold text-gray-900">
@@ -364,10 +366,12 @@ const getSalesTooltip = (item) => {
               <div class="text-xs text-gray-400">zaps + sales</div>
             </div>
           </div>
+          <!--
           <div class="text-center">
             <p class="text-sm font-medium text-blue-600">Views</p>
             <p class="text-lg font-bold text-gray-900">{{ item.views }}</p>
           </div>
+          -->
         </div>
       </div>
     </div>

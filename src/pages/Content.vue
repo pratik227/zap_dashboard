@@ -1,10 +1,10 @@
 <script setup>
 import { computed, onMounted, ref, onUnmounted } from 'vue'
 import * as nip19 from 'nostr-tools/nip19'
-import { 
-  IconFileText, 
-  IconPlus, 
-  IconEye, 
+import {
+  IconFileText,
+  IconPlus,
+  IconEye,
   IconChartBar,
   IconArrowLeft,
   IconUser,
@@ -15,7 +15,8 @@ import {
   IconCheck,
   IconAlertCircle,
   IconExternalLink,
-  IconChevronDown
+  IconChevronDown,
+  IconHash
 } from '@iconify-prerendered/vue-tabler'
 import { useContent } from '../composables/useContent.js'
 import { useContentZaps } from '../composables/useContentZaps.js'
@@ -61,7 +62,7 @@ const {
   unpublishContent,
   duplicateContent,
   publishToNostr,
-  
+
   // View management
   setView,
   editContent,
@@ -72,6 +73,11 @@ const {
   getTotalZapAmount,
   getZapCount
 } = useContent()
+
+// Ensure contentForm has all required properties
+if (!contentForm.description) {
+  contentForm.description = ''
+}
 
 const { getAllContentZaps } = useContentZaps()
 
@@ -129,10 +135,10 @@ const handleDuplicateContent = async (content) => {
 
 const handleShareContent = (content) => {
   // Create share URL for content unlock
-  const shareUrl = content.nostrEventId 
+  const shareUrl = content.nostrEventId
     ? `${window.location.origin}?page=content-unlock&eventId=${content.nostrEventId}`
     : `${window.location.origin}?page=content&id=${content.id}`
-  
+
   navigator.clipboard.writeText(shareUrl).then(() => {
     alert('Share link copied to clipboard!')
   })
@@ -141,14 +147,14 @@ const handleShareContent = (content) => {
 const handlePublishToNostr = async (content) => {
   try {
     const result = await publishToNostr(content.id)
-    
+
     // Show success message with details
     let message = `Content published successfully!\n\nEvent ID: ${result.event.id}\nPublished to ${result.successfulRelays} relay${result.successfulRelays !== 1 ? 's' : ''}`
-    
+
     if (result.failedRelays > 0) {
       message += `\n\nNote: ${result.failedRelays} relay${result.failedRelays !== 1 ? 's' : ''} failed to publish`
     }
-    
+
     alert(message)
   } catch (error) {
     console.error('Failed to publish to Nostr:', error)
@@ -162,6 +168,70 @@ const handleNostrLogin = async () => {
   } catch (error) {
     console.error('Login failed:', error)
   }
+}
+
+// Parse markdown content to HTML
+const parseMarkdown = (content) => {
+  if (!content) return ''
+  
+  let html = content
+    // Escape HTML first
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+  
+  // Parse markdown syntax
+  html = html
+    // Headers
+    .replace(/^### (.*$)/gm, '<h3 class="text-xl font-bold text-gray-900 mt-8 mb-4">$1</h3>')
+    .replace(/^## (.*$)/gm, '<h2 class="text-2xl font-bold text-gray-900 mt-10 mb-6">$1</h2>')
+    .replace(/^# (.*$)/gm, '<h1 class="text-3xl font-bold text-gray-900 mt-12 mb-8">$1</h1>')
+    
+    // Bold and italic
+    .replace(/\*\*\*(.*?)\*\*\*/g, '<strong class="font-bold"><em class="italic">$1</em></strong>')
+    .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-gray-900">$1</strong>')
+    .replace(/\*(.*?)\*/g, '<em class="italic text-gray-700">$1</em>')
+    
+    // Links
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-orange-600 hover:text-orange-700 underline underline-offset-2 transition-colors">$1</a>')
+    
+    // Code blocks (triple backticks)
+    .replace(/```([\s\S]*?)```/g, '<pre class="bg-gray-100 border border-gray-200 rounded-lg p-4 my-4 overflow-x-auto"><code class="text-sm font-mono text-gray-800">$1</code></pre>')
+    
+    // Inline code
+    .replace(/`([^`]+)`/g, '<code class="bg-gray-100 text-gray-800 px-2 py-1 rounded text-sm font-mono">$1</code>')
+    
+    // Unordered lists
+    .replace(/^[\s]*[-*+] (.+)$/gm, '<li class="ml-4 mb-2 text-gray-700">$1</li>')
+    
+    // Ordered lists
+    .replace(/^[\s]*\d+\. (.+)$/gm, '<li class="ml-4 mb-2 text-gray-700">$1</li>')
+    
+    // Blockquotes
+    .replace(/^> (.+)$/gm, '<blockquote class="border-l-4 border-orange-400 pl-4 py-2 my-4 bg-orange-50/50 italic text-gray-700">$1</blockquote>')
+    
+    // Horizontal rules
+    .replace(/^---$/gm, '<hr class="border-t border-gray-300 my-8">')
+    
+    // Line breaks (convert double newlines to paragraphs)
+    .replace(/\n\n/g, '</p><p class="mb-4 text-gray-700 leading-relaxed">')
+    
+    // Single line breaks
+    .replace(/\n/g, '<br>')
+  
+  // Wrap in paragraph tags if not already wrapped
+  if (!html.includes('<p>') && !html.includes('<h1>') && !html.includes('<h2>') && !html.includes('<h3>')) {
+    html = `<p class="mb-4 text-gray-700 leading-relaxed">${html}</p>`
+  } else if (html.includes('</p><p>')) {
+    html = `<p class="mb-4 text-gray-700 leading-relaxed">${html}</p>`
+  }
+  
+  // Wrap lists in proper ul/ol tags
+  html = html.replace(/(<li class="ml-4 mb-2 text-gray-700">.*?<\/li>)/gs, (match) => {
+    return `<ul class="list-disc list-inside mb-4 space-y-2">${match}</ul>`
+  })
+  
+  return html
 }
 
 const activeTab = computed(() => {
@@ -198,7 +268,7 @@ const formatZapTime = (timestamp) => {
   const date = new Date(timestamp)
   const now = new Date()
   const diff = now - date
-  
+
   if (diff < 60000) return 'now'
   if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`
   if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`
@@ -220,7 +290,7 @@ const toggleClientDropdown = () => {
 // Get URL for different Nostr clients for long-form content
 const getNostrClientUrl = (client, content) => {
   if (!content || !content.nostrEventId) return '#'
-  
+
   try {
     switch (client) {
       case 'yakihonne':
@@ -236,6 +306,14 @@ const getNostrClientUrl = (client, content) => {
         // Fallback to nevent format
         return `https://yakihonne.com/${nip19.neventEncode({ id: content.nostrEventId })}`
       case 'primal':
+        if (content.creatorPubkey && content.id && content.nostrEventId) {
+          // Create naddr format for long-form content
+          return `https://primal.net/a/${nip19.naddrEncode({
+            pubkey: content.creatorPubkey,
+            kind: 30023,
+            identifier: content.id
+          })}`
+        }
         return `https://primal.net/e/${content.nostrEventId}`
       default:
         return `https://primal.net/e/${content.nostrEventId}`
@@ -290,37 +368,37 @@ onUnmounted(() => {
         <div>
 <!--          <h1 class="text-2xl font-bold text-gray-900 mb-2 flex items-center space-x-2">-->
 <!--            <IconFileText class="w-6 h-6 text-orange-600" />-->
-<!--            <span>Content Monetization</span>-->
+<!--            <span>Content Studio</span>-->
 <!--          </h1>-->
 <!--          <p class="text-gray-600">-->
-<!--            Welcome back, {{ userProfile?.name || 'Creator' }}! Publish premium content gated by Lightning payments.-->
+<!--            Welcome back, {{ userProfile?.name || 'Creator' }}! Create and publish long-form content to the Nostr network.-->
 <!--          </p>-->
         </div>
 
         <div class="flex items-center space-x-3 mb-4">
           <button
-            v-if="currentView !== 'list'"
+            v-if="currentView !== 'list' && !selectedContent"
             @click="setView('list')"
             class="btn-secondary"
           >
             <IconArrowLeft class="w-4 h-4" />
             Back
           </button>
-<!--          <button-->
-<!--            v-if="currentView === 'list'"-->
-<!--            @click="setView('performance')"-->
-<!--            class="btn-secondary"-->
-<!--          >-->
-<!--            <IconChartBar class="w-4 h-4" />-->
-<!--            Performance-->
-<!--          </button>-->
+          <button
+            v-if="currentView === 'list'"
+            @click="setView('performance')"
+            class="btn-secondary"
+          >
+            <IconChartBar class="w-4 h-4" />
+            Analytics
+          </button>
           <button
             v-if="currentView === 'list'"
             @click="setView('create')"
             class="btn-primary"
           >
             <IconPlus class="w-4 h-4" />
-            New Content
+            Create Content
           </button>
         </div>
       </div>
@@ -332,13 +410,13 @@ onUnmounted(() => {
           <IconCheck v-else-if="publishingStatus.includes('Successfully')" class="w-5 h-5 text-green-600" />
           <IconAlertCircle v-else-if="publishingStatus.includes('failed')" class="w-5 h-5 text-red-600" />
           <IconShare v-else class="w-5 h-5 text-blue-600" />
-          
+
           <div class="flex-1">
             <p class="text-sm font-medium text-gray-900">{{ publishingStatus }}</p>
             <div v-if="publishingProgress > 0 && publishingProgress < 100" class="mt-2">
               <div class="w-full bg-gray-200 rounded-full h-2">
-                <div 
-                  class="bg-blue-600 h-2 rounded-full transition-all duration-300" 
+                <div
+                  class="bg-blue-600 h-2 rounded-full transition-all duration-300"
                   :style="{ width: publishingProgress + '%' }"
                 ></div>
               </div>
@@ -411,246 +489,314 @@ onUnmounted(() => {
 
       <!-- Content Preview -->
       <div v-else-if="currentView === 'preview' && selectedContent">
-        <div class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm">
-          <div class="p-6 border-b border-orange-100/50">
+        <!-- Compact Header -->
+        <div class="mb-6">
+          <div class="">
             <div class="flex items-center justify-between">
-              <h2 class="text-xl font-semibold text-gray-900">Content Preview</h2>
               <div class="flex items-center space-x-3">
+                <h2 class="text-lg font-semibold text-gray-900">Content Preview</h2>
+              </div>
+              <div class="flex items-center space-x-2">
+                <!-- Open in Client Dropdown -->
+<!--                <div v-if="selectedContent.nostrEventId" class="relative" ref="dropdownRef">-->
+<!--                  <button-->
+<!--                    @click="toggleClientDropdown"-->
+<!--                    class="btn-secondary text-xs"-->
+<!--                  >-->
+<!--                    <IconExternalLink class="w-3 h-3" />-->
+<!--                    <span class="hidden sm:inline">Open</span>-->
+<!--                    <IconChevronDown :class="['w-3 h-3 transition-transform', showClientDropdown ? 'rotate-180' : '']" />-->
+<!--                  </button>-->
+
+<!--                  &lt;!&ndash; Client Dropdown &ndash;&gt;-->
+<!--                  <div-->
+<!--                    v-if="showClientDropdown"-->
+<!--                    class="absolute right-0 mt-1 w-32 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10"-->
+<!--                  >-->
+<!--                    <a :href="getNostrClientUrl('primal', selectedContent)" target="_blank" rel="noopener noreferrer"-->
+<!--                       class="block px-3 py-1.5 text-xs text-gray-700 hover:bg-purple-50 hover:text-purple-700 flex items-center gap-1.5">-->
+<!--                      <span class="text-orange-600">🌐</span>-->
+<!--                      <span>Primal</span>-->
+<!--                    </a>-->
+<!--                    <a :href="getNostrClientUrl('yakihonne', selectedContent)" target="_blank" rel="noopener noreferrer"-->
+<!--                       class="block px-3 py-1.5 text-xs text-gray-700 hover:bg-purple-50 hover:text-purple-700 flex items-center gap-1.5">-->
+<!--                      <span class="text-purple-600">🍜</span>-->
+<!--                      <span>Yakihonne</span>-->
+<!--                    </a>-->
+<!--                  </div>-->
+<!--                </div>-->
+
                 <button
                   v-if="selectedContent.status === 'draft'"
                   @click="handlePublishToNostr(selectedContent)"
                   :disabled="isLoading"
-                  class="btn-secondary text-purple-600 hover:text-purple-700 hover:bg-purple-50 disabled:opacity-50"
+                  class="btn-primary text-xs disabled:opacity-50"
                 >
-                  <IconLoader v-if="isLoading" class="w-4 h-4 animate-spin" />
-                  <IconShare v-else class="w-4 h-4" />
-                  {{ isLoading ? 'Publishing...' : 'Publish to Nostr' }}
+                  <IconLoader v-if="isLoading" class="w-3 h-3 animate-spin" />
+                  <IconShare v-else class="w-3 h-3" />
+                  <span class="hidden sm:inline">{{ isLoading ? 'Publishing...' : 'Publish' }}</span>
                 </button>
+
+
                 <button @click="setView('list')" class="btn-secondary">
                   <IconArrowLeft class="w-4 h-4" />
-                  Back to List
+                  Back
                 </button>
               </div>
             </div>
           </div>
+        </div>
 
-          <div class="p-6">
-            <!-- Content Header -->
-            <div class="mb-6">
-              <div class="flex items-center justify-between mb-4">
-                <h1 class="text-3xl font-bold text-gray-900">{{ selectedContent.title }}</h1>
-                
-                <!-- Open in Client Dropdown -->
-                <div v-if="selectedContent.nostrEventId" class="relative" ref="dropdownRef">
-                  <button
-                    @click="toggleClientDropdown"
-                    class="text-sm text-purple-600 hover:text-purple-700 font-medium flex items-center space-x-1 bg-purple-50 px-3 py-1 rounded-lg hover:bg-purple-100 transition-colors"
-                  >
-                    <IconExternalLink class="w-4 h-4" />
-                    <span>Open in client</span>
-                    <IconChevronDown :class="['w-3 h-3 transition-transform', showClientDropdown ? 'rotate-180' : '']" />
-                  </button>
+        <!-- Main Content Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <!-- Single Unified Blog Container -->
+          <div class="lg:col-span-2">
+            <article class="bg-white/95 backdrop-blur-sm rounded-2xl border border-orange-100/50 shadow-lg overflow-hidden">
+              <!-- Article Header -->
+              <header class="px-8 pt-8 pb-6 border-b border-gray-100">
+                <!-- Status Badges Row -->
+                <div class="flex flex-wrap items-center gap-2 mb-6">
+                  <span :class="[
+                    'px-3 py-1.5 rounded-full text-sm font-medium',
+                    selectedContent.status === 'published' ? 'bg-green-100 text-green-700' :
+                    selectedContent.status === 'draft' ? 'bg-yellow-100 text-yellow-700' :
+                    'bg-gray-100 text-gray-700'
+                  ]">
+                    {{ selectedContent.status.charAt(0).toUpperCase() + selectedContent.status.slice(1) }}
+                  </span>
+
+                  <span class="px-3 py-1.5 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
+                    {{ selectedContent.type.charAt(0).toUpperCase() + selectedContent.type.slice(1) }}
+                  </span>
+
+                  <span class="px-3 py-1.5 bg-green-100 text-green-700 rounded-full text-sm font-medium">
+                    Free
+                  </span>
+
+                  <span v-if="selectedContent.nostrEventId" class="px-3 py-1.5 bg-purple-100 text-purple-700 rounded-full text-sm font-medium">
+                    On Nostr
+                  </span>
                   
-                  <!-- Client Dropdown -->
-                  <div 
-                    v-if="showClientDropdown"
-                    class="absolute right-0 mt-1 w-40 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10"
-                  >
-                    <a :href="getNostrClientUrl('primal', selectedContent)" target="_blank" rel="noopener noreferrer" 
-                       class="block px-4 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 flex items-center gap-2">
-                      <span class="w-4 h-4 flex items-center justify-center text-orange-600">🌐</span>
-                      <span>Primal.net</span>
-                    </a>
-                    <a :href="getNostrClientUrl('yakihonne', selectedContent)" target="_blank" rel="noopener noreferrer"
-                       class="block px-4 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 flex items-center gap-2">
-                      <span class="w-4 h-4 flex items-center justify-center text-purple-600">🍜</span>
-                      <span>Yakihonne</span>
-                    </a>
+                  <!-- Zap Badge -->
+                  <span v-if="selectedContent.nostrEventId && getTotalZapAmount(selectedContent.nostrEventId) > 0" 
+                        class="px-3 py-1.5 bg-gradient-to-r from-orange-100 to-amber-100 text-orange-700 rounded-full text-sm font-medium flex items-center space-x-1">
+                    <IconBolt class="w-4 h-4" />
+                    <span>{{ formatZapAmount(getTotalZapAmount(selectedContent.nostrEventId)) }} sats</span>
+                    <span class="text-orange-500">({{ getZapCount(selectedContent.nostrEventId) }})</span>
+                  </span>
+                </div>
+                
+                <!-- Article Title -->
+                <h1 class="text-4xl font-bold text-gray-900 leading-tight mb-4">
+                  {{ selectedContent.title }}
+                </h1>
+                
+                <!-- Hashtags (moved after title) -->
+                <div v-if="selectedContent.tags && selectedContent.tags.length > 0" class="mb-6">
+                  <div class="flex flex-wrap gap-2">
+                    <span
+                      v-for="tag in selectedContent.tags"
+                      :key="tag"
+                      class="inline-flex items-center space-x-1 bg-gradient-to-r from-orange-100 to-amber-100 text-orange-700 px-3 py-2 rounded-full text-sm font-medium hover:from-orange-200 hover:to-amber-200 transition-all duration-200 cursor-pointer"
+                    >
+                      <IconHash class="w-3 h-3" />
+                      <span>{{ tag }}</span>
+                    </span>
                   </div>
+                </div>
+                
+                <!-- Article Summary -->
+                <div v-if="selectedContent.description" class="mb-6">
+                  <p class="text-xl text-gray-600 leading-relaxed italic border-l-4 border-orange-400 pl-4 bg-orange-50/50 py-3 rounded-r-lg">
+                    {{ selectedContent.description }}
+                  </p>
+                </div>
+                
+                <!-- Author & Meta Information -->
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center space-x-4">
+                    <!-- Author Avatar -->
+                    <div class="w-12 h-12 rounded-full overflow-hidden border-2 border-orange-200">
+                      <img 
+                        :src="userProfile?.picture || 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'" 
+                        :alt="userProfile?.name || 'Author'"
+                        class="w-full h-full object-cover"
+                      />
+                    </div>
+                    
+                    <!-- Author Info -->
+                    <div>
+                      <div class="flex items-center space-x-2">
+                        <h3 class="font-semibold text-gray-900">{{ userProfile?.name || 'Anonymous Creator' }}</h3>
+                        <span v-if="userProfile?.nip05" class="inline-flex items-center px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
+                          <IconCheck class="w-3 h-3 mr-1" />
+                          Verified
+                        </span>
+                      </div>
+                      <div class="flex items-center space-x-3 text-sm text-gray-500">
+                        <span>{{ new Date(selectedContent.publishedAt || selectedContent.createdAt).toLocaleDateString('en-US', { 
+                          year: 'numeric', 
+                          month: 'long', 
+                          day: 'numeric' 
+                        }) }}</span>
+                        <span>•</span>
+                        <span>{{ Math.ceil((selectedContent.fullContent || '').split(' ').length / 200) }} min read</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <!-- Action Buttons -->
+                  <div class="flex items-center space-x-2">
+                    <!-- Open in Client Dropdown -->
+                    <div v-if="selectedContent.nostrEventId" class="relative" ref="dropdownRef">
+                      <button
+                        @click="toggleClientDropdown"
+                        class="btn-secondary text-sm"
+                      >
+                        <IconExternalLink class="w-4 h-4" />
+                        <span class="hidden sm:inline">Open in Client</span>
+                        <IconChevronDown :class="['w-3 h-3 transition-transform', showClientDropdown ? 'rotate-180' : '']" />
+                      </button>
+
+                      <!-- Client Dropdown -->
+                      <div
+                        v-if="showClientDropdown"
+                        class="absolute right-0 mt-1 w-36 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10"
+                      >
+                        <a :href="getNostrClientUrl('primal', selectedContent)" target="_blank" rel="noopener noreferrer"
+                           class="block px-3 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 flex items-center gap-2">
+                          <span class="text-orange-600">🌐</span>
+                          <span>Primal</span>
+                        </a>
+                        <a :href="getNostrClientUrl('yakihonne', selectedContent)" target="_blank" rel="noopener noreferrer"
+                           class="block px-3 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 flex items-center gap-2">
+                          <span class="text-purple-600">🍜</span>
+                          <span>Yakihonne</span>
+                        </a>
+                      </div>
+                    </div>
+
+<!--                    <button-->
+<!--                      v-if="selectedContent.status === 'draft'"-->
+<!--                      @click="handlePublishToNostr(selectedContent)"-->
+<!--                      :disabled="isLoading"-->
+<!--                      class="btn-primary disabled:opacity-50"-->
+<!--                    >-->
+<!--                      <IconLoader v-if="isLoading" class="w-4 h-4 animate-spin" />-->
+<!--                      <IconShare v-else class="w-4 h-4" />-->
+<!--                      <span class="hidden sm:inline">{{ isLoading ? 'Publishing...' : 'Publish' }}</span>-->
+<!--                    </button>-->
+                  </div>
+                </div>
+              </header>
+              
+              <!-- Cover Image -->
+              <div v-if="selectedContent.coverImage" class="px-8 pt-6">
+                <div class="rounded-xl overflow-hidden shadow-md">
+                  <img
+                    :src="selectedContent.coverImage"
+                    :alt="selectedContent.title"
+                    class="w-full h-64 sm:h-80 object-cover"
+                  />
                 </div>
               </div>
               
-              <p class="text-lg text-gray-600 mb-4">{{ selectedContent.description }}</p>
-
-              <!-- Content Meta -->
-              <div class="flex flex-wrap items-center gap-4 text-sm text-gray-500 mb-4">
-                <span>{{ selectedContent.type.charAt(0).toUpperCase() + selectedContent.type.slice(1) }}</span>
-                <span>•</span>
-                <span v-if="selectedContent.monetizationModel === 'free'">Free Content</span>
-                <span v-else>{{ selectedContent.price.toLocaleString() }} sats</span>
-                <span>•</span>
-                <span>{{ selectedContent.unlocks }} unlocks</span>
-                <span>•</span>
-<!--                <span>{{ selectedContent.views }} views</span>-->
-<!--                <span>•</span>-->
-                <span class="flex items-center space-x-1">
-                  <span>By {{ userProfile?.name || 'You' }}</span>
-                  <IconUser class="w-3 h-3" />
-                </span>
-              </div>
-
-              <!-- Status Badge -->
-              <div class="flex items-center space-x-2">
-                <span :class="[
-                  'px-3 py-1 rounded-full text-sm font-medium',
-                  selectedContent.status === 'published' ? 'bg-green-100 text-green-700' :
-                  selectedContent.status === 'draft' ? 'bg-yellow-100 text-yellow-700' :
-                  'bg-gray-100 text-gray-700'
-                ]">
-                  {{ selectedContent.status.charAt(0).toUpperCase() + selectedContent.status.slice(1) }}
-                </span>
-                <span v-if="selectedContent.nostrEventId" class="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm font-medium">
-                  Published on Nostr
-                </span>
-                <span v-if="selectedContent.monetizationModel !== 'free'" class="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
-                  🔒 Encrypted Content
-                </span>
-                <span v-if="selectedContent.publishedToRelays" class="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
-                  {{ selectedContent.publishedToRelays }} relay{{ selectedContent.publishedToRelays !== 1 ? 's' : '' }}
-                </span>
-                <span v-if="selectedContent.monetizationModel === 'free'" class="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium">
-                  Free Content
-                </span>
-              </div>
-            </div>
-
-            <!-- Cover Image -->
-            <div v-if="selectedContent.coverImage" class="mb-6">
-              <img
-                :src="selectedContent.coverImage"
-                :alt="selectedContent.title"
-                class="w-full h-64 object-cover rounded-lg"
-              />
-            </div>
-
-            <!-- Preview Content -->
-            <div class="prose max-w-none mb-6">
-              <h3 class="text-lg font-semibold text-gray-900 mb-3">Preview</h3>
-              <p class="text-gray-700 leading-relaxed">{{ selectedContent.previewText }}</p>
-            </div>
-
-            <!-- Gated Content (only show for paid content) -->
-            <div v-if="selectedContent.monetizationModel !== 'free'" class="bg-orange-50 border border-orange-200 rounded-lg p-6">
-              <div class="text-center">
-                <div class="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <IconLock class="w-8 h-8 text-orange-600" />
+              <!-- Article Content -->
+              <main class="px-8 py-8">
+                <div class="prose prose-lg max-w-none text-gray-800 leading-relaxed" v-html="parseMarkdown(selectedContent.fullContent || selectedContent.content || 'No content available')">
                 </div>
-                <h3 class="text-lg font-semibold text-gray-900 mb-2">Premium Content</h3>
-                <p class="text-gray-600 mb-4">
-                  Full content preview ({{ selectedContent.fullContent.length }} characters)
-                </p>
-                <div class="bg-white p-4 rounded-lg border border-orange-200 max-h-40 overflow-y-auto">
-                  <p class="text-sm text-gray-700 text-left">{{ selectedContent.fullContent }}</p>
-                </div>
-                <div class="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                  <p class="text-xs text-blue-700">
-                    🔒 <strong>Security:</strong> This content is encrypted with AES-256-GCM and will only be accessible after payment verification.
-                  </p>
+              </main>
+            </article>
+          </div>
+
+          <!-- Right Column: Stats and Zaps -->
+          <div class="space-y-6">
+            <!-- Quick Stats Card -->
+            <div class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm p-4">
+              <h3 class="text-sm font-semibold text-gray-900 mb-3">Performance</h3>
+              <div class="space-y-3">
+<!--                  <div class="flex items-center justify-between">-->
+<!--                    <span class="text-sm text-gray-600">Views</span>-->
+<!--                    <span class="font-medium text-gray-900">{{ selectedContent.views || 0 }}</span>-->
+<!--                  </div>-->
+<!--                <div class="flex items-center justify-between">-->
+<!--                  <span class="text-sm text-gray-600">Unlocks</span>-->
+<!--                  <span class="font-medium text-gray-900">{{ selectedContent.unlocks || 0 }}</span>-->
+<!--                </div>-->
+                <div class="flex items-center justify-between">
+                  <span class="text-sm text-gray-600">Revenue</span>
+                  <span class="font-medium text-orange-600">{{ (selectedContent.revenue || 0).toLocaleString() }} sats</span>
                 </div>
               </div>
             </div>
 
-            <!-- Free Content (show full content for free items) -->
-            <div v-else class="bg-green-50 border border-green-200 rounded-lg p-6">
-              <div class="text-center mb-4">
-                <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <IconBolt class="w-8 h-8 text-green-600" />
-                </div>
-                <h3 class="text-lg font-semibold text-gray-900 mb-2">Free Content</h3>
-                <p class="text-gray-600 mb-4">
-                  This content is freely accessible to all users
-                </p>
-              </div>
-              <div class="bg-white p-4 rounded-lg border border-green-200 max-h-60 overflow-y-auto">
-                <div class="prose prose-sm max-w-none">
-                  <p class="text-gray-700 text-left whitespace-pre-wrap">{{ selectedContent.fullContent }}</p>
-                </div>
-              </div>
-            </div>
-
-            <!-- 🔥 ZAP TRACKING SECTION - Show zaps received for this content -->
-            <div v-if="selectedContent.nostrEventId" class="mt-6 bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-lg p-6">
-              <div class="flex items-center justify-between mb-4">
-                <h3 class="text-lg font-semibold text-gray-900 flex items-center space-x-2">
-                  <IconBolt class="w-5 h-5 text-orange-600" />
-                  <span>Zaps Received</span>
+            <!-- Zaps Card -->
+            <div v-if="selectedContent.nostrEventId" class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm p-4">
+              <div class="flex items-center justify-between mb-3">
+                <h3 class="text-sm font-semibold text-gray-900 flex items-center space-x-2">
+                  <IconBolt class="w-4 h-4 text-orange-600" />
+                  <span>Lightning Zaps</span>
                 </h3>
-                <div class="flex items-center space-x-4">
-                  <div class="text-center">
-                    <div class="text-2xl font-bold text-orange-600">{{ getZapCount(selectedContent.nostrEventId) }}</div>
-                    <div class="text-xs text-gray-600">Total Zaps</div>
-                  </div>
-                  <div class="text-center">
-                    <div class="text-2xl font-bold text-orange-600">{{ formatZapAmount(getTotalZapAmount(selectedContent.nostrEventId)) }}</div>
-                    <div class="text-xs text-gray-600">Total Sats</div>
-                  </div>
+                <div class="text-right">
+                  <div class="text-lg font-bold text-orange-600">{{ formatZapAmount(getTotalZapAmount(selectedContent.nostrEventId)) }}</div>
+                  <div class="text-xs text-gray-500">{{ getZapCount(selectedContent.nostrEventId) }} zaps</div>
                 </div>
               </div>
 
-              <!-- Zap List -->
-              <div class="space-y-3 max-h-60 overflow-y-auto">
-                <div v-if="getZapsForContent(selectedContent.nostrEventId).length === 0" class="text-center py-8">
-                  <IconBolt class="w-12 h-12 mx-auto text-gray-300 mb-3" />
-                  <h4 class="text-lg font-medium text-gray-900 mb-2">No zaps yet</h4>
-                  <p class="text-gray-600 text-sm">Share your content to start receiving zaps!</p>
+              <!-- Compact Zap List -->
+              <div class="space-y-2 max-h-48 overflow-y-auto">
+                <div v-if="getZapsForContent(selectedContent.nostrEventId).length === 0" class="text-center py-6">
+                  <IconBolt class="w-8 h-8 mx-auto text-gray-300 mb-2" />
+                  <p class="text-sm text-gray-500">No zaps yet</p>
                 </div>
 
                 <div
-                  v-for="zap in getZapsForContent(selectedContent.nostrEventId)"
+                  v-for="zap in getZapsForContent(selectedContent.nostrEventId).slice(0, 5)"
                   :key="zap.id"
-                  class="flex items-center justify-between p-3 bg-white rounded-lg border border-orange-100"
+                  class="flex items-center space-x-2 p-2 bg-orange-50 rounded-lg"
                 >
-                  <div class="flex items-center space-x-3">
-                    <img 
-                      :src="zap.sender?.avatar || zap.sender?.picture" 
-                      :alt="zap.sender?.name || 'User'"
-                      class="w-8 h-8 rounded-full object-cover"
-                      @error="$event.target.src = generateFallbackAvatar(zap.zapperPubkey)"
-                    />
-                    <div>
-                      <div class="font-medium text-gray-900">{{ zap.sender?.name || formatZapperPubkey(zap.zapperPubkey) }}</div>
-                      <div class="text-sm text-gray-600">{{ formatZapTime(zap.timestamp) }}</div>
-                      <div v-if="zap.message" class="text-sm text-gray-700 italic">"{{ zap.message }}"</div>
+                  <img
+                    :src="zap.sender?.avatar || zap.sender?.picture"
+                    :alt="zap.sender?.name || 'User'"
+                    class="w-6 h-6 rounded-full object-cover"
+                    @error="$event.target.src = generateFallbackAvatar(zap.zapperPubkey)"
+                  />
+                  <div class="flex-1 min-w-0">
+                    <div class="text-xs font-medium text-gray-900 truncate">
+                      {{ zap.sender?.name || formatZapperPubkey(zap.zapperPubkey) }}
                     </div>
+                    <div class="text-xs text-gray-500">{{ formatZapTime(zap.timestamp) }}</div>
                   </div>
-                  <div class="text-right">
-                    <div class="font-bold text-orange-600">{{ formatZapAmount(zap.amount) }} sats</div>
+                  <div class="text-xs font-bold text-orange-600">
+                    {{ formatZapAmount(zap.amount) }}
                   </div>
+                </div>
+
+                <div v-if="getZapsForContent(selectedContent.nostrEventId).length > 5" class="text-center pt-2">
+                  <span class="text-xs text-gray-500">
+                    +{{ getZapsForContent(selectedContent.nostrEventId).length - 5 }} more zaps
+                  </span>
                 </div>
               </div>
             </div>
 
-            <!-- Tags -->
-            <div v-if="selectedContent.tags && selectedContent.tags.length > 0" class="mt-6">
-              <h4 class="text-sm font-medium text-gray-700 mb-2">Tags</h4>
-              <div class="flex flex-wrap gap-2">
-                <span
-                  v-for="tag in selectedContent.tags"
-                  :key="tag"
-                  class="bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-sm"
-                >
-                  {{ tag }}
-                </span>
-              </div>
-            </div>
-
-            <!-- Nostr Event Details -->
-            <div v-if="selectedContent.nostrEventId" class="mt-6 bg-purple-50 border border-purple-200 rounded-lg p-4">
-              <h4 class="text-sm font-medium text-purple-900 mb-2">Nostr Event Details</h4>
-              <div class="space-y-2 text-sm">
+            <!-- Technical Details Card -->
+            <div v-if="selectedContent.nostrEventId" class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm p-4">
+              <h3 class="text-sm font-semibold text-gray-900 mb-3">Technical Details</h3>
+              <div class="space-y-2 text-xs">
                 <div class="flex items-center justify-between">
-                  <span class="text-purple-700">Event ID:</span>
-                  <code class="text-purple-800 bg-purple-100 px-2 py-1 rounded text-xs">
-                    {{ selectedContent.nostrEventId.substring(0, 16) }}...
+                  <span class="text-gray-600">Event ID</span>
+                  <code class="text-gray-800 bg-gray-100 px-2 py-1 rounded">
+                    {{ selectedContent.nostrEventId.substring(0, 8) }}...
                   </code>
                 </div>
                 <div v-if="selectedContent.publishedToRelays" class="flex items-center justify-between">
-                  <span class="text-purple-700">Published to:</span>
-                  <span class="text-purple-800">{{ selectedContent.publishedToRelays }} relay{{ selectedContent.publishedToRelays !== 1 ? 's' : '' }}</span>
+                  <span class="text-gray-600">Relays</span>
+                  <span class="text-gray-800">{{ selectedContent.publishedToRelays }}</span>
                 </div>
                 <div v-if="selectedContent.publishedAt" class="flex items-center justify-between">
-                  <span class="text-purple-700">Published at:</span>
-                  <span class="text-purple-800">{{ new Date(selectedContent.publishedAt).toLocaleString() }}</span>
+                  <span class="text-gray-600">Published</span>
+                  <span class="text-gray-800">{{ new Date(selectedContent.publishedAt).toLocaleDateString() }}</span>
                 </div>
               </div>
             </div>

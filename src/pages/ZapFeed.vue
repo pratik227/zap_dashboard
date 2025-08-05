@@ -285,17 +285,17 @@ const getSenderName = (sender) => {
 }
 
 // Get transaction type display text
-const getTransactionTypeText = (zap) => {
+ const getTransactionTypeText = (zap) => {
   return zap.type === 'outgoing' ? 'Sent' : 'Received'
 }
 
 // Get transaction type color class
-const getTransactionTypeColor = (zap) => {
+ const getTransactionTypeColor = (zap) => {
   return zap.type === 'outgoing' ? 'text-red-600' : 'text-green-600'
 }
 
 // Get source icon
-const getSourceIcon = (zap) => {
+ const getSourceIcon = (zap) => {
   return zap.source === 'nip57' ? IconBolt : IconWallet
 }
 
@@ -304,7 +304,7 @@ const getSourceColor = (zap) => {
   return zap.source === 'nip57' ? 'text-orange-600 bg-orange-100' : 'text-blue-600 bg-blue-100'
 }
 
-// Get transaction type background color class
+ // Get transaction type background color class
 const getTransactionTypeBgColor = (zap) => {
   return zap.type === 'outgoing' ? 'from-red-100 to-pink-100' : 'from-orange-100 to-amber-100'
 }

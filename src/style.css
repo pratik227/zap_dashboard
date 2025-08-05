@@ -32,6 +32,10 @@
   border: 1px solid var(--ep-color-border);
   border-radius: 0.75rem;
   max-height: 350px;
+  backdrop-filter: none !important;
+  background: #ffffff !important;
+  position: relative;
+  z-index: 9999;
 }
 
 .v3-emoji-picker .v3-header {
@@ -113,6 +117,35 @@
   
   .btn-secondary {
     @apply bg-orange-50 hover:bg-orange-100 text-orange-700 px-4 py-3 rounded-lg font-medium transition-all duration-200 flex items-center justify-center gap-2 border border-orange-200/50 touch-target text-sm sm:text-base hover:shadow-sm hover:border-orange-300 transform hover:scale-105 active:scale-95;
+  }
+
+  /* Enhanced wizard-specific styles */
+  .wizard-step-card {
+    @apply bg-white/95 backdrop-blur-sm border border-orange-100/50 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1;
+  }
+
+  .content-type-card {
+    @apply p-4 border-2 rounded-xl cursor-pointer transition-all duration-300 hover:shadow-md transform hover:scale-105;
+  }
+
+  .monetization-card {
+    @apply p-6 border-2 rounded-xl cursor-pointer transition-all duration-300 hover:shadow-lg transform hover:scale-105;
+  }
+
+  .step-indicator {
+    @apply w-10 h-10 rounded-full flex items-center justify-center font-medium cursor-pointer transition-all duration-300 hover:scale-110;
+  }
+
+  .step-indicator.active {
+    @apply bg-gradient-to-r from-orange-400 to-amber-400 text-white shadow-lg scale-110;
+  }
+
+  .step-indicator.completed {
+    @apply bg-green-100 text-green-600 hover:bg-green-200;
+  }
+
+  .step-indicator.inactive {
+    @apply bg-gray-100 text-gray-400 hover:bg-gray-200;
   }
   
   .filter-chip {

@@ -420,6 +420,11 @@ class NostrRelayManager {
 
   // Add event listener
   addEventListener(callback) {
+    // Type check to ensure only functions are added
+    if (typeof callback !== 'function') {
+      console.warn('addEventListener: callback must be a function')
+      return () => {} // Return empty cleanup function
+    }
     this.eventListeners.add(callback)
     return () => this.eventListeners.delete(callback)
   }
@@ -433,7 +438,13 @@ class NostrRelayManager {
           this.eventListeners.delete(listener)
           return
         }
+        // Defensive type check before calling
+        if (typeof listener === 'function') {
         listener({ type, data, timestamp: new Date().toISOString() })
+        } else {
+          console.warn('emitEvent: listener is not a function, removing from set')
+          this.eventListeners.delete(listener)
+        }
       } catch (error) {
         console.error('Event listener error:', error)
       }
