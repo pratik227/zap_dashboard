@@ -273,8 +273,6 @@ watch(() => props.show, (newValue) => {
                 </div>
               </div>
             </div>
-        <div class="flex items-center justify-between">
-          <div class="flex items-center space-x-3">
             <!-- No Lightning Address Message -->
             <div v-if="activeTab === 'lightning' && !userProfileData.profile?.lud16" class="text-center py-8">
               <IconBolt class="w-12 h-12 mx-auto text-gray-300 mb-3" />
@@ -282,14 +280,6 @@ watch(() => props.show, (newValue) => {
               <p class="text-gray-600 text-sm">This user hasn't set up a Lightning address yet.</p>
             </div>
           </div>
-          </div>
-          <button
-            @click="closeUserProfile"
-            class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-            title="Close"
-          >
-            <IconX class="w-5 h-5" />
-          </button>
         </div>
       </div>
     </transition>
