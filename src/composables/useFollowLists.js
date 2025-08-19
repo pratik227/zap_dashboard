@@ -310,9 +310,9 @@ export function useFollowLists() {
           limit: 50
         }
       ], {
-            console.log('⚠️ Follow list event already processed, skipping:', event.id.substring(0, 16) + '...')
         onevent: (event) => {
           if (processedEventIds.has(event.id)) return
+            console.log('⚠️ Follow list event already processed, skipping:', event.id.substring(0, 16) + '...')
           processedEventIds.add(event.id)
 
           if (event.kind === FOLLOW_LIST_KIND) {
