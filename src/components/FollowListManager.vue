@@ -62,10 +62,10 @@ const sortOption = ref('recent') // 'recent', 'alphabetical', 'members'
 const tabs = [
   { 
     id: 'my-lists', 
-    label: 'My Lists', 
+    label: 'My Follow Packs', 
     icon: IconList, 
     count: computed(() => myListsCount.value),
-    description: 'Lists you\'ve created'
+    description: 'Follow packs you\'ve created'
   },
   { 
     id: 'discover', 
@@ -222,10 +222,10 @@ onMounted(() => {
       <div>
         <h2 class="text-2xl font-bold text-gray-900 flex items-center space-x-2">
           <IconList class="w-6 h-6 text-orange-600" />
-          <span>Follow Lists</span>
+          <span>Follow Packs</span>
         </h2>
         <p class="text-gray-600 text-sm mt-1">
-          Create and discover curated lists of people to follow
+          Create and discover curated packs of people to follow
         </p>
       </div>
       
@@ -246,7 +246,7 @@ onMounted(() => {
           class="btn-primary"
         >
           <IconPlus class="w-4 h-4" />
-          Create List
+          Create Pack
         </button>
       </div>
     </div>
@@ -282,7 +282,7 @@ onMounted(() => {
           <input
             v-model="searchQuery"
             type="text"
-            :placeholder="isMyListsTab ? 'Search your lists...' : 'Search discovered lists...'"
+            :placeholder="isMyListsTab ? 'Search your follow packs...' : 'Search discovered follow packs...'"
             class="w-full pl-10 pr-4 py-3 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base"
             @input="handleSearch(searchQuery)"
           />
@@ -366,13 +366,13 @@ onMounted(() => {
       
       <h3 class="text-xl font-semibold text-gray-900 mb-3">
         {{ searchQuery ? 'No matching lists found' : 
-           isMyListsTab ? 'No lists created yet' : 'No lists discovered yet' }}
+           isMyListsTab ? 'No follow packs created yet' : 'No follow packs discovered yet' }}
       </h3>
       
       <p class="text-gray-600 mb-6 max-w-md mx-auto">
         {{ searchQuery ? 'Try adjusting your search terms or browse all available lists.' :
-           isMyListsTab ? 'Create your first follow list to organize your network into themed collections.' :
-           'Discover curated lists created by the Nostr community.' }}
+           isMyListsTab ? 'Create your first follow pack to organize your network into themed collections.' :
+           'Discover curated follow packs created by the Nostr community.' }}
       </p>
       
       <div class="flex flex-col sm:flex-row gap-3 justify-center">
@@ -391,7 +391,7 @@ onMounted(() => {
           class="btn-primary"
         >
           <IconPlus class="w-4 h-4" />
-          Create First List
+          Create First Pack
         </button>
         
         <button 
@@ -400,7 +400,7 @@ onMounted(() => {
           class="btn-primary"
         >
           <IconSearch class="w-4 h-4" />
-          Discover Lists
+          Discover Packs
         </button>
       </div>
     </div>
