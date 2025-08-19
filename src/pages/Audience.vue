@@ -323,12 +323,90 @@ const handleBulkFollow = async () => {
   if (selectedUsers.value.size === 0) return
   
   try {
-    const promises = Array.from(selectedUsers.value).map(pubkey => followUser(pubkey))
-    await Promise.all(promises)
+    console.log('Starting bulk follow operation for', selectedUsers.value.size, 'users')
+    
+    // Get current following list first to ensure we have the latest data
+    const currentFollowingEvent = await nostrRelayManager.getEvent({
+      kinds: [3], // Contact lists
+      authors: [currentUser.value.pubkey],
+      limit: 1
+    })
+
+    // Extract current follows
+    let currentFollows = []
+    if (currentFollowingEvent) {
+      currentFollows = currentFollowingEvent.tags
+        .filter(tag => tag[0] === 'p' && tag[1])
+        .map(tag => tag[1])
+      console.log('Current follows from Nostr:', currentFollows.length)
+    }
+
+    // Filter out users we're already following
+    const selectedArray = Array.from(selectedUsers.value)
+    const newFollows = selectedArray.filter(pubkey => !currentFollows.includes(pubkey))
+    const mergedFollows = [...new Set([...currentFollows, ...newFollows])]
+    
+    console.log('Bulk follow merge analysis:', {
+      existingFollows: currentFollows.length,
+      selectedUsers: selectedArray.length,
+      newFollows: newFollows.length,
+      mergedTotal: mergedFollows.length
+    })
+
+    if (newFollows.length === 0) {
+      alert(`✅ You're already following all ${selectedArray.length} selected users`)
+      selectedUsers.value.clear()
+      showBulkActions.value = false
+      return
+    }
+
+    // Create new contact list event with merged follows
+    const contactTags = mergedFollows.map(pubkey => ['p', pubkey])
+    
+    const eventTemplate = {
+      kind: 3,
+      created_at: Math.floor(Date.now() / 1000),
+      tags: contactTags,
+      content: `Updated via ZapTracker - bulk followed ${newFollows.length} users`
+    }
+
+    // Sign and publish the event
+    const signedEvent = await window.nostr.signEvent(eventTemplate)
+    
+    if (!verifyEvent(signedEvent)) {
+      throw new Error('Event signature verification failed')
+    }
+
+    const result = await nostrRelayManager.publishEvent(signedEvent)
+    
+    if (result.successful === 0) {
+      throw new Error('Failed to publish to any relays')
+    }
+
+    // Update local state
+    following.value = mergedFollows
+    
+    // Fetch profiles for new follows
+    newFollows.forEach(pubkey => {
+      fetchProfile(pubkey).catch(error => {
+        console.warn(`Failed to fetch profile for ${pubkey.substring(0, 8)}:`, error)
+      })
+    })
+
+    console.log('✅ Bulk follow completed successfully:', {
+      newFollows: newFollows.length,
+      totalFollows: mergedFollows.length,
+      successfulRelays: result.successful
+    })
+
+    // Show success message
+    alert(`🎉 Successfully followed ${newFollows.length} new people!\n\nTotal people you're now following: ${mergedFollows.length.toLocaleString()}`)
+    
     selectedUsers.value.clear()
     showBulkActions.value = false
   } catch (error) {
     console.error('Bulk follow failed:', error)
+    alert(`❌ Bulk follow failed: ${error.message}\n\nYour existing follows remain safe.`)
   }
 }
 

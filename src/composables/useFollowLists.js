@@ -740,7 +740,8 @@ export function useFollowLists() {
     try {
       console.log('Following entire pack:', list.title, 'with', list.members.length, 'members')
 
-      // Get current following list
+      // Get current following list from Nostr to ensure we have the latest data
+      console.log('Fetching current following list before bulk follow...')
       const currentFollowingEvent = await nostrRelayManager.getEvent({
         kinds: [3], // Contact lists
         authors: [currentUser.value.pubkey],
@@ -753,25 +754,42 @@ export function useFollowLists() {
         currentFollows = currentFollowingEvent.tags
           .filter(tag => tag[0] === 'p' && tag[1])
           .map(tag => tag[1])
+        console.log('Current follows from Nostr:', currentFollows.length)
+      } else {
+        console.log('No existing following list found, starting fresh')
       }
 
-      // Merge with new follows (append, don't replace)
+      // CRITICAL: Merge with new follows using Set to avoid duplicates
       const newFollows = list.members.filter(pubkey => !currentFollows.includes(pubkey))
-      const mergedFollows = [...currentFollows, ...newFollows]
+      const mergedFollows = [...new Set([...currentFollows, ...newFollows])]
+      
+      console.log('Follow merge analysis:', {
+        existingFollows: currentFollows.length,
+        packMembers: list.members.length,
+        newFollows: newFollows.length,
+        mergedTotal: mergedFollows.length,
+        duplicatesAvoided: (currentFollows.length + newFollows.length) - mergedFollows.length
+      })
 
       if (newFollows.length === 0) {
         console.log('Already following all members of this pack')
-        return { newFollows: 0, totalFollows: mergedFollows.length }
+        return { 
+          success: true,
+          newFollows: 0, 
+          totalFollows: mergedFollows.length,
+          alreadyFollowingAll: true,
+          message: `You're already following all ${list.members.length} members of "${list.title}"`
+        }
       }
 
-      // Create new contact list event
+      // Create new contact list event with merged follows
       const contactTags = mergedFollows.map(pubkey => ['p', pubkey])
       
       const eventTemplate = {
         kind: 3, // Contact list
         created_at: Math.floor(Date.now() / 1000),
         tags: contactTags,
-        content: '' // Can contain relay recommendations
+        content: `Updated via ZapTracker - followed pack: ${list.title}` // Add context
       }
 
       // Sign the event
@@ -797,10 +815,21 @@ export function useFollowLists() {
         successfulRelays: result.successful
       })
 
+      // Fetch profiles for new follows
+      newFollows.forEach(pubkey => {
+        fetchProfile(pubkey).catch(error => {
+          console.warn(`Failed to fetch profile for new follow ${pubkey.substring(0, 8)}:`, error)
+        })
+      })
+
       return {
+        success: true,
         newFollows: newFollows.length,
         totalFollows: mergedFollows.length,
-        addedMembers: newFollows
+        updatedFollows: mergedFollows,
+        addedMembers: newFollows,
+        alreadyFollowingAll: false,
+        message: `Successfully followed ${newFollows.length} new people from "${list.title}"`
       }
 
     } catch (err) {
@@ -828,7 +857,8 @@ export function useFollowLists() {
     try {
       console.log('Following selected members from list:', list.title, 'selected:', selectedPubkeys.length)
 
-      // Get current following list
+      // Get current following list from Nostr to ensure we have the latest data
+      console.log('Fetching current following list before selective follow...')
       const currentFollowingEvent = await nostrRelayManager.getEvent({
         kinds: [3], // Contact lists
         authors: [currentUser.value.pubkey],
@@ -841,25 +871,42 @@ export function useFollowLists() {
         currentFollows = currentFollowingEvent.tags
           .filter(tag => tag[0] === 'p' && tag[1])
           .map(tag => tag[1])
+        console.log('Current follows from Nostr:', currentFollows.length)
+      } else {
+        console.log('No existing following list found, starting fresh')
       }
 
-      // Merge with selected follows (append, don't replace)
+      // CRITICAL: Merge with selected follows using Set to avoid duplicates
       const newFollows = selectedPubkeys.filter(pubkey => !currentFollows.includes(pubkey))
-      const mergedFollows = [...currentFollows, ...newFollows]
+      const mergedFollows = [...new Set([...currentFollows, ...newFollows])]
+      
+      console.log('Selective follow merge analysis:', {
+        existingFollows: currentFollows.length,
+        selectedMembers: selectedPubkeys.length,
+        newFollows: newFollows.length,
+        mergedTotal: mergedFollows.length,
+        duplicatesAvoided: (currentFollows.length + newFollows.length) - mergedFollows.length
+      })
 
       if (newFollows.length === 0) {
         console.log('Already following all selected members')
-        return { newFollows: 0, totalFollows: mergedFollows.length }
+        return { 
+          success: true,
+          newFollows: 0, 
+          totalFollows: mergedFollows.length,
+          alreadyFollowingAll: true,
+          message: `You're already following all ${selectedPubkeys.length} selected members`
+        }
       }
 
-      // Create new contact list event
+      // Create new contact list event with merged follows
       const contactTags = mergedFollows.map(pubkey => ['p', pubkey])
       
       const eventTemplate = {
         kind: 3, // Contact list
         created_at: Math.floor(Date.now() / 1000),
         tags: contactTags,
-        content: ''
+        content: `Updated via ZapTracker - followed ${newFollows.length} selected from: ${list.title}`
       }
 
       // Sign the event
@@ -885,10 +932,21 @@ export function useFollowLists() {
         successfulRelays: result.successful
       })
 
+      // Fetch profiles for new follows
+      newFollows.forEach(pubkey => {
+        fetchProfile(pubkey).catch(error => {
+          console.warn(`Failed to fetch profile for new follow ${pubkey.substring(0, 8)}:`, error)
+        })
+      })
+
       return {
+        success: true,
         newFollows: newFollows.length,
         totalFollows: mergedFollows.length,
-        addedMembers: newFollows
+        updatedFollows: mergedFollows,
+        addedMembers: newFollows,
+        alreadyFollowingAll: false,
+        message: `Successfully followed ${newFollows.length} new people from "${list.title}"`
       }
 
     } catch (err) {

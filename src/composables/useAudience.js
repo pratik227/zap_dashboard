@@ -403,11 +403,44 @@ export function useAudience() {
     }
 
     try {
-      // Add to local state immediately (optimistic update)
-      following.value.push(pubkey)
+      // Get current following list from Nostr first to ensure we have the latest data
+      console.log('Fetching current following list before adding new follow...')
+      const currentFollowingEvent = await nostrRelayManager.getEvent({
+        kinds: [3], // Contact lists
+        authors: [currentUser.value.pubkey],
+        limit: 1
+      })
 
-      // Create new contact list event
-      const contactTags = following.value.map(pk => ['p', pk])
+      // Extract current follows from the latest event
+      let currentFollows = []
+      if (currentFollowingEvent) {
+        currentFollows = currentFollowingEvent.tags
+          .filter(tag => tag[0] === 'p' && tag[1])
+          .map(tag => tag[1])
+        console.log('Current follows from Nostr:', currentFollows.length)
+      }
+
+      // Check if already following (double-check against latest data)
+      if (currentFollows.includes(pubkey)) {
+        console.log('Already following user (confirmed from Nostr):', pubkey)
+        // Update local state to match Nostr state
+        following.value = currentFollows
+        return { success: true, alreadyFollowing: true }
+      }
+
+      // Merge: Add new follow to existing follows (avoiding duplicates)
+      const mergedFollows = [...new Set([...currentFollows, pubkey])]
+      console.log('Merging follows:', {
+        existing: currentFollows.length,
+        adding: 1,
+        merged: mergedFollows.length
+      })
+
+      // Update local state immediately (optimistic update)
+      following.value = mergedFollows
+
+      // Create new contact list event with merged follows
+      const contactTags = mergedFollows.map(pk => ['p', pk])
       
       const eventTemplate = {
         kind: 3,
@@ -428,18 +461,39 @@ export function useAudience() {
         throw new Error('Failed to publish to any relays')
       }
 
-      console.log('Successfully followed user:', pubkey)
+      console.log('Successfully followed user:', pubkey, 'Total follows:', mergedFollows.length)
       
       // Fetch their profile if we don't have it
       if (!profiles.has(pubkey)) {
         fetchProfile(pubkey)
       }
 
+      return { 
+        success: true, 
+        newFollows: 1,
+        totalFollows: mergedFollows.length,
+        alreadyFollowing: false
+      }
+
     } catch (error) {
-      // Revert optimistic update on error
-      const index = following.value.indexOf(pubkey)
-      if (index !== -1) {
-        following.value.splice(index, 1)
+      // Revert optimistic update on error - restore to original state
+      try {
+        // Try to restore from the last known good state
+        const currentFollowingEvent = await nostrRelayManager.getEvent({
+          kinds: [3],
+          authors: [currentUser.value.pubkey],
+          limit: 1
+        })
+        
+        if (currentFollowingEvent) {
+          const originalFollows = currentFollowingEvent.tags
+            .filter(tag => tag[0] === 'p' && tag[1])
+            .map(tag => tag[1])
+          following.value = originalFollows
+          console.log('Reverted to original following list:', originalFollows.length)
+        }
+      } catch (revertError) {
+        console.warn('Failed to revert following list:', revertError)
       }
       
       console.error('Failed to follow user:', error)
@@ -523,6 +577,30 @@ export function useAudience() {
       console.error('Failed to unfollow user:', error)
       throw error
     }
+  }
+
+  // Follow all members from a list (merges with existing follows)
+  const followEntirePack = async (list) => {
+    const result = await followLists.followEntirePack(list)
+    
+    // Update local following state with the merged follows
+    if (result.success && result.updatedFollows) {
+      following.value = result.updatedFollows
+    }
+    
+    return result
+  }
+
+  // Follow selected members from a list
+  const followSelectedMembers = async (list, selectedPubkeys) => {
+    const result = await followLists.followSelectedMembers(list, selectedPubkeys)
+    
+    // Update local following state with the merged follows
+    if (result.success && result.updatedFollows) {
+      following.value = result.updatedFollows
+    }
+    
+    return result
   }
 
   // Search profiles

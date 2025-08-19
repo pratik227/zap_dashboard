@@ -101,7 +101,18 @@ const handleFollowToggle = () => {
   if (props.isFollowing) {
     emit('unfollow', props.pubkey)
   } else {
+    // Enhanced follow with feedback
     emit('follow', props.pubkey)
+      .then(result => {
+        if (result && result.alreadyFollowing) {
+          console.log('User was already being followed')
+        } else if (result && result.success) {
+          console.log('Successfully followed user, total follows:', result.totalFollows)
+        }
+      })
+      .catch(error => {
+        console.error('Follow failed:', error)
+      })
   }
 }
 

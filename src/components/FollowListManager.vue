@@ -176,15 +176,21 @@ const handleFollowEntireList = async (list) => {
   try {
     const result = await followEntirePack(list)
     
-    // Show success feedback
-    if (result.newFollows > 0) {
-      alert(`Successfully followed ${result.newFollows} new people from "${list.title}"!`)
+    // Enhanced success feedback with detailed information
+    if (result.success) {
+      if (result.alreadyFollowingAll) {
+        // User-friendly message for when already following everyone
+        alert(`✅ ${result.message}\n\nYour follow list remains unchanged.`)
+      } else {
+        // Success message with details
+        alert(`🎉 ${result.message}\n\nTotal people you're now following: ${result.totalFollows.toLocaleString()}`)
+      }
     } else {
-      alert(`You're already following everyone in "${list.title}"`)
+      alert('❌ Failed to follow pack members. Please try again.')
     }
   } catch (error) {
     console.error('Failed to follow list:', error)
-    alert('Failed to follow list: ' + error.message)
+    alert(`❌ Failed to follow pack: ${error.message}\n\nYour existing follows remain safe.`)
   }
 }
 

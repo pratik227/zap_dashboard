@@ -135,12 +135,24 @@ const followSelected = async () => {
   
   try {
     const selectedArray = Array.from(selectedMembers.value)
-    await emit('follow-selected', props.list, selectedArray)
+    const result = await emit('follow-selected', props.list, selectedArray)
     
-    // Update following status for selected members
-    selectedArray.forEach(pubkey => {
-      followingStatus.value.set(pubkey, true)
-    })
+    // Enhanced feedback based on result
+    if (result && result.success) {
+      // Update following status for newly followed members only
+      if (result.addedMembers && result.addedMembers.length > 0) {
+        result.addedMembers.forEach(pubkey => {
+          followingStatus.value.set(pubkey, true)
+        })
+      }
+      
+      // Show appropriate feedback
+      if (result.alreadyFollowingAll) {
+        alert(`✅ ${result.message}`)
+      } else {
+        alert(`🎉 ${result.message}\n\nTotal people you're now following: ${result.totalFollows.toLocaleString()}`)
+      }
+    }
     
     // Clear selection
     selectedMembers.value.clear()
@@ -148,6 +160,7 @@ const followSelected = async () => {
     
   } catch (error) {
     console.error('Failed to follow selected members:', error)
+    alert(`❌ Failed to follow selected members: ${error.message}\n\nYour existing follows remain safe.`)
   } finally {
     isProcessing.value = false
   }
@@ -158,15 +171,28 @@ const followAll = async () => {
   isProcessing.value = true
   
   try {
-    await emit('follow-all', props.list)
+    const result = await emit('follow-all', props.list)
     
-    // Update following status for all members
-    props.list.members.forEach(pubkey => {
-      followingStatus.value.set(pubkey, true)
-    })
+    // Enhanced feedback based on result
+    if (result && result.success) {
+      // Update following status for newly followed members only
+      if (result.addedMembers && result.addedMembers.length > 0) {
+        result.addedMembers.forEach(pubkey => {
+          followingStatus.value.set(pubkey, true)
+        })
+      }
+      
+      // Show appropriate feedback
+      if (result.alreadyFollowingAll) {
+        alert(`✅ ${result.message}`)
+      } else {
+        alert(`🎉 ${result.message}\n\nTotal people you're now following: ${result.totalFollows.toLocaleString()}`)
+      }
+    }
     
   } catch (error) {
     console.error('Failed to follow entire list:', error)
+    alert(`❌ Failed to follow pack: ${error.message}\n\nYour existing follows remain safe.`)
   } finally {
     isProcessing.value = false
   }
