@@ -121,6 +121,7 @@ const generateFallbackAvatar = (pubkey) => {
             <div
               v-for="member in memberAvatars"
               :key="member.pubkey"
+              class="w-6 h-6 rounded-full border-2 border-white overflow-hidden"
             >
               <img
                 :src="member.avatar"
@@ -130,6 +131,7 @@ const generateFallbackAvatar = (pubkey) => {
             </div>
             <div v-if="memberCount > 3" class="w-6 h-6 rounded-full border-2 border-white bg-gray-100 flex items-center justify-center">
               <span class="text-xs font-medium text-gray-600">+{{ memberCount - 3 }}</span>
+            </div>
             </div>
           </div>
           <span class="text-xs text-gray-500">{{ memberCount }} member{{ memberCount !== 1 ? 's' : '' }}</span>
