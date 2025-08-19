@@ -296,18 +296,18 @@ onMounted(() => {
 
         <!-- Create Follow List -->
         <button
-          @click="emit('create-list')"
+          @click="emit('switch-tab', 'lists')"
           class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm hover:shadow-lg transition-all duration-200 p-8 text-left group transform hover:-translate-y-1"
         >
           <div class="w-14 h-14 rounded-xl flex items-center justify-center mb-6 bg-gradient-to-r from-green-400 to-emerald-400 group-hover:scale-110 transition-transform duration-200 shadow-lg">
             <IconList class="w-6 h-6 text-white" />
           </div>
           <h4 class="font-semibold text-gray-900 mb-3 text-lg group-hover:text-green-600 transition-colors">
-            Create Follow Pack
+            Discover Follow Packs
           </h4>
-          <p class="text-base text-gray-600 mb-4 leading-relaxed">Organize people into themed packs</p>
+          <p class="text-base text-gray-600 mb-4 leading-relaxed">Find curated packs to follow instantly</p>
           <div class="flex items-center text-green-600 text-base font-medium">
-            <span>Start Creating</span>
+            <span>Browse Packs</span>
             <IconArrowRight class="w-5 h-5 ml-2 transition-transform group-hover:translate-x-1" />
           </div>
         </button>
