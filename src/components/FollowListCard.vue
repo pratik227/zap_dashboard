@@ -191,6 +191,12 @@ const generateFallbackAvatar = (pubkey) => {
         >
           <IconShare class="w-4 h-4" />
         </button> -->
+      </div>
+    </div>
+  </div>
+</template>
+
+<style scoped>
 .line-clamp-1 {
   display: -webkit-box;
   -webkit-line-clamp: 1;
