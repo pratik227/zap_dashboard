@@ -12,6 +12,7 @@ const myLists = ref([]) // Array of follow list objects
 const profiles = reactive(new Map()) // Map<pubkey, profile>
 const isLoading = ref(false)
 const error = ref('')
+const syncStatus = ref('idle')
 
 // Subscriptions tracking
 let followingSubscription = null
