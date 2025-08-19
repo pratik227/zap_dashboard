@@ -922,6 +922,9 @@ export function useAudience() {
     isLoading,
     error,
     syncStatus,
+    suggestedUsers,
+    isLoadingSuggestions,
+    suggestionsError,
     
     // Actions
     followUser,
@@ -935,6 +938,7 @@ export function useAudience() {
     refreshFollowing,
     refreshFollowers,
     refreshLists,
+    generateSmartSuggestions,
     
     // Getters
     getProfile,

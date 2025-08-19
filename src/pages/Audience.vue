@@ -169,13 +169,24 @@ const filteredFollowers = computed(() => {
 })
 
 const filteredSuggestions = computed(() => {
-  if (!searchQuery.value) return suggestedUsers.value
-  const query = searchQuery.value.toLowerCase()
-  return suggestedUsers.value.filter(suggestion =>
-    suggestion.profile?.name?.toLowerCase().includes(query) ||
-    suggestion.profile?.about?.toLowerCase().includes(query) ||
-    suggestion.pubkey.toLowerCase().includes(query)
-  )
+  let suggestions = suggestedUsers.value
+  
+  // Apply search filter
+  if (searchQuery.value) {
+    const query = searchQuery.value.toLowerCase()
+    suggestions = suggestions.filter(suggestion =>
+      suggestion.profile?.name?.toLowerCase().includes(query) ||
+      suggestion.profile?.about?.toLowerCase().includes(query) ||
+      suggestion.pubkey.toLowerCase().includes(query)
+    )
+  }
+  
+  // Limit results if not showing all
+  if (!showAllSuggestions.value) {
+    suggestions = suggestions.slice(0, 12)
+  }
+  
+  return suggestions
 })
 
 const relayStats = computed(() => {
@@ -390,7 +401,7 @@ watch(isAuthenticated, (authenticated) => {
     clearSelection()
   }
 })
-</script>
+
 // Watch for changes in following list to regenerate suggestions
 watch(following, (newFollowing, oldFollowing) => {
   if (isAuthenticated.value && newFollowing.length !== oldFollowing?.length) {
@@ -400,6 +411,7 @@ watch(following, (newFollowing, oldFollowing) => {
     }, 2000)
   }
 }, { deep: true })
+</script>
 
 <template>
   <div class="space-y-6">
