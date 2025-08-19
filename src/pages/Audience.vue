@@ -584,14 +584,6 @@ watch(following, (newFollowing, oldFollowing) => {
             <span class="hidden sm:inline">Sync</span>
           </button> -->
 
-          <!-- New List Button -->
-          <button
-            @click="handleCreateList"
-            class="btn-primary"
-          >
-            <IconPlus class="w-4 h-4" />
-            <span class="hidden sm:inline">New List</span>
-          </button>
         </div>
       </div>
 
