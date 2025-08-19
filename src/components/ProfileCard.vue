@@ -216,7 +216,7 @@ const getProfileUrl = (client) => {
           <!-- Dropdown Menu -->
           <div v-if="showDropdown" class="absolute right-0 top-full mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10">
             <button
-              @click="handleFollowToggle; showDropdown = false"
+              @click="$emit('unfollow', pubkey); showDropdown = false"
               class="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center space-x-2"
             >
               <IconUserX class="w-4 h-4" />
