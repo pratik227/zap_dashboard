@@ -194,6 +194,22 @@ const handleEditList = (list) => {
   showListModal.value = true
 }
 
+// Handle unfollow with better error handling
+const handleUnfollow = async (pubkey) => {
+  try {
+    const result = await unfollowUser(pubkey)
+    
+    if (result.localOnly) {
+      // Show a warning that the change was local only
+      console.warn('Unfollow succeeded locally but may not have synced to all relays')
+      // You could show a toast notification here if desired
+    }
+  } catch (error) {
+    console.error('Failed to unfollow user:', error)
+    error.value = `Failed to unfollow user: ${error.message}`
+  }
+}
+
 // Handle bulk follow
 const handleBulkFollow = async () => {
   if (selectedUsers.value.size === 0) return
