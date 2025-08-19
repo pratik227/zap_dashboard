@@ -31,23 +31,11 @@ const { following, getProfile, fetchProfile, isFollowing } = useAudience()
 const suggestions = ref([])
 const isLoading = ref(false)
 const error = ref('')
-const searchQuery = ref('')
 const followingInProgress = ref(new Set())
 
 // Computed properties
 const filteredSuggestions = computed(() => {
-  let filtered = suggestions.value
-  
-  if (searchQuery.value) {
-    const query = searchQuery.value.toLowerCase()
-    filtered = filtered.filter(suggestion =>
-      suggestion.profile?.name?.toLowerCase().includes(query) ||
-      suggestion.profile?.about?.toLowerCase().includes(query) ||
-      suggestion.pubkey.toLowerCase().includes(query)
-    )
-  }
-  
-  return filtered.slice(0, 12) // Limit to 12 suggestions for clean UI
+  return suggestions.value.slice(0, 12) // Limit to 12 suggestions for clean UI
 })
 
 const hasFollowing = computed(() => following.value.length > 0)
@@ -275,24 +263,6 @@ watch(following, (newFollowing) => {
       </button>
     </div>
 
-    <!-- Search -->
-    <div class="relative">
-      <input
-        v-model="searchQuery"
-        type="text"
-        placeholder="Search suggestions..."
-        class="w-full pl-10 pr-4 py-3 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 bg-white/80 backdrop-blur-sm text-base"
-      />
-      <IconSearch class="absolute left-3 top-3.5 w-4 h-4 text-gray-400" />
-      <button 
-        v-if="searchQuery" 
-        @click="searchQuery = ''" 
-        class="absolute right-3 top-3.5 text-gray-400 hover:text-gray-600"
-      >
-        <IconX class="w-4 h-4" />
-      </button>
-    </div>
-
     <!-- No Following State -->
     <div v-if="!hasFollowing" class="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-8 text-center">
       <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -342,17 +312,9 @@ watch(following, (newFollowing) => {
         {{ searchQuery ? 'No matching suggestions' : 'No suggestions available' }}
       </h3>
       <p class="text-gray-600 mb-4">
-        {{ searchQuery ? 'Try adjusting your search terms' : 'Follow more people to get better suggestions' }}
+        Follow more people to get better suggestions
       </p>
       <div class="flex flex-col sm:flex-row gap-3 justify-center">
-        <button 
-          v-if="searchQuery" 
-          @click="searchQuery = ''" 
-          class="btn-secondary"
-        >
-          <IconX class="w-4 h-4" />
-          Clear Search
-        </button>
         <button 
           @click="generateSuggestions" 
           class="btn-primary"
