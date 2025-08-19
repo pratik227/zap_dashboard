@@ -22,6 +22,7 @@ let profileSubscriptions = new Map()
 
 // Cache management
 const profileFetchPromises = new Map()
+const profileCache = new Map()
 const processedEventIds = new Set()
 
 // Storage keys
