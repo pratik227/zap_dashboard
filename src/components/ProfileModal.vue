@@ -14,7 +14,9 @@ import {
   IconExternalLink,
   IconKey,
   IconChevronDown,
-  IconChevronUp
+  IconChevronUp,
+  IconLoader,
+  IconAlertCircle
 } from '@iconify-prerendered/vue-tabler'
 import * as nip19 from 'nostr-tools/nip19'
 
@@ -212,34 +214,30 @@ onUnmounted(() => {
               <!-- Name and Display Name -->
               <div class="mb-3">
                 <h2 class="text-2xl font-bold text-gray-900 mb-1">{{ displayName }}</h2>
-                <p v-if="currentProfile?.display_name && currentProfile?.display_name !== currentProfile?.name" 
+                <p v-if="profile?.display_name && profile?.display_name !== profile?.name" 
                    class="text-lg text-gray-600">
-                  {{ currentProfile.display_name }}
+                  {{ profile.display_name }}
                 </p>
               </div>
 
               <!-- Status Badges -->
               <div class="flex flex-wrap gap-2 mb-4">
-                <span v-if="hasVerification" class="inline-flex items-center px-3 py-1.5 bg-blue-50 text-blue-700 rounded-full text-sm font-medium border border-blue-200 shadow-sm">
+                <span v-if="profile?.nip05" class="inline-flex items-center px-3 py-1.5 bg-blue-50 text-blue-700 rounded-full text-sm font-medium border border-blue-200 shadow-sm">
                   <IconShield class="w-4 h-4 mr-1.5" />
                   NIP-05 Verified
                 </span>
-                <span v-if="hasLightning" class="inline-flex items-center px-3 py-1.5 bg-orange-50 text-orange-700 rounded-full text-sm font-medium border border-orange-200 shadow-sm">
+                <span v-if="profile?.lud16" class="inline-flex items-center px-3 py-1.5 bg-orange-50 text-orange-700 rounded-full text-sm font-medium border border-orange-200 shadow-sm">
                   <IconBolt class="w-4 h-4 mr-1.5" />
                   Lightning Ready
                 </span>
-                <span v-if="hasWebsite" class="inline-flex items-center px-3 py-1.5 bg-green-50 text-green-700 rounded-full text-sm font-medium border border-green-200 shadow-sm">
+                <span v-if="profile?.website" class="inline-flex items-center px-3 py-1.5 bg-green-50 text-green-700 rounded-full text-sm font-medium border border-green-200 shadow-sm">
                   <IconGlobe class="w-4 h-4 mr-1.5" />
                   Website
-                </span>
-                <span v-if="isFollowing" class="inline-flex items-center px-3 py-1.5 bg-green-50 text-green-700 rounded-full text-sm font-medium border border-green-200 shadow-sm">
-                  <IconUserCheck class="w-4 h-4 mr-1.5" />
-                  Following
                 </span>
               </div>
 
               <!-- Description -->
-              <div v-if="currentProfile?.about" class="mb-6">
+              <div v-if="profile?.about" class="mb-6">
                 <div class="bg-gray-50 rounded-xl p-4 border border-gray-200">
                   <p class="text-gray-700 leading-relaxed whitespace-pre-wrap">
                     {{ truncatedDescription }}
