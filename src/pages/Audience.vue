@@ -42,6 +42,7 @@ import FollowListModal from '../components/FollowListModal.vue'
 import FollowListCard from '../components/FollowListCard.vue'
 import AudienceOverview from '../components/AudienceOverview.vue'
 import FollowListManager from '../components/FollowListManager.vue'
+import SuggestionsTab from '../components/SuggestionsTab.vue'
 
 // Authentication
 const { isAuthenticated, currentUser, userProfile, login } = useNostrAuth()
@@ -787,6 +788,13 @@ watch(following, (newFollowing, oldFollowing) => {
         <!-- Lists Tab -->
         <div v-if="activeTab === 'lists'" class="p-6">
           <FollowListManager />
+        </div>
+
+        <div v-if="activeTab === 'suggestions'" class="p-6">
+          <SuggestionsTab 
+            @follow-user="followUser"
+            @profile-click="handleProfileClick"
+          />
         </div>
 
         <!-- Discover Tab -->
