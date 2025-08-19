@@ -121,7 +121,6 @@ const generateFallbackAvatar = (pubkey) => {
           <div
             v-for="member in memberAvatars"
             :key="member.pubkey"
-            class="w-6 h-6 rounded-full border-2 border-white overflow-hidden"
           >
             <img
               :src="member.avatar"
