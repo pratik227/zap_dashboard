@@ -524,13 +524,13 @@ watch(following, (newFollowing, oldFollowing) => {
       <!-- Header with Relay Status -->
       <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 class="text-2xl font-bold text-gray-900 mb-2 flex items-center space-x-2">
-            <IconUsers class="w-6 h-6 text-orange-600" />
-            <span>Audience</span>
-          </h1>
-          <p class="text-gray-600">
-            Manage your Nostr network and create follow lists
-          </p>
+<!--          <h1 class="text-2xl font-bold text-gray-900 mb-2 flex items-center space-x-2">-->
+<!--            <IconUsers class="w-6 h-6 text-orange-600" />-->
+<!--            <span>Audience</span>-->
+<!--          </h1>-->
+<!--          <p class="text-gray-600">-->
+<!--            Manage your Nostr network and create follow lists-->
+<!--          </p>-->
         </div>
 
         <!-- Relay Status & Actions -->
@@ -538,6 +538,7 @@ watch(following, (newFollowing, oldFollowing) => {
           <!-- Relay Status Pill -->
           <div class="relative">
             <button
+              class="mb-4"
               @click="showRelayStatus = !showRelayStatus"
               :class="[
                 'flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200',

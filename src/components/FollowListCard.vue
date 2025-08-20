@@ -111,29 +111,32 @@ const generateFallbackAvatar = (pubkey) => {
       <!-- Title and Description -->
       <div class="mb-4">
         <h3 class="font-semibold text-gray-900 mb-1 line-clamp-1">{{ list.title }}</h3>
-        <p v-if="list.description" class="text-sm text-gray-600 line-clamp-2">{{ list.description }}</p>
+        <p v-if="list.description" class="text-sm text-gray-600 line-clamp-2 min-h-[2.5rem]">
+          {{ list.description }}
+        </p>
       </div>
 
+
       <!-- Member Avatars Preview -->
-      <div v-if="memberAvatars.length > 0" class="flex items-center space-x-2 mb-4">
-        <div class="flex -space-x-2">
-          <div
-            v-for="member in memberAvatars"
-            :key="member.pubkey"
-            class="w-6 h-6 rounded-full border-2 border-white overflow-hidden"
-          >
-            <img
-              :src="member.avatar"
-              :alt="member.pubkey"
-              class="w-full h-full object-cover"
-            />
-          </div>
-          <div v-if="memberCount > 3" class="w-6 h-6 rounded-full border-2 border-white bg-gray-100 flex items-center justify-center">
-            <span class="text-xs font-medium text-gray-600">+{{ memberCount - 3 }}</span>
-          </div>
-        </div>
-        <span class="text-xs text-gray-500">{{ memberCount }} member{{ memberCount !== 1 ? 's' : '' }}</span>
-      </div>
+<!--      <div v-if="memberAvatars.length > 0" class="flex items-center space-x-2 mb-4">-->
+<!--        <div class="flex -space-x-2">-->
+<!--          <div-->
+<!--            v-for="member in memberAvatars"-->
+<!--            :key="member.pubkey"-->
+<!--            class="w-6 h-6 rounded-full border-2 border-white overflow-hidden"-->
+<!--          >-->
+<!--            <img-->
+<!--              :src="member.avatar"-->
+<!--              :alt="member.pubkey"-->
+<!--              class="w-full h-full object-cover"-->
+<!--            />-->
+<!--          </div>-->
+<!--          <div v-if="memberCount > 3" class="w-6 h-6 rounded-full border-2 border-white bg-gray-100 flex items-center justify-center">-->
+<!--            <span class="text-xs font-medium text-gray-600">+{{ memberCount - 3 }}</span>-->
+<!--          </div>-->
+<!--        </div>-->
+<!--        <span class="text-xs text-gray-500">{{ memberCount }} member{{ memberCount !== 1 ? 's' : '' }}</span>-->
+<!--      </div>-->
 
       <!-- Metadata -->
       <div class="flex items-center justify-between text-xs text-gray-500 mb-4">

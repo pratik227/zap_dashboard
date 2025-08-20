@@ -439,16 +439,16 @@ onMounted(() => {
             <div class="flex items-center space-x-4 flex-1 min-w-0">
               <!-- List Image or Icon -->
               <div class="w-12 h-12 rounded-lg overflow-hidden bg-gradient-to-br from-orange-100 to-amber-100 flex items-center justify-center flex-shrink-0">
-                <img 
+                <img
                   v-if="list.image"
-                  :src="list.image" 
+                  :src="list.image"
                   :alt="list.title"
                   class="w-full h-full object-cover"
                   @error="$event.target.style.display = 'none'"
                 />
                 <IconList v-else class="w-6 h-6 text-orange-600" />
               </div>
-              
+
               <!-- List Info -->
               <div class="flex-1 min-w-0">
                 <h3 class="font-semibold text-gray-900 truncate">{{ list.title }}</h3>
