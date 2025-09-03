@@ -167,6 +167,49 @@ const fetchAndStoreProfile = async (pubkey) => {
   }
 }
 
+// Fetch user's published relay list (NIP-65 / kind 10002) and merge into userRelays
+const fetchAndMergeUserRelays = async (pubkey) => {
+  if (!pubkey) return
+  try {
+    console.log('Fetching user relays (NIP-65) for', pubkey.substring(0,8) + '...')
+    const relayEvent = await nostrRelayManager.getEvent({ authors: [pubkey], kinds: [10002], limit: 1 })
+    if (!relayEvent || !relayEvent.tags) return
+
+    const profileRelays = relayEvent.tags
+      .filter(t => Array.isArray(t) && t[0] === 'r' && typeof t[1] === 'string')
+      .map(t => t[1])
+      .filter(Boolean)
+
+    if (profileRelays.length === 0) return
+
+    // Merge without duplicates
+    const existing = new Set(userRelays.value.map(r => r.url))
+    let added = 0
+    profileRelays.forEach(url => {
+      if (!existing.has(url)) {
+        userRelays.value.push({ url, status: 'disconnected', read: true, write: true })
+        existing.add(url)
+        added++
+      }
+    })
+
+    if (added > 0) {
+      saveRelaysToStorage(userRelays.value)
+      try {
+        // re-init relay manager with updated list (best-effort)
+        await nostrRelayManager.initialize(userRelays.value)
+      } catch (e) {
+        console.warn('nostrRelayManager.initialize failed after merging relays', e)
+      }
+      // sync statuses into UI state
+      syncRelayStatuses()
+      console.log(`Merged ${added} relays from NIP-65 profile`)
+    }
+  } catch (error) {
+    console.warn('Failed to fetch or merge NIP-65 relays:', error)
+  }
+}
+
 // Create user data from profile event
 const createUserData = (pubkey, profileEvent) => {
   try {
@@ -433,6 +476,9 @@ const login = () => {
           
           // Fetch and store profile for new user
           const userData = await fetchAndStoreProfile(pubkey)
+
+          // Fetch and merge any user-published relays (NIP-65)
+          await fetchAndMergeUserRelays(pubkey)
           
           // Start listening for user events
           startUserEventListener(pubkey)
@@ -557,6 +603,8 @@ const initAuthAndRelays = async () => {
     
     // If user exists, start listening for their events
     if (hasUser && currentUser.value) {
+      // Merge user's published relays (NIP-65) on init
+      await fetchAndMergeUserRelays(currentUser.value.pubkey)
       setTimeout(() => {
         startUserEventListener(currentUser.value.pubkey)
       }, 2000)
