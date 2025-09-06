@@ -90,11 +90,12 @@ export function useNostrNotes() {
       console.log('Fetching notes for user:', currentUser.value.pubkey.substring(0, 8) + '...')
 
       // Subscribe to user's kind:1 events (notes) and kind:5 deletion events
+      // Increased limit for users with many notes
       currentSubscription = nostrRelayManager.subscribeToEvents([
         {
           kinds: [1], // Text notes
           authors: [currentUser.value.pubkey],
-          limit: 100
+          limit: 500 // Increased from 100 to handle large datasets
         },
         {
           kinds: [5], // Deletion events

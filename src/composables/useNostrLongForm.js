@@ -133,11 +133,12 @@ export function useNostrLongForm() {
       console.log('Fetching long-form content for user:', currentUser.value.pubkey.substring(0, 8) + '...')
 
       // Subscribe to user's kind:30023 events (long-form content) and kind:5 deletion events
+      // Increased limit for users with many long-form content
       currentSubscription = nostrRelayManager.subscribeToEvents([
         {
           kinds: [30023], // Long-form content
           authors: [currentUser.value.pubkey],
-          limit: 100
+          limit: 200 // Increased from 100 to handle large datasets
         },
         {
           kinds: [5], // Deletion events
