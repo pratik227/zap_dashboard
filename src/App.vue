@@ -924,7 +924,7 @@ provide('isPageLoading', isPageLoading)
                         Large dataset loaded successfully
                       </span>
                       <p class="text-green-700 text-xs">
-                        {{ enhancedCombinedZapData.length }} zaps • {{ profileStore.size }} profiles • Ready for analysis
+                        {{ enhancedCombinedZapData.filter(zap => zap.eventId).length }} zaps • {{ profileStore.size }} profiles • Ready for analysis
                       </p>
                     </div>
                   </div>
