@@ -103,6 +103,44 @@ const fetchProfileSynced = async (pubkey) => {
   return profile
 }
 
+// Immediately load cached data so UI can show audience/followers/profiles on page refresh
+try {
+  loadFromStorage()
+} catch (e) {
+  console.warn('Failed to load audience data from storage at startup:', e)
+}
+
+// Background refresh: once relay manager is initialized, refresh profiles for cached following/followers
+const _startAudienceBackgroundRefresh = async () => {
+  // collect all pubkeys from cached following and followers
+  const pubkeys = Array.from(new Set([
+    ...(Array.isArray(following.value) ? following.value : []),
+    ...(Array.isArray(followers.value) ? followers.value : [])
+  ]))
+  if (pubkeys.length === 0) return
+
+  // wait for relay manager init
+  const waitForInit = () => new Promise(resolve => {
+    if (nostrRelayManager.isInitialized) return resolve()
+    const check = setInterval(() => {
+      if (nostrRelayManager.isInitialized) {
+        clearInterval(check)
+        resolve()
+      }
+    }, 200)
+    setTimeout(() => { clearInterval(check); resolve() }, 15000)
+  })
+
+  await waitForInit()
+  try {
+    batchFetchProfiles(pubkeys)
+  } catch (err) {
+    console.warn('Audience background batchFetchProfiles failed:', err)
+  }
+}
+
+setTimeout(() => { _startAudienceBackgroundRefresh().catch(err => console.warn('Audience background refresh error:', err)) }, 0)
+
 export function useAudience() {
   const { currentUser, isAuthenticated } = useNostrAuth()
   const followLists = useFollowLists()

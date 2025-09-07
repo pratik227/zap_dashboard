@@ -139,6 +139,46 @@ const processFollowListEvent = (event) => {
   }
 }
 
+// Load cached data immediately so UI can show lists/profiles on page refresh
+try {
+  loadFromStorage()
+} catch (e) {
+  console.warn('Failed to load follow lists from storage at startup:', e)
+}
+
+// Background refresh: once relay manager is initialized, refresh profiles for cached members
+const _startBackgroundRefresh = async () => {
+  // collect all member pubkeys from cached lists
+  const memberPubkeys = new Set()
+  myLists.value.forEach(list => (list.members || []).forEach(pk => pk && memberPubkeys.add(pk)))
+  discoveredLists.value.forEach(list => (list.members || []).forEach(pk => pk && memberPubkeys.add(pk)))
+  const pubkeys = Array.from(memberPubkeys)
+  if (pubkeys.length === 0) return
+
+  // wait for relay manager init with timeout
+  const waitForInit = () => new Promise(resolve => {
+    if (nostrRelayManager.isInitialized) return resolve()
+    const check = setInterval(() => {
+      if (nostrRelayManager.isInitialized) {
+        clearInterval(check)
+        resolve()
+      }
+    }, 200)
+    setTimeout(() => { clearInterval(check); resolve() }, 15000)
+  })
+
+  await waitForInit()
+  try {
+    // batch fetch profiles in background
+    batchFetchProfiles(pubkeys)
+  } catch (err) {
+    console.warn('Background batchFetchProfiles failed:', err)
+  }
+}
+
+// Kick off background refresh without blocking import
+setTimeout(() => { _startBackgroundRefresh().catch(err => console.warn('Background refresh error:', err)) }, 0)
+
 export function useFollowLists() {
   const { currentUser, isAuthenticated } = useNostrAuth()
 

@@ -12,6 +12,46 @@ const batchTimer = ref(null)
 const BATCH_DELAY = 1000
 const MAX_BATCH_SIZE = 50
 
+// Load cached engagement metrics from localStorage immediately
+const ENGAGEMENT_STORAGE_KEY = 'engagement_metrics_cache'
+try {
+  const cached = localStorage.getItem(ENGAGEMENT_STORAGE_KEY)
+  if (cached) {
+    const parsed = JSON.parse(cached)
+    Object.entries(parsed).forEach(([eventId, metrics]) => {
+      engagementMetrics.set(eventId, metrics)
+    })
+  }
+} catch (e) {
+  console.warn('Failed to load engagement metrics from storage at startup:', e)
+}
+
+// Background refresh: once relay manager is initialized, refresh engagement for cached eventIds
+const _startEngagementBackgroundRefresh = async () => {
+  const eventIds = Array.from(engagementMetrics.keys())
+  if (!eventIds.length) return
+  const waitForInit = () => new Promise(resolve => {
+    if (nostrRelayManager.isInitialized) return resolve()
+    const check = setInterval(() => {
+      if (nostrRelayManager.isInitialized) {
+        clearInterval(check)
+        resolve()
+      }
+    }, 200)
+    setTimeout(() => { clearInterval(check); resolve() }, 15000)
+  })
+  await waitForInit()
+  try {
+    // Use batch fetch for all cached eventIds
+    for (let i = 0; i < eventIds.length; i += MAX_BATCH_SIZE) {
+      fetchEngagementMetricsBatch(eventIds.slice(i, i + MAX_BATCH_SIZE))
+    }
+  } catch (err) {
+    console.warn('Engagement background batch fetch failed:', err)
+  }
+}
+setTimeout(() => { _startEngagementBackgroundRefresh().catch(err => console.warn('Engagement background refresh error:', err)) }, 0)
+
 export function useEngagementMetrics() {
   const { currentUser, isAuthenticated } = useNostrAuth()
 
