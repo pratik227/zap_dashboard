@@ -129,12 +129,8 @@ const processFollowListEvent = (event) => {
       rawEvent: event
     }
 
-    // Fetch profiles for all members asynchronously (use shared fetchProfile and batch)
-    // call individual fetchProfile to ensure promises and cache usage, and batch for efficiency
-    members.forEach(pubkey => {
-      fetchProfile(pubkey).catch(() => {})
-    })
-    batchFetchProfiles(members)
+    // Fetch profiles for all members in batch for efficiency
+    batchFetchProfiles(members) // Removed individual fetchProfile for batch efficiency
 
     return list
   } catch (error) {
@@ -708,10 +704,7 @@ export function useFollowLists() {
         successfulRelays: result.successful
       })
 
-      // Fetch profiles for new follows
-      newFollows.forEach(pubkey => {
-        fetchProfile(pubkey).catch(() => {})
-      })
+      // Fetch profiles for new follows in batch for efficiency
       batchFetchProfiles(newFollows)
 
       return {
@@ -826,10 +819,7 @@ export function useFollowLists() {
         successfulRelays: result.successful
       })
 
-      // Fetch profiles for new follows
-      newFollows.forEach(pubkey => {
-        fetchProfile(pubkey).catch(() => {})
-      })
+      // Fetch profiles for new follows in batch for efficiency
       batchFetchProfiles(newFollows)
 
       return {
