@@ -666,7 +666,7 @@ const syncScroll = (source) => {
         </button>
         
         <!-- Metadata Toggle -->
-       <!-- <button
+       <button
           @click="showMetadata = !showMetadata"
           :class="[
             'p-2 rounded-lg transition-all duration-200',
@@ -675,7 +675,7 @@ const syncScroll = (source) => {
           title="Show metadata"
         >
           <IconSettings class="w-4 h-4" />
-        </button> -->
+        </button>
         
         <!-- Save Draft -->
         <button
