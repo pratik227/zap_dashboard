@@ -5,6 +5,7 @@ import { filterZapsByTimeRange } from '../utils/timeFilter.js'
 import * as nip19 from 'nostr-tools/nip19'
 import UserProfileModal from '../components/UserProfileModal.vue'
 import { generateFallbackAvatar } from '../composables/useContentZaps.js'
+import EngagementAnalytics from '../components/EngagementAnalytics.vue'
 import { IconExternalLink, IconHeart, IconRepeat, IconBookmark } from '@iconify-prerendered/vue-tabler'
 
 // Lazy load ECharts to prevent issues
@@ -648,18 +649,23 @@ const formatEngagementNumber = (num) => {
     </div>
     
     <!-- Dynamic Insights Cards -->
-    <div>
-      <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2 mt-6">
-        <IconTrendingUp class="w-5 h-5 text-orange-600" />
-        <span>Real-Time Insights</span>
-        <span v-if="zapData.length > 0" class="text-sm text-green-600 bg-green-100 px-2 py-1 rounded-full">
-          Live Data
-        </span>
-        <span v-else class="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
-          No Data
-        </span>
-      </h3>
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div class="space-y-6">
+      <!-- Engagement Analytics Component -->
+      <EngagementAnalytics />
+      
+      <!-- Real-Time Insights -->
+      <div>
+        <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
+          <IconTrendingUp class="w-5 h-5 text-orange-600" />
+          <span>Content Insights</span>
+          <span v-if="zapData.length > 0" class="text-sm text-green-600 bg-green-100 px-2 py-1 rounded-full">
+            Live Data
+          </span>
+          <span v-else class="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+            No Data
+          </span>
+        </h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div
           v-for="insight in insights"
           :key="insight.title"
@@ -779,6 +785,7 @@ const formatEngagementNumber = (num) => {
             </div>
           </div>
         </div>
+      </div>
       </div>
     </div>
 
