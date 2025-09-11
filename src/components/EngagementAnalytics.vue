@@ -200,6 +200,15 @@ const extractTextFromArray = (noteArray) => {
   }
 }
 
+// Handle view content details in ZapTracker
+const viewContentDetails = (content) => {
+  // Navigate to content unlock page with the event ID
+  const eventId = content.eventId || content.nostrEventId
+  if (eventId) {
+    changePage('content-unlock', { eventId })
+  }
+}
+
 // Handle view content details
 const viewContentDetails = (content) => {
   // Navigate to content unlock page with the event ID
