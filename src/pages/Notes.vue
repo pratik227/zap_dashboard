@@ -722,139 +722,163 @@ const formatRawEvent = (note) => {
 
       <!-- Create/Edit Note View -->
       <div v-else-if="currentView === 'create' || currentView === 'edit'">
-        <div class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm">
+        <!-- X-style Compose Interface -->
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-lg overflow-hidden max-w-2xl mx-auto">
           <!-- Header -->
-          <div class="p-6 border-b border-orange-100/50">
-            <h2 class="text-xl font-semibold text-gray-900">
-              {{ currentView === 'edit' ? 'Edit Note' : 'Create New Note' }}
-            </h2>
-            <p class="text-gray-600 text-sm mt-2">
-              Write down your thoughts. It will be published to the Nostr network.
-            </p>
+          <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+            <button
+              @click="setView('list')"
+              class="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors p-2 -ml-2 rounded-full hover:bg-gray-100"
+            >
+              <IconArrowLeft class="w-5 h-5" />
+              <span class="font-medium">{{ currentView === 'edit' ? 'Edit' : 'Draft' }}</span>
+            </button>
+            
+            <button
+              @click="currentView === 'edit' ? handleUpdateNote() : handlePublishNote()"
+              :disabled="!noteForm.content.trim() || isLoading"
+              class="bg-orange-500 hover:bg-orange-600 disabled:bg-gray-300 text-white px-6 py-2 rounded-full font-semibold text-sm transition-all duration-200 disabled:cursor-not-allowed min-w-[80px] flex items-center justify-center"
+            >
+              <IconLoader v-if="isLoading" class="w-4 h-4 animate-spin" />
+              <span v-else>{{ currentView === 'edit' ? 'Update' : 'Post' }}</span>
+            </button>
           </div>
 
-          <!-- Edit Note Info Alert -->
-          <div v-if="currentView === 'edit'" class="px-6 pt-4">
-            <div class="p-4 bg-amber-50/80 rounded-lg mb-5 border border-amber-200 shadow-sm">
-              <div class="flex items-start space-x-3">
-                <IconAlertTriangle class="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-                <div>
-                  <h4 class="font-medium text-amber-900 mb-1">How Nostr Edits Work</h4>
-                  <p class="text-sm text-amber-800 leading-relaxed">
-                    Nostr doesn't support direct editing of events. When you "edit" a note, we'll publish a new note and mark the original for deletion. This creates a new event ID and resets engagement metrics.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="p-6">
-            <!-- Plain Text Note Info -->
-            <div class="p-4 bg-blue-50/80 rounded-lg mb-5 border border-blue-200 shadow-sm">
-              <div class="flex items-start space-x-3">
-                <IconAlertTriangle class="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                <div>
-                  <h4 class="font-medium text-blue-900 mb-1">Plain Text Notes</h4>
-                  <p class="text-sm text-blue-800 leading-relaxed">
-                    Nostr notes (kind:1) only support plain text. Formatting like bold, italic, or headings is not supported.
-                    Use hashtags with # to make your notes discoverable.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <!-- Enhanced Editor -->
-            <div class="border border-orange-200/50 rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-all duration-200 focus-within:ring-2 focus-within:ring-orange-300 focus-within:border-orange-400 flex flex-col">
-              <!-- Media Toolbar -->
-              <div class="flex items-center justify-between px-4 py-3 border-b border-orange-100/50 bg-orange-50/30">
-                <div class="flex items-center space-x-2">
-                  <button 
-                    @click="showMediaUrlInput = true"
-                    class="p-2 text-gray-500 hover:text-orange-600 hover:bg-orange-100/50 rounded transition-colors flex items-center space-x-1"
-                    title="Add image URL"
-                  >
-                    <IconPhoto class="w-4 h-4" />
-                    <span class="text-sm">Image</span>
-                  </button>
-                  <button 
-                    @click="showVideoUrlInput = true"
-                    class="p-2 text-gray-500 hover:text-orange-600 hover:bg-orange-100/50 rounded transition-colors flex items-center space-x-1"
-                    title="Add video URL"
-                  >
-                    <IconVideo class="w-4 h-4" />
-                    <span class="text-sm">Video</span>
-                  </button>
-                  <div class="h-5 mx-2 border-r border-orange-200/50"></div>
-                  <div class="relative">
-                    <button 
-                      class="p-2 text-gray-500 hover:text-orange-600 hover:bg-orange-100/50 rounded transition-colors flex items-center space-x-1"
-                      title="Insert emoji"
-                      @click="showEmojiPicker = !showEmojiPicker"
-                    >
-                      <span class="text-lg leading-none">😊</span>
-                      <span class="text-sm">Emoji</span>
-                    </button>
-                    <!-- Emoji Picker -->
-                    <div v-if="showEmojiPicker" class="absolute top-full left-0 mt-2 z-20 shadow-xl rounded-lg border border-orange-200">
-                      <EmojiPicker @select="handleEmojiSelect" :native="true" />
-                    </div>
-                  </div>
-                </div>
-                
-                <!-- Character Count -->
-                <div class="text-xs text-gray-500">
-                  {{ noteForm.content.length }} characters
+          <!-- Compose Area -->
+          <div class="p-4">
+            <!-- User Avatar Row -->
+            <div class="flex space-x-3">
+              <!-- User Avatar -->
+              <div class="flex-shrink-0">
+                <div class="w-12 h-12 rounded-full overflow-hidden border-2 border-gray-200">
+                  <img 
+                    :src="userProfile?.picture || 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'" 
+                    :alt="userProfile?.name || 'You'"
+                    class="w-full h-full object-cover"
+                  />
                 </div>
               </div>
               
-              <!-- Enhanced Textarea -->
-              <textarea
-                v-model="noteForm.content"
-                placeholder="What's on your mind? Share your thoughts with the Nostr community...
+              <!-- Compose Column -->
+              <div class="flex-1 min-w-0">
+                <!-- Main Textarea -->
+                <div class="mb-4">
+                  <textarea
+                    ref="composeTextarea"
+                    v-model="noteForm.content"
+                    placeholder="What's happening?"
+                    class="w-full text-xl placeholder-gray-500 border-none resize-none focus:outline-none bg-transparent leading-relaxed min-h-[120px] max-h-[400px] overflow-y-auto"
+                    style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;"
+                    @input="autoResize"
+                    @paste="handlePaste"
+                  ></textarea>
+                </div>
 
-Use #hashtags to make your note discoverable.
-Add URLs to share links.
-Express yourself freely!"
-                class="w-full min-h-[300px] p-6 bg-white focus:outline-none resize-none text-gray-800 leading-relaxed border-none text-lg"
-                rows="12"
-                ref="noteTextarea"
-              ></textarea>
-            </div>
+                <!-- Tags Section (Collapsible) -->
+                <div v-if="showTagsSection || noteForm.tags.length > 0" class="mb-4">
+                  <!-- Existing Tags -->
+                  <div v-if="noteForm.tags.length > 0" class="flex flex-wrap gap-2 mb-3">
+                    <span
+                      v-for="(tag, index) in noteForm.tags"
+                      :key="index"
+                      class="inline-flex items-center space-x-1 bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-sm font-medium group hover:bg-orange-200 transition-colors"
+                    >
+                      <IconHash class="w-3 h-3" />
+                      <span>{{ tag }}</span>
+                      <button
+                        @click="removeTag(index)"
+                        class="text-orange-500 hover:text-orange-700 transition-colors ml-1"
+                      >
+                        <IconX class="w-3 h-3" />
+                      </button>
+                    </span>
+                  </div>
+                  
+                  <!-- Add Tag Input -->
+                  <div class="flex space-x-2">
+                    <input
+                      v-model="newTag"
+                      type="text"
+                      placeholder="Add topic..."
+                      class="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
+                      @keyup.enter="addTag"
+                      @keyup.escape="showTagsSection = false"
+                    />
+                    <button
+                      @click="addTag"
+                      class="px-4 py-2 bg-orange-500 text-white rounded-full text-sm font-medium hover:bg-orange-600 transition-colors"
+                    >
+                      Add
+                    </button>
+                  </div>
+                </div>
 
-            <!-- Hashtag Help -->
-            <div class="mt-5 p-4 bg-orange-50/80 border border-orange-200 rounded-lg shadow-sm">
-              <h4 class="font-medium text-orange-900 mb-2 flex items-center">
-                <span class="mr-2">#</span>Hashtag Tips
-              </h4>
-              <div class="text-sm text-orange-800 space-y-2">
-                <p class="flex items-start">
-                  <span class="inline-block w-4 h-4 mr-2 text-orange-500">•</span>
-                  Use <code class="px-1.5 py-0.5 bg-orange-100 rounded text-orange-700 font-mono">#hashtags</code> to categorize your notes and make them discoverable
-                </p>
-                <p class="flex items-start">
-                  <span class="inline-block w-4 h-4 mr-2 text-orange-500">•</span>
-                  Example: <code class="px-1.5 py-0.5 bg-orange-100 rounded text-orange-700 font-mono">Just had a great coffee! #coffee #morning</code>
-                </p>
+                <!-- Bottom Toolbar -->
+                <div class="flex items-center justify-between pt-3 border-t border-gray-100">
+                  <!-- Left: Tools -->
+                  <div class="flex items-center space-x-1">
+                    <!-- Add Tags Button -->
+                    <button
+                      @click="toggleTagsSection"
+                      :class="[
+                        'p-2 rounded-full transition-all duration-200 hover:bg-orange-50',
+                        showTagsSection || noteForm.tags.length > 0 ? 'text-orange-500 bg-orange-50' : 'text-gray-400 hover:text-orange-500'
+                      ]"
+                      title="Add topics"
+                    >
+                      <IconHash class="w-5 h-5" />
+                    </button>
+                    
+                    <!-- Character Count (when approaching limit) -->
+                    <div v-if="noteForm.content.length > 1800" class="flex items-center space-x-2 ml-4">
+                      <div class="relative w-6 h-6">
+                        <!-- Progress Circle -->
+                        <svg class="w-6 h-6 transform -rotate-90" viewBox="0 0 24 24">
+                          <circle
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            fill="none"
+                            :class="noteForm.content.length > 2000 ? 'text-red-200' : 'text-gray-200'"
+                          />
+                          <circle
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            fill="none"
+                            :class="noteForm.content.length > 2000 ? 'text-red-500' : 'text-orange-500'"
+                            :stroke-dasharray="`${2 * Math.PI * 10}`"
+                            :stroke-dashoffset="`${2 * Math.PI * 10 * (1 - Math.min(noteForm.content.length / 2000, 1))}`"
+                            class="transition-all duration-300"
+                          />
+                        </svg>
+                        <!-- Character count in center -->
+                        <div class="absolute inset-0 flex items-center justify-center">
+                          <span :class="[
+                            'text-xs font-medium',
+                            noteForm.content.length > 2000 ? 'text-red-600' : 'text-gray-600'
+                          ]">
+                            {{ 2000 - noteForm.content.length }}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <!-- Right: Visibility & Post Button -->
+                  <div class="flex items-center space-x-3">
+                    <!-- Visibility Indicator -->
+                    <div class="flex items-center space-x-1 text-sm text-gray-500">
+                      <IconGlobe class="w-4 h-4" />
+                      <span class="hidden sm:inline">Everyone can reply</span>
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
-
-            <!-- Actions -->
-            <div class="flex justify-end space-x-4 mt-8">
-              <button
-                @click="setView('list')"
-                class="btn-secondary px-6"
-              >
-                Cancel
-              </button>
-              <button
-                @click="handleSubmit"
-                :disabled="!isFormValid || isLoading"
-                class="btn-primary px-6 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <IconLoader v-if="isLoading" class="w-4 h-4 animate-spin" />
-                <IconSend v-else class="w-4 h-4" />
-                {{ isLoading ? 'Publishing...' : (currentView === 'edit' ? 'Update Note' : 'Publish Note') }}
-              </button>
             </div>
           </div>
         </div>
