@@ -350,6 +350,7 @@ watch(notes, (newNotes) => {
     const list = Array.isArray(newNotes) ? newNotes : []
     list.forEach(note => ensureTrackingFor(note.id))
   }
+})
 
 // Watch for authentication changes
 watch(isAuthenticated, (authed) => {
