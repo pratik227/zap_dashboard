@@ -79,6 +79,8 @@ const showViewModal = ref(false)
 const showRawDataModal = ref(false)
 const noteTextarea = ref(null)
 const copySuccess = ref('')
+const showZapperModal = ref(false)
+const selectedZapper = ref(null)
 
 // Enhanced computed properties
 const noteStats = computed(() => {
