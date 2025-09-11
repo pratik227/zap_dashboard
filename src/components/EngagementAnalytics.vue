@@ -97,8 +97,116 @@ const generateContentFallbackImage = () => {
 
 // Get content title for display
 const getContentTitle = (content) => {
-  const title = content.title || 'Untitled Content'
-  return title.length > 40 ? title.substring(0, 40) + '...' : title
+  // If we have a proper title (from long-form content), use it
+  if (content.title && content.title !== 'Untitled Content') {
+    return content.title.length > 40 ? content.title.substring(0, 40) + '...' : content.title
+  }
+  
+  // For notes without titles, try to get the actual note content
+  const eventId = content.eventId || content.nostrEventId
+  if (eventId) {
+    // Look for the note content in our zap data
+    const relatedZap = combinedZapData.value.find(zap => zap.eventId === eventId)
+    if (relatedZap && relatedZap.note) {
+      // Clean up the note content and create a preview
+      const noteContent = parseNoteContent(relatedZap.note)
+      if (noteContent && noteContent !== 'No note content') {
+        // Take first line or first 40 characters, whichever is shorter
+        const firstLine = noteContent.split('\n')[0].trim()
+        const preview = firstLine.length > 40 ? firstLine.substring(0, 40) + '...' : firstLine
+        return preview || 'Short note'
+      }
+    }
+  }
+  
+  // Final fallback
+  return 'Short note'
+}
+
+// Parse note content to extract meaningful text
+const parseNoteContent = (note) => {
+  if (typeof note === 'string') {
+    // Handle JSON object strings (like Nostr events)
+    if (note.startsWith('{') && note.endsWith('}')) {
+      try {
+        const parsed = JSON.parse(note)
+        if (parsed && typeof parsed === 'object') {
+          // Handle Nostr events with content
+          if (parsed.content) {
+            return parsed.content.trim()
+          }
+          
+          // Handle other object types
+          if (parsed.description) {
+            return parsed.description.trim()
+          }
+          
+          return 'Note content'
+        }
+      } catch (error) {
+        return note.trim()
+      }
+    }
+    // Handle JSON array strings
+    else if (note.startsWith('[') && note.endsWith(']')) {
+      try {
+        const parsed = JSON.parse(note)
+        if (Array.isArray(parsed)) {
+          return extractTextFromArray(parsed)
+        }
+      } catch (error) {
+        return note.trim()
+      }
+    }
+    return note.trim()
+  }
+  
+  if (Array.isArray(note)) {
+    return extractTextFromArray(note)
+  }
+  
+  if (typeof note === 'object' && note !== null) {
+    try {
+      return JSON.stringify(note.get('content')).trim()
+    } catch (error) {
+      return 'Note content'
+    }
+  }
+  
+  return String(note || 'Note content').trim()
+}
+
+// Extract text from array format notes
+const extractTextFromArray = (noteArray) => {
+  try {
+    const textPlain = noteArray.find(item => Array.isArray(item) && item[0] === 'text/plain')
+    if (textPlain && textPlain[1]) {
+      return textPlain[1].trim()
+    }
+    
+    const textIdentifier = noteArray.find(item => Array.isArray(item) && item[0] === 'text/identifier')
+    if (textIdentifier && textIdentifier[1]) {
+      return textIdentifier[1].trim()
+    }
+    
+    const firstText = noteArray.find(item => Array.isArray(item) && typeof item[1] === 'string')
+    if (firstText && firstText[1]) {
+      return firstText[1].trim()
+    }
+    
+    return 'Note content'
+  } catch (error) {
+    return 'Note content'
+  }
+}
+
+// Handle view content details in ZapTracker
+const viewContentDetails = (content) => {
+  // Navigate to content unlock page with the event ID
+  const eventId = content.eventId || content.nostrEventId
+  if (eventId) {
+    changePage('content-unlock', { eventId })
+  }
 }
 
 // Handle view content details
