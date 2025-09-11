@@ -566,3 +566,22 @@ const formatRawEvent = (note) => {
               <p class="text-gray-600 text-sm mb-1">Engagement</p>
               <p class="text-3xl font-bold text-gray-900">{{ noteStats.totalEngagement.toLocaleString() }}</p>
               <div class="flex items-center gap-2 mt-1 text-xs text-gray-500">
+                <span class="flex items-center gap-1">
+                  <IconHeart class="w-3 h-3" />
+                  {{ noteStats.totalLikes }}
+                </span>
+                <span class="flex items-center gap-1">
+                  <IconRepeat class="w-3 h-3" />
+                  {{ noteStats.totalReposts }}
+                </span>
+                <span class="flex items-center gap-1">
+                  <IconBookmark class="w-3 h-3" />
+                  {{ noteStats.totalBookmarks }}
+                </span>
+              </div>
+            </div>
+            <div class="flex justify-end">
+              <IconUsers class="w-8 h-8 text-gray-600" />
+            </div>
+          </div>
+        </div>
