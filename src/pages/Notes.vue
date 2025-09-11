@@ -513,4 +513,415 @@ const formatRawEvent = (note) => {
             </div>
           </div>
         </div>
+
+        <!-- Notes List -->
+        <div class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm overflow-hidden">
+          <!-- Loading State -->
+          <div v-if="isLoading && notes.length === 0" class="p-8 text-center">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
+            <h3 class="text-lg font-semibold text-gray-900 mb-2">Loading your notes...</h3>
+            <p class="text-gray-600">Fetching notes from the Nostr network</p>
+          </div>
+
+          <!-- Empty State -->
+          <div v-else-if="notes.length === 0" class="p-8 text-center">
+            <IconFileText class="w-16 h-16 mx-auto text-gray-300 mb-4" />
+            <h3 class="text-xl font-semibold text-gray-900 mb-3">No notes yet</h3>
+            <p class="text-gray-600 mb-6">Create your first note to start sharing your thoughts on Nostr</p>
+            <button @click="startCreating" class="btn-primary">
+              <IconPlus class="w-4 h-4" />
+              Create First Note
+            </button>
+          </div>
+
+          <!-- Notes List -->
+          <div v-else class="divide-y divide-orange-100/50">
+            <div
+              v-for="note in notes"
+              :key="note.id"
+              class="p-4 sm:p-6 hover:bg-orange-25/50 transition-colors cursor-pointer"
+              @click="openDetailedView(note)"
+            >
+              <div class="flex items-start space-x-4">
+                <!-- User Avatar -->
+                <div class="w-10 h-10 rounded-full overflow-hidden border-2 border-orange-200 flex-shrink-0">
+                  <img 
+                    :src="userProfile?.picture || 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'" 
+                    :alt="userProfile?.name || 'You'"
+                    class="w-full h-full object-cover"
+                  />
+                </div>
+                
+                <!-- Note Content -->
+                <div class="flex-1 min-w-0">
+                  <!-- Header -->
+                  <div class="flex items-center space-x-2 mb-2">
+                    <span class="font-medium text-gray-900">{{ userProfile?.name || 'You' }}</span>
+                    <span class="text-sm text-gray-500">{{ getTimeAgo(note.created_at) }}</span>
+                    <span class="text-xs text-gray-400">•</span>
+                    <span class="text-xs text-purple-600 bg-purple-100 px-2 py-0.5 rounded-full">On Nostr</span>
+                  </div>
+                  
+                  <!-- Note Preview -->
+                  <div class="mb-3">
+                    <p class="text-gray-800 leading-relaxed line-clamp-3">{{ note.content }}</p>
+                  </div>
+                  
+                  <!-- Hashtags -->
+                  <div v-if="note.hashtags && note.hashtags.length > 0" class="mb-3">
+                    <div class="flex flex-wrap gap-1">
+                      <span
+                        v-for="tag in note.hashtags.slice(0, 3)"
+                        :key="tag"
+                        class="inline-flex items-center space-x-1 bg-orange-100 text-orange-700 px-2 py-1 rounded-full text-xs"
+                      >
+                        <IconHash class="w-3 h-3" />
+                        <span>{{ tag }}</span>
+                      </span>
+                      <span v-if="note.hashtags.length > 3" class="text-xs text-gray-500">
+                        +{{ note.hashtags.length - 3 }} more
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <!-- Engagement and Zap Metrics -->
+                  <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-4 text-sm">
+                      <!-- Engagement Metrics -->
+                      <EngagementMetrics 
+                        :key="`note-engagement-${note.id}-${getEngagementCounts(note.id).totalEngagement}-${getZapCount(note.id)}`"
+                        :engagement-counts="getEngagementCounts(note.id)"
+                        :zap-count="getZapCount(note.id)"
+                        size="default"
+                        text-size="text-sm"
+                        :show-all-metrics="true"
+                        :show-no-engagement-text="false"
+                        :show-tooltips="true"
+                      />
+                    </div>
+                    
+                    <!-- Zap Revenue -->
+                    <div v-if="getTotalZapAmount(note.id) > 0" class="flex items-center space-x-1 bg-gradient-to-r from-orange-100 to-amber-100 px-3 py-1 rounded-full">
+                      <IconBolt class="w-4 h-4 text-orange-600" />
+                      <span class="font-bold text-orange-700 text-sm">{{ formatZapAmount(getTotalZapAmount(note.id)) }} sats</span>
+                    </div>
+                  </div>
+                  
+                  <!-- Action Buttons -->
+                  <div class="flex items-center space-x-2 mt-3">
+                    <button
+                      @click.stop="startEditing(note)"
+                      class="text-gray-500 hover:text-orange-600 p-2 rounded-lg hover:bg-orange-50 transition-colors"
+                      title="Edit note"
+                    >
+                      <IconEdit class="w-4 h-4" />
+                    </button>
+                    <button
+                      @click.stop="handleDelete(note)"
+                      class="text-gray-500 hover:text-red-600 p-2 rounded-lg hover:bg-red-50 transition-colors"
+                      title="Delete note"
+                    >
+                      <IconTrash class="w-4 h-4" />
+                    </button>
+                    <button
+                      @click.stop="copyToClipboard(getNostrClientUrl('primal', note.id), 'noteUrl')"
+                      class="text-gray-500 hover:text-blue-600 p-2 rounded-lg hover:bg-blue-50 transition-colors"
+                      title="Copy Nostr URL"
+                    >
+                      <IconCheck v-if="copySuccess === 'noteUrl'" class="w-4 h-4 text-green-600" />
+                      <IconCopy v-else class="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
+
+      <!-- Create/Edit View -->
+      <div v-else-if="currentView === 'create' || currentView === 'edit'" class="space-y-6">
+        <!-- X-style Compose Interface -->
+        <div class="bg-white/95 backdrop-blur-sm rounded-2xl border border-orange-100/50 shadow-lg overflow-hidden">
+          <!-- Header -->
+          <div class="flex items-center justify-between p-4 border-b border-gray-100">
+            <div class="flex items-center space-x-3">
+              <button
+                @click="setView('list')"
+                class="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <IconX class="w-5 h-5" />
+              </button>
+              <span class="text-lg font-semibold text-gray-900">
+                {{ currentView === 'edit' ? 'Edit' : 'Draft' }}
+              </span>
+            </div>
+            
+            <button
+              @click="handleSubmit"
+              :disabled="!isFormValid || isLoading"
+              class="bg-orange-500 hover:bg-orange-600 disabled:bg-gray-300 text-white px-6 py-2 rounded-full font-semibold transition-all duration-200 disabled:cursor-not-allowed"
+            >
+              <IconLoader v-if="isLoading" class="w-4 h-4 animate-spin inline mr-2" />
+              {{ isLoading ? 'Publishing...' : (currentView === 'edit' ? 'Update' : 'Post') }}
+            </button>
+          </div>
+          
+          <!-- Compose Area -->
+          <div class="p-4">
+            <div class="flex space-x-3">
+              <!-- User Avatar -->
+              <div class="w-12 h-12 rounded-full overflow-hidden border-2 border-orange-200 flex-shrink-0">
+                <img 
+                  :src="userProfile?.picture || 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'" 
+                  :alt="userProfile?.name || 'You'"
+                  class="w-full h-full object-cover"
+                />
+              </div>
+              
+              <!-- Text Input Area -->
+              <div class="flex-1">
+                <textarea
+                  ref="noteTextarea"
+                  v-model="noteForm.content"
+                  placeholder="What's happening?"
+                  class="w-full border-0 resize-none focus:ring-0 focus:outline-none text-xl placeholder-gray-500 bg-transparent"
+                  style="min-height: 120px; max-height: 400px;"
+                  @input="autoResize"
+                ></textarea>
+                
+                <!-- Character Counter -->
+                <div v-if="noteForm.content.length > 1800" class="flex justify-end mt-2">
+                  <div class="relative w-8 h-8">
+                    <svg class="w-8 h-8 transform -rotate-90" viewBox="0 0 32 32">
+                      <circle
+                        cx="16"
+                        cy="16"
+                        r="14"
+                        stroke="currentColor"
+                        :stroke-width="noteForm.content.length > 2000 ? '3' : '2'"
+                        fill="transparent"
+                        :class="noteForm.content.length > 2000 ? 'text-red-400' : 'text-orange-400'"
+                        :stroke-dasharray="`${(noteForm.content.length / 2000) * 87.96} 87.96`"
+                      />
+                    </svg>
+                    <div class="absolute inset-0 flex items-center justify-center">
+                      <span :class="[
+                        'text-xs font-medium',
+                        noteForm.content.length > 2000 ? 'text-red-600' : 'text-orange-600'
+                      ]">
+                        {{ 2000 - noteForm.content.length }}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Bottom Bar -->
+            <div class="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
+              <div class="text-sm text-gray-500 flex items-center space-x-1">
+                <IconUsers class="w-4 h-4" />
+                <span>Everyone can reply</span>
+              </div>
+              
+              <!-- Character count for mobile -->
+              <div v-if="noteForm.content.length > 0" class="text-sm text-gray-500">
+                {{ noteForm.content.length }}/2000
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- View Note Modal -->
+      <Teleport to="#modal-root">
+        <transition name="modal-transition">
+          <div v-if="showViewModal && enhancedSelectedNote" class="fixed inset-0 bg-black/60 backdrop-blur-lg flex items-center justify-center z-[9999] p-4">
+            <div class="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden shadow-2xl">
+              <!-- Modal Header -->
+              <div class="flex items-center justify-between p-6 border-b border-gray-200">
+                <div class="flex items-center space-x-3">
+                  <div class="w-10 h-10 rounded-full overflow-hidden border-2 border-orange-200">
+                    <img 
+                      :src="userProfile?.picture || 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'" 
+                      :alt="userProfile?.name || 'You'"
+                      class="w-full h-full object-cover"
+                    />
+                  </div>
+                  <div>
+                    <h3 class="font-semibold text-gray-900">{{ userProfile?.name || 'Your Note' }}</h3>
+                    <p class="text-sm text-gray-500">{{ enhancedSelectedNote.formattedDate }}</p>
+                  </div>
+                </div>
+                <button
+                  @click="closeDetailedView"
+                  class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
+                >
+                  <IconX class="w-5 h-5" />
+                </button>
+              </div>
+
+              <!-- Modal Content -->
+              <div class="overflow-y-auto max-h-[calc(90vh-120px)] p-6">
+                <!-- Note Content -->
+                <div class="mb-6">
+                  <div class="prose prose-lg max-w-none">
+                    <p class="text-gray-800 leading-relaxed whitespace-pre-wrap">{{ enhancedSelectedNote.content }}</p>
+                  </div>
+                </div>
+
+                <!-- Note Metadata -->
+                <div class="bg-gray-50 rounded-xl p-4 mb-6">
+                  <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
+                    <div>
+                      <div class="text-lg font-bold text-gray-900">{{ enhancedSelectedNote.wordCount }}</div>
+                      <div class="text-xs text-gray-600">Words</div>
+                    </div>
+                    <div>
+                      <div class="text-lg font-bold text-gray-900">{{ enhancedSelectedNote.readTime }}m</div>
+                      <div class="text-xs text-gray-600">Read time</div>
+                    </div>
+                    <div>
+                      <div class="text-lg font-bold text-orange-600">{{ enhancedSelectedNote.totalZaps }}</div>
+                      <div class="text-xs text-gray-600">Sats earned</div>
+                    </div>
+                    <div>
+                      <div class="text-lg font-bold text-purple-600">{{ enhancedSelectedNote.zapCount }}</div>
+                      <div class="text-xs text-gray-600">Zaps</div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Engagement Metrics -->
+                <div class="bg-white border border-gray-200 rounded-xl p-4 mb-6">
+                  <h4 class="font-semibold text-gray-900 mb-3">Engagement</h4>
+                  <div class="flex items-center space-x-6">
+                    <EngagementMetrics 
+                      :engagement-counts="enhancedSelectedNote.engagementData"
+                      :zap-count="enhancedSelectedNote.zapCount"
+                      size="large"
+                      text-size="text-base"
+                      :show-all-metrics="true"
+                      :show-no-engagement-text="true"
+                      :show-tooltips="true"
+                    />
+                  </div>
+                </div>
+
+                <!-- Zaps Section -->
+                <div v-if="enhancedSelectedNote.zapData.length > 0" class="bg-white border border-gray-200 rounded-xl p-4 mb-6">
+                  <h4 class="font-semibold text-gray-900 mb-3 flex items-center space-x-2">
+                    <IconBolt class="w-5 h-5 text-orange-600" />
+                    <span>Lightning Zaps ({{ enhancedSelectedNote.zapCount }})</span>
+                  </h4>
+                  
+                  <div class="space-y-3 max-h-48 overflow-y-auto">
+                    <div
+                      v-for="zap in enhancedSelectedNote.zapData.slice(0, 10)"
+                      :key="zap.id"
+                      class="flex items-center space-x-3 p-3 bg-orange-50 rounded-lg cursor-pointer hover:bg-orange-100 transition-colors"
+                      @click="showZapperDetails(zap)"
+                    >
+                      <img
+                        :src="zap.sender?.picture || zap.sender?.avatar"
+                        :alt="zap.sender?.name || 'Zapper'"
+                        class="w-8 h-8 rounded-full object-cover border border-orange-200"
+                        @error="$event.target.src = generateFallbackAvatar(zap.zapperPubkey)"
+                      />
+                      <div class="flex-1 min-w-0">
+                        <div class="font-medium text-gray-900 text-sm">
+                          {{ zap.sender?.name || formatZapperPubkey(zap.zapperPubkey) }}
+                        </div>
+                        <div class="text-xs text-gray-500">{{ formatZapTime(new Date(zap.timestamp).getTime() / 1000) }}</div>
+                      </div>
+                      <div class="text-sm font-bold text-orange-600">
+                        {{ formatZapAmount(zap.amount) }} sats
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Technical Details -->
+                <div class="bg-gray-50 rounded-xl p-4">
+                  <div class="flex items-center justify-between mb-3">
+                    <h4 class="font-semibold text-gray-900">Technical Details</h4>
+                    <button
+                      @click="showRawData"
+                      class="text-sm text-gray-600 hover:text-gray-800 underline"
+                    >
+                      View Raw Event
+                    </button>
+                  </div>
+                  
+                  <div class="space-y-2 text-sm">
+                    <div class="flex justify-between">
+                      <span class="text-gray-600">Event ID:</span>
+                      <code class="text-gray-800 bg-gray-200 px-2 py-1 rounded text-xs">
+                        {{ enhancedSelectedNote.id.substring(0, 16) }}...
+                      </code>
+                    </div>
+                    <div class="flex justify-between">
+                      <span class="text-gray-600">Published:</span>
+                      <span class="text-gray-800">{{ enhancedSelectedNote.formattedDate }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                      <span class="text-gray-600">Kind:</span>
+                      <span class="text-gray-800">1 (Text Note)</span>
+                    </div>
+                  </div>
+                  
+                  <!-- External Links -->
+                  <div class="mt-4 pt-4 border-t border-gray-200">
+                    <p class="text-sm font-medium text-gray-700 mb-2">View on:</p>
+                    <div class="flex space-x-2">
+                      <a
+                        :href="getNostrClientUrl('primal', enhancedSelectedNote.id)"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="text-xs bg-orange-100 text-orange-700 px-3 py-1 rounded-full hover:bg-orange-200 transition-colors"
+                      >
+                        🌐 Primal
+                      </a>
+                      <a
+                        :href="getNostrClientUrl('yakihonne', enhancedSelectedNote.id)"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="text-xs bg-purple-100 text-purple-700 px-3 py-1 rounded-full hover:bg-purple-200 transition-colors"
+                      >
+                        🍜 Yakihonne
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </transition>
+      </Teleport>
+
+      <!-- Raw Data Modal -->
+      <Teleport to="#modal-root">
+        <transition name="modal-transition">
+          <div v-if="showRawDataModal && enhancedSelectedNote" class="fixed inset-0 bg-black/60 backdrop-blur-lg flex items-center justify-center z-[9999] p-4">
+            <div class="bg-white rounded-xl w-full max-w-3xl max-h-[90vh] overflow-hidden shadow-2xl">
+              <div class="flex items-center justify-between p-4 border-b border-gray-200">
+                <h3 class="text-lg font-semibold text-gray-900">Raw Nostr Event</h3>
+                <button
+                  @click="showRawDataModal = false"
+                  class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
+                >
+                  <IconX class="w-5 h-5" />
+                </button>
+              </div>
+              <div class="p-4 overflow-y-auto max-h-[calc(90vh-120px)]">
+                <pre class="bg-gray-100 p-4 rounded-lg text-sm overflow-x-auto"><code>{{ formatRawEvent(enhancedSelectedNote) }}</code></pre>
+              </div>
+            </div>
+          </div>
+        </transition>
+      </Teleport>
+
+    </div> <!-- closes <div v-else> -->
+  </div>   <!-- closes <div class="space-y-6"> -->
+</template>
