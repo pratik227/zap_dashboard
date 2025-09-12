@@ -355,10 +355,29 @@ const getNostrClientUrl = (client, content) => {
 // Add/remove event listener for dropdown
 onMounted(() => {
   document.addEventListener('click', handleClickOutside)
+   
+   // Listen for show content preview events from other components
+   document.addEventListener('show-content-preview', handleShowContentPreview)
 })
+
+// Handle show content preview event from other components
+const handleShowContentPreview = (event) => {
+  const { eventId } = event.detail
+  if (!eventId) return
+  
+  // Find the content by nostrEventId
+  const content = contentItems.value.find(item => item.nostrEventId === eventId)
+  if (content) {
+    // Open the preview for this content
+    previewContent(content)
+  } else {
+    console.warn('Content not found for eventId:', eventId)
+  }
+}
 
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
+   document.removeEventListener('show-content-preview', handleShowContentPreview)
 })
 </script>
 

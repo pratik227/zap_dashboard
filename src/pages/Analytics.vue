@@ -5,7 +5,8 @@ import { filterZapsByTimeRange } from '../utils/timeFilter.js'
 import * as nip19 from 'nostr-tools/nip19'
 import UserProfileModal from '../components/UserProfileModal.vue'
 import { generateFallbackAvatar } from '../composables/useContentZaps.js'
-import { IconExternalLink } from '@iconify-prerendered/vue-tabler'
+import EngagementAnalytics from '../components/EngagementAnalytics.vue'
+import { IconExternalLink, IconHeart, IconRepeat, IconBookmark } from '@iconify-prerendered/vue-tabler'
 
 // Lazy load ECharts to prevent issues
 // Lazy load ECharts to prevent issues
@@ -540,13 +541,42 @@ const summaryStats = computed(() => {
   const avgAmount = zaps.length > 0 ? Math.round(totalAmount / zaps.length) : 0
   const uniqueSupporters = new Set(zaps.map(zap => zap.sender?.pubkey || 'anonymous')).size
   
+  // Calculate engagement metrics from all content
+  let totalLikes = 0
+  let totalReposts = 0
+  let totalBookmarks = 0
+  let totalZapCount = zaps.length
+  
+  // This would need to be enhanced with actual engagement data
+  // For now, using placeholder values based on zap activity
+  if (zaps.length > 0) {
+    totalLikes = Math.floor(zaps.length * 1.5) // Estimate likes based on zaps
+    totalReposts = Math.floor(zaps.length * 0.3) // Estimate reposts
+    totalBookmarks = Math.floor(zaps.length * 0.2) // Estimate bookmarks
+  }
+  
   return {
     totalZaps: zaps.length,
     totalAmount,
     avgAmount,
-    uniqueSupporters
+    uniqueSupporters,
+    totalLikes,
+    totalReposts,
+    totalBookmarks,
+    totalZapCount,
+    totalEngagement: totalLikes + totalReposts + totalBookmarks
   }
 })
+
+// Format engagement numbers for better readability
+const formatEngagementNumber = (num) => {
+  if (num >= 1000000) {
+    return `${(num / 1000000).toFixed(1)}M`
+  } else if (num >= 1000) {
+    return `${(num / 1000).toFixed(1)}k`
+  }
+  return num.toString()
+}
 </script>
 
 <template>
@@ -619,18 +649,23 @@ const summaryStats = computed(() => {
     </div>
     
     <!-- Dynamic Insights Cards -->
-    <div>
-      <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2 mt-6">
-        <IconTrendingUp class="w-5 h-5 text-orange-600" />
-        <span>Real-Time Insights</span>
-        <span v-if="zapData.length > 0" class="text-sm text-green-600 bg-green-100 px-2 py-1 rounded-full">
-          Live Data
-        </span>
-        <span v-else class="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
-          No Data
-        </span>
-      </h3>
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div class="space-y-6">
+      <!-- Engagement Analytics Component -->
+      <EngagementAnalytics />
+      
+      <!-- Real-Time Insights -->
+      <div>
+        <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
+          <IconTrendingUp class="w-5 h-5 text-orange-600" />
+          <span>Content Insights</span>
+          <span v-if="zapData.length > 0" class="text-sm text-green-600 bg-green-100 px-2 py-1 rounded-full">
+            Live Data
+          </span>
+          <span v-else class="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+            No Data
+          </span>
+        </h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div
           v-for="insight in insights"
           :key="insight.title"
@@ -658,9 +693,9 @@ const summaryStats = computed(() => {
           
           <!-- Supporters List -->
           <div v-else-if="topSupporters.length > 0">
-            <div v-if="topSupporters[0]" @click="openUserProfile(topSupporters[0])" class="flex items-center p-2 rounded-lg hover:bg-orange-50 transition-colors cursor-pointer space-x-3">
+            <div v-if="topSupporters[0]" @click="openUserProfile(topSupporters[0])" class="flex items-center justify-between p-1 rounded-lg hover:bg-orange-50 transition-colors cursor-pointer">
               <!-- Avatar -->
-              <div class="w-10 h-10 rounded-full overflow-hidden border-2 border-orange-200">
+              <div class="w-8 h-8 rounded-full overflow-hidden border-2 border-orange-200 flex-shrink-0">
                 <img 
                   :src="topSupporters[0].profile?.picture || generateFallbackAvatar(topSupporters[0].pubkey)" 
                   :alt="topSupporters[0].profile?.name || 'Supporter'"
@@ -669,31 +704,23 @@ const summaryStats = computed(() => {
                 />
               </div>
               
-              <!-- Name and Amount -->
-              <div class="text-left">
-                <div class="flex items-center justify-start">
-                  <p class="font-medium text-gray-900 truncate">{{ topSupporters[0].profile?.name || topSupporters[0].pubkey.substring(0, 8) + '...' }}</p>
-                  <a 
-                    v-if="topSupporters[0].pubkey"
-                    :href="`https://yakihonne.com/${nip19.npubEncode(topSupporters[0].pubkey)}`" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    class="ml-2 p-1 text-purple-600 hover:text-purple-800 hover:bg-purple-50 rounded-full transition-colors"
-                    title="View profile on Yakihonne"
-                    @click.stop
-                  >
-                    <IconExternalLink class="w-3 h-3" />
-                  </a>
-                </div>
-                <p class="text-sm font-bold text-orange-600">{{ topSupporters[0].totalAmount.toLocaleString() }} sats ({{ topSupporters[0].zapCount }})</p>
-                <p v-if="topSupporters[0].profile?.lud16" class="text-xs text-blue-600 flex items-center justify-start">
-                  <IconBolt class="w-3 h-3 mr-1 text-yellow-500" />
+              <!-- Name -->
+              <div class="flex-1 min-w-0 mx-2">
+                <p class="font-medium text-gray-900 truncate text-xs">{{ topSupporters[0].profile?.name || topSupporters[0].pubkey.substring(0, 8) + '...' }}</p>
+                <p v-if="topSupporters[0].profile?.lud16" class="text-xs text-blue-600 truncate leading-tight">
                   {{ topSupporters[0].profile.lud16 }}
                 </p>
+              </div>
+              
+              <!-- Amount -->
+              <div class="text-right flex-shrink-0">
+                <p class="text-xs font-bold text-orange-600">{{ topSupporters[0].totalAmount.toLocaleString() }}</p>
+                <p class="text-xs text-gray-500 leading-tight">{{ topSupporters[0].zapCount }} zap{{ topSupporters[0].zapCount !== 1 ? 's' : '' }}</p>
               </div>
             </div>
           </div>
         </div>
+      </div>
       </div>
     </div>
 
