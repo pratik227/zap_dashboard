@@ -81,30 +81,40 @@ const formatNumber = (num) => {
   }
   return num.toString()
 }
+
+// Format numbers to be user-friendly (1.2k, 1.5M, etc.)
+const formatNumber = (num) => {
+  if (num >= 1000000) {
+    return `${(num / 1000000).toFixed(1)}M`
+  } else if (num >= 1000) {
+    return `${(num / 1000).toFixed(1)}k`
+  }
+  return num.toString()
+}
 </script>
 
 <template>
   <template v-if="hasAnyEngagement || showAllMetrics">
-    <span :class="['flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-gray-50 transition-colors', showTooltips ? 'tooltip-container' : '']">
+    <span :class="['flex items-center gap-1 px-2 py-0.5 rounded-md hover:bg-gray-50 transition-colors', showTooltips ? 'tooltip-container' : '']">
       <IconHeartFilled v-if="safeEngagementCounts.likes > 0" :class="[iconSizeClass, 'text-red-500']" />
       <IconHeart v-else :class="[iconSizeClass, 'text-gray-400']" />
       <span :class="[textSize, 'font-medium']">{{ formatNumber(safeEngagementCounts.likes) }}</span>
       <div v-if="showTooltips" class="custom-tooltip">{{ safeEngagementCounts.likes }} {{ safeEngagementCounts.likes <= 1 ? 'like' : 'likes' }}</div>
     </span>
     
-    <span :class="['flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-gray-50 transition-colors', showTooltips ? 'tooltip-container' : '']">
-      <IconRepeat :class="[iconSizeClass, safeEngagementCounts.reposts > 0 ? 'text-green-500 font-bold' : 'text-gray-400']" />
+    <span :class="['flex items-center gap-1 px-2 py-0.5 rounded-md hover:bg-gray-50 transition-colors', showTooltips ? 'tooltip-container' : '']">
+      <IconRepeat :class="[iconSizeClass, safeEngagementCounts.reposts > 0 ? 'text-green-500' : 'text-gray-400']" />
       <span :class="[textSize, 'font-medium']">{{ formatNumber(safeEngagementCounts.reposts) }}</span>
       <div v-if="showTooltips" class="custom-tooltip">{{ safeEngagementCounts.reposts }} {{ safeEngagementCounts.reposts <= 1 ? 'repost' : 'reposts' }}</div>
     </span>
     
-    <span :class="['flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-orange-50 transition-colors', showTooltips ? 'tooltip-container' : '']">
-      <IconBolt :class="[iconSizeClass, zapCount > 0 ? 'text-orange-500 font-bold' : 'text-gray-400']" />
+    <span :class="['flex items-center gap-1 px-2 py-0.5 rounded-md hover:bg-orange-50 transition-colors', showTooltips ? 'tooltip-container' : '']">
+      <IconBolt :class="[iconSizeClass, zapCount > 0 ? 'text-orange-500' : 'text-gray-400']" />
       <span :class="[textSize, 'font-medium', zapCount > 0 ? 'text-orange-600' : 'text-gray-500']">{{ formatNumber(zapCount) }}</span>
       <div v-if="showTooltips" class="custom-tooltip">{{ zapCount }} {{ zapCount <= 1 ? 'zap' : 'zaps' }}</div>
     </span>
     
-    <span :class="['flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-gray-50 transition-colors', showTooltips ? 'tooltip-container' : '']">
+    <span :class="['flex items-center gap-1 px-2 py-0.5 rounded-md hover:bg-gray-50 transition-colors', showTooltips ? 'tooltip-container' : '']">
       <IconBookmarkFilled v-if="safeEngagementCounts.bookmarks > 0" :class="[iconSizeClass, 'text-blue-500']" />
       <IconBookmark v-else :class="[iconSizeClass, 'text-gray-400']" />
       <span :class="[textSize, 'font-medium']">{{ formatNumber(safeEngagementCounts.bookmarks) }}</span>
