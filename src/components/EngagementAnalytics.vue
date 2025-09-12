@@ -378,9 +378,6 @@ const hasContent = computed(() => {
                   <h5 class="font-medium text-gray-900 text-sm leading-tight mb-1 line-clamp-2">
                     {{ getNoteTitle(note) }}
                   </h5>
-                  <p class="text-xs text-gray-600 mb-1 line-clamp-1">
-                    {{ getNotePreview(note) }}
-                  </p>
                 </div>
                 
                 <!-- Arrow -->
@@ -463,13 +460,6 @@ const hasContent = computed(() => {
                   <h5 class="font-medium text-gray-900 text-sm leading-tight mb-1 line-clamp-2">
                     {{ getLongFormTitle(article) }}
                   </h5>
-                  <p class="text-xs text-gray-600 mb-1 line-clamp-1">
-                    {{ article.summary || 'Article content preview...' }}
-                  </p>
-                  <div class="flex items-center space-x-2">
-                    <IconFileText class="w-3 h-3 text-blue-500" />
-                    <span class="text-xs text-gray-500">Article</span>
-                  </div>
                 </div>
                 
                 <!-- Arrow -->
