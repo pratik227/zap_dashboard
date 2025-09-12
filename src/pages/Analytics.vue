@@ -693,9 +693,9 @@ const formatEngagementNumber = (num) => {
           
           <!-- Supporters List -->
           <div v-else-if="topSupporters.length > 0">
-            <div v-if="topSupporters[0]" @click="openUserProfile(topSupporters[0])" class="flex items-center p-2 rounded-lg hover:bg-orange-50 transition-colors cursor-pointer space-x-3">
+            <div v-if="topSupporters[0]" @click="openUserProfile(topSupporters[0])" class="flex flex-col items-center p-2 rounded-lg hover:bg-orange-50 transition-colors cursor-pointer space-y-2">
               <!-- Avatar -->
-              <div class="w-10 h-10 rounded-full overflow-hidden border-2 border-orange-200">
+              <div class="w-12 h-12 rounded-full overflow-hidden border-2 border-orange-200">
                 <img 
                   :src="topSupporters[0].profile?.picture || generateFallbackAvatar(topSupporters[0].pubkey)" 
                   :alt="topSupporters[0].profile?.name || 'Supporter'"
@@ -705,9 +705,9 @@ const formatEngagementNumber = (num) => {
               </div>
               
               <!-- Name and Amount -->
-              <div class="text-left">
-                <div class="flex items-center justify-start">
-                  <p class="font-medium text-gray-900 truncate">{{ topSupporters[0].profile?.name || topSupporters[0].pubkey.substring(0, 8) + '...' }}</p>
+              <div class="text-center">
+                <div class="flex items-center justify-center">
+                  <p class="font-medium text-gray-900 truncate text-sm">{{ topSupporters[0].profile?.name || topSupporters[0].pubkey.substring(0, 8) + '...' }}</p>
                   <a 
                     v-if="topSupporters[0].pubkey"
                     :href="`https://yakihonne.com/${nip19.npubEncode(topSupporters[0].pubkey)}`" 
@@ -721,7 +721,7 @@ const formatEngagementNumber = (num) => {
                   </a>
                 </div>
                 <p class="text-sm font-bold text-orange-600">{{ topSupporters[0].totalAmount.toLocaleString() }} sats ({{ topSupporters[0].zapCount }})</p>
-                <p v-if="topSupporters[0].profile?.lud16" class="text-xs text-blue-600 flex items-center justify-start">
+                <p v-if="topSupporters[0].profile?.lud16" class="text-xs text-blue-600 flex items-center justify-center">
                   <IconBolt class="w-3 h-3 mr-1 text-yellow-500" />
                   {{ topSupporters[0].profile.lud16 }}
                 </p>
