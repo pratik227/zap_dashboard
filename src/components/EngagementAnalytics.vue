@@ -394,14 +394,18 @@ const hasContent = computed(() => {
                   </div>
                   
                   <!-- Engagement -->
-                  <div class="flex items-center space-x-2 text-xs">
-                    <span v-if="note.likes > 0" class="flex items-center space-x-0.5 text-pink-600">
+                  <div class="flex items-center space-x-1 text-xs">
+                    <span v-if="note.likes > 0" class="flex items-center space-x-0.5 text-red-600">
                       <IconHeart class="w-3 h-3" />
                       <span>{{ formatNumber(note.likes) }}</span>
                     </span>
                     <span v-if="note.reposts > 0" class="flex items-center space-x-0.5 text-green-600">
                       <IconRepeat class="w-3 h-3" />
                       <span>{{ formatNumber(note.reposts) }}</span>
+                    </span>
+                    <span v-if="note.bookmarks > 0" class="flex items-center space-x-0.5 text-blue-600">
+                      <IconBookmark class="w-3 h-3" />
+                      <span>{{ formatNumber(note.bookmarks) }}</span>
                     </span>
                   </div>
                 </div>
@@ -476,14 +480,18 @@ const hasContent = computed(() => {
                   </div>
                   
                   <!-- Engagement -->
-                  <div class="flex items-center space-x-2 text-xs">
-                    <span v-if="article.likes > 0" class="flex items-center space-x-0.5 text-pink-600">
+                  <div class="flex items-center space-x-1 text-xs">
+                    <span v-if="article.likes > 0" class="flex items-center space-x-0.5 text-red-600">
                       <IconHeart class="w-3 h-3" />
                       <span>{{ formatNumber(article.likes) }}</span>
                     </span>
                     <span v-if="article.reposts > 0" class="flex items-center space-x-0.5 text-green-600">
                       <IconRepeat class="w-3 h-3" />
                       <span>{{ formatNumber(article.reposts) }}</span>
+                    </span>
+                    <span v-if="article.bookmarks > 0" class="flex items-center space-x-0.5 text-blue-600">
+                      <IconBookmark class="w-3 h-3" />
+                      <span>{{ formatNumber(article.bookmarks) }}</span>
                     </span>
                   </div>
                 </div>
