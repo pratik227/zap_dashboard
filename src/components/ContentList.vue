@@ -164,256 +164,236 @@ const getSalesTooltip = (item) => {
 </script>
 
 <template>
-  <div class="space-y-4">
+  <div class="space-y-3">
     <div
       v-for="item in items"
       :key="item.id"
-      class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden"
+      class="bg-white/95 backdrop-blur-sm rounded-2xl border border-gray-200/40 shadow-sm hover:shadow-lg hover:shadow-gray-200/30 transition-all duration-200 overflow-hidden hover:-translate-y-0.5"
     >
-      <div class="p-4 sm:p-6">
-        <!-- Header -->
-        <div class="flex items-start justify-between mb-4">
-          <div class="flex items-start space-x-3 flex-1 min-w-0">
-            <!-- Type Icon -->
-            <div :class="[
-              'w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0',
-              getStatusColor(item.status)
-            ]">
-              <component :is="getTypeIcon(item.type)" class="w-4 h-4" />
-            </div>
-
-            <!-- Content Info -->
-            <div class="flex-1 min-w-0">
-              <div class="flex items-center space-x-2 mb-1">
-                <h3 class="font-semibold text-gray-900 truncate">{{ item.title }}</h3>
-                <span :class="[
-                  'px-2 py-1 rounded-full text-xs font-medium capitalize',
-                  getStatusColor(item.status)
-                ]">
-                  {{ item.status }}
-                </span>
-                <span :class="[
-                  'px-2 py-1 rounded-full text-xs font-medium',
-                  getMonetizationColor(item.monetizationModel)
-                ]">
-                  {{ item.monetizationModel === 'one-time' ? 'One-time' :
-                     item.monetizationModel === 'subscription' ? 'Subscription' : 'Free' }}
-                </span>
-                <span v-if="item.nostrEventId" class="px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
-                  On Nostr
-                </span>
-                
-                <!-- 🔥 ZAP INDICATOR - Show if content has received zaps -->
-                <div v-if="item.nostrEventId && (item.zapCount > 0 || item.zapAmount > 0)" 
-                     class="flex items-center space-x-1 px-2 py-1 bg-gradient-to-r from-orange-100 to-amber-100 rounded-full">
-                  <IconBolt class="w-3 h-3 text-orange-600" />
-                  <span class="text-xs font-bold text-orange-700">
-                    {{ formatZapAmount(item.zapAmount || 0) }}
+      <div class="p-3 sm:p-4">
+        <!-- Mobile Layout -->
+        <div class="block sm:hidden">
+          <!-- Top Row: Title and Actions -->
+          <div class="flex items-start justify-between mb-3">
+            <div class="flex items-start space-x-3 flex-1 min-w-0">
+              <!-- Compact Type Icon -->
+              <div :class="[
+                'w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0',
+                getStatusColor(item.status)
+              ]">
+                <component :is="getTypeIcon(item.type)" class="w-3 h-3" />
+              </div>
+              
+              <!-- Title and Status -->
+              <div class="flex-1 min-w-0">
+                <h3 class="font-semibold text-gray-900 text-sm leading-tight mb-1 line-clamp-1">{{ item.title }}</h3>
+                <div class="flex items-center space-x-1.5">
+                  <span :class="[
+                    'px-1.5 py-0.5 rounded-md text-xs font-medium',
+                    getStatusColor(item.status)
+                  ]">
+                    {{ item.status }}
                   </span>
-                  <span class="text-xs text-orange-600">sats</span>
-                  <span v-if="item.zapCount > 1" class="text-xs text-orange-500">
-                    ({{ item.zapCount }})
+                  <span v-if="item.nostrEventId" class="px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded-md text-xs font-medium">
+                    Nostr
                   </span>
+                  <!-- Zap indicator for mobile -->
+                  <div v-if="item.nostrEventId && (item.zapCount > 0 || item.zapAmount > 0)" 
+                       class="flex items-center space-x-1 px-1.5 py-0.5 bg-gradient-to-r from-orange-100 to-amber-100 rounded-md">
+                    <IconBolt class="w-2.5 h-2.5 text-orange-600" />
+                    <span class="text-xs font-bold text-orange-700">{{ formatZapAmount(item.zapAmount || 0) }}</span>
+                  </div>
                 </div>
               </div>
-              <p class="text-sm text-gray-600 line-clamp-2 mb-2">{{ item.description }}</p>
-              <div class="flex items-center space-x-4 text-xs text-gray-500">
-                <span>Updated {{ formatDate(item.updatedAt) }}</span>
-                <span>By {{ item.creatorName || 'You' }}</span>
-                <span v-if="item.nostrEventId && item.zapCount === 0" class="text-orange-500">
-                  ⚡ Ready for zaps
-                </span>
-
+            </div>
+            
+            <!-- Mobile Actions -->
+            <div class="flex items-center space-x-1 flex-shrink-0">
+              <button
+                @click="$emit('preview', item)"
+                class="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                title="Preview"
+              >
+                <IconEye class="w-4 h-4" />
+              </button>
+              
+              <div class="relative dropdown-container">
+                <button
+                  @click="openDropdownId = openDropdownId === item.id ? null : item.id"
+                  class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+                >
+                  <IconDots class="w-4 h-4" />
+                </button>
+                
+                <div 
+                  v-if="openDropdownId === item.id"
+                  class="absolute right-0 top-full mt-1 w-32 bg-white rounded-xl shadow-lg border border-gray-200 py-1 z-50"
+                >
+                  <button
+                    @click="$emit('edit', item); openDropdownId = null"
+                    class="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-600 flex items-center space-x-2"
+                  >
+                    <IconEdit class="w-3 h-3" />
+                    <span>Edit</span>
+                  </button>
+                  
+                  <button
+                    v-if="item.status === 'draft'"
+                    @click="$emit('publish-nostr', item); openDropdownId = null"
+                    class="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-600 flex items-center space-x-2"
+                  >
+                    <IconShare class="w-3 h-3" />
+                    <span>Publish</span>
+                  </button>
+                  
+                  <button
+                    @click="$emit('delete', item); openDropdownId = null"
+                    class="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-red-50 hover:text-red-600 flex items-center space-x-2"
+                  >
+                    <IconTrash class="w-3 h-3" />
+                    <span>Delete</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Description (Mobile) -->
+          <p v-if="item.description" class="text-sm text-gray-600 leading-relaxed mb-3 line-clamp-2">{{ item.description }}</p>
+          
+          <!-- Bottom Row: Revenue and Date -->
+          <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+              <div class="text-center">
+                <p class="text-xs text-green-600 font-medium">Revenue</p>
+                <p class="text-sm font-bold text-gray-900">{{ getTotalRevenue(item).toLocaleString() }} sats</p>
+              </div>
+              
+              <!-- Engagement metrics for mobile (only if has engagement) -->
+              <div v-if="item.nostrEventId && getEngagementCounts(item.nostrEventId).totalEngagement > 0">
                 <EngagementMetrics 
-                  v-if="item.nostrEventId"
-                  :key="`content-engagement-${item.id}-${getEngagementCounts(item.nostrEventId).totalEngagement}-${item.zapCount || 0}`"
+                  :key="`mobile-engagement-${item.id}-${getEngagementCounts(item.nostrEventId).totalEngagement}-${item.zapCount || 0}`"
                   :engagement-counts="getEngagementCounts(item.nostrEventId)"
                   :zap-count="item.zapCount || 0"
-                  size="default"
+                  size="small"
                   text-size="text-xs"
                   :show-all-metrics="false"
-                  :show-no-engagement-text="true"
-                  :show-tooltips="true"
+                  :show-no-engagement-text="false"
+                  :show-tooltips="false"
                 />
               </div>
             </div>
-          </div>
-
-          <!-- Actions - Desktop -->
-          <div class="hidden sm:flex items-center space-x-2 flex-shrink-0">
-            <button
-              @click="$emit('edit', item)"
-              class="p-2 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
-              title="Edit"
-            >
-              <IconEdit class="w-4 h-4" />
-            </button>
-            <button
-              @click="$emit('preview', item)"
-              class="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-              title="Preview"
-            >
-              <IconEye class="w-4 h-4" />
-            </button>
-            <button
-              v-if="item.status === 'draft'"
-              @click="$emit('publish-nostr', item)"
-              class="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
-              title="Publish to Nostr"
-            >
-              <IconShare class="w-4 h-4" />
-            </button>
-<!--            <button-->
-<!--              @click="$emit('share', item)"-->
-<!--              class="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"-->
-<!--              title="Share"-->
-<!--            >-->
-<!--              <IconCopy class="w-4 h-4" />-->
-<!--            </button>-->
-            <button
-              @click="$emit('delete', item)"
-              class="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-              title="Delete"
-            >
-              <IconTrash class="w-4 h-4" />
-            </button>
-          </div>
-          
-          <!-- Mobile Actions -->
-          <div class="flex items-center space-x-2 flex-shrink-0 sm:hidden">
-            <!-- Preview button always visible -->
-            <button
-              @click="$emit('preview', item)"
-              class="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-              title="Preview"
-            >
-              <IconEye class="w-3.5 h-3.5" />
-            </button>
             
-            <!-- Three-dot menu for other actions -->
-            <div class="relative dropdown-container">
-              <button
-                @click="openDropdownId = openDropdownId === item.id ? null : item.id"
-                class="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
-                title="Edit (Creates new post, deletes original)"
-              >
-                <IconDots class="w-3.5 h-3.5" />
-              </button>
-              
-              <!-- Dropdown Menu -->
-              <div 
-                v-if="openDropdownId === item.id"
-                class="absolute right-0 top-full mt-1 w-36 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10"
-              >
-                <button
-                  @click="$emit('edit', item); openDropdownId = null"
-                  class="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-600 flex items-center space-x-2"
-                >
-                  <IconEdit class="w-3.5 h-3.5" />
-                  <span>Edit (New Post)</span>
-                </button>
-                
-                <button
-                  v-if="item.status === 'draft'"
-                  @click="$emit('publish-nostr', item); openDropdownId = null"
-                  class="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-600 flex items-center space-x-2"
-                >
-                  <IconShare class="w-3.5 h-3.5" />
-                  <span>Publish</span>
-                </button>
-                
-                <button
-                  @click="$emit('share', item); openDropdownId = null"
-                  class="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-green-50 hover:text-green-600 flex items-center space-x-2"
-                >
-                  <IconCopy class="w-3.5 h-3.5" />
-                  <span>Share</span>
-                </button>
-                
-                <button
-                  @click="$emit('delete', item); openDropdownId = null"
-                  class="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-red-50 hover:text-red-600 flex items-center space-x-2"
-                >
-                  <IconTrash class="w-3.5 h-3.5" />
-                  <span>Delete</span>
-                </button>
-              </div>
+            <div class="text-right">
+              <p class="text-xs text-gray-500">{{ formatDate(item.updatedAt) }}</p>
             </div>
           </div>
         </div>
 
-        <!-- Stats -->
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-4 border-t border-orange-100/50">
-          <div class="text-center">
-            <p class="text-sm font-medium text-orange-600">Price</p>
-            <p class="text-lg font-bold text-gray-900">
-              Free
-            </p>
-          </div>
-          <!--
-          <div class="text-center">
-            <p class="text-sm font-medium text-gray-600">
-              {{ item.monetizationModel === 'subscription' ? 'Subscribers' : 'Unlocks' }}
-            </p>
-            <p class="text-lg font-bold text-gray-900">
-              {{ item.monetizationModel === 'subscription' ? item.subscribers : item.unlocks }}
-            </p>
-          </div>
-          -->
-          <div class="text-center">
-            <p class="text-sm font-medium text-green-600">Revenue</p>
-            <p class="text-lg font-bold text-gray-900">
-              {{ getTotalRevenue(item).toLocaleString() }} sats
-            </p>
-            <!-- 🔥 REVENUE BREAKDOWN WITH TOOLTIPS - Show breakdown only if BOTH zaps AND traditional revenue exist -->
-            <div v-if="shouldShowBreakdown(item)" class="text-xs text-gray-500 mt-1 space-y-1">
-              <div class="flex items-center justify-center space-x-1">
-                <!-- Zap Amount with Tooltip -->
-                <div 
-                  class="flex items-center space-x-1 cursor-help relative group"
-                  :title="getZapTooltip(item)"
-                >
-                  <IconBolt class="w-3 h-3 text-orange-500" />
-                  <span>{{ (item.zapAmount || 0).toLocaleString() }}</span>
+        <!-- Desktop Layout -->
+        <div class="hidden sm:block">
+          <div class="flex items-start justify-between mb-4">
+            <div class="flex items-start space-x-3 flex-1 min-w-0">
+              <!-- Type Icon -->
+              <div :class="[
+                'w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0',
+                getStatusColor(item.status)
+              ]">
+                <component :is="getTypeIcon(item.type)" class="w-4 h-4" />
+              </div>
+
+              <!-- Content Info -->
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center space-x-2 mb-1">
+                  <h3 class="font-semibold text-gray-900 truncate">{{ item.title }}</h3>
+                  <span :class="[
+                    'px-2 py-1 rounded-full text-xs font-medium capitalize',
+                    getStatusColor(item.status)
+                  ]">
+                    {{ item.status }}
+                  </span>
+                  <span v-if="item.nostrEventId" class="px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
+                    On Nostr
+                  </span>
                   
-                  <!-- Zap Tooltip -->
-                  <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10">
-                    <div class="font-medium">⚡ Lightning Zaps</div>
-                    <div>{{ getZapTooltip(item) }}</div>
-                    <div class="text-gray-300 mt-1">Instant, decentralized payments</div>
-                    <!-- Tooltip arrow -->
-                    <div class="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+                  <!-- Zap indicator for desktop -->
+                  <div v-if="item.nostrEventId && (item.zapCount > 0 || item.zapAmount > 0)" 
+                       class="flex items-center space-x-1 px-2 py-1 bg-gradient-to-r from-orange-100 to-amber-100 rounded-full">
+                    <IconBolt class="w-3 h-3 text-orange-600" />
+                    <span class="text-xs font-bold text-orange-700">
+                      {{ formatZapAmount(item.zapAmount || 0) }}
+                    </span>
+                    <span class="text-xs text-orange-600">sats</span>
+                    <span v-if="item.zapCount > 1" class="text-xs text-orange-500">
+                      ({{ item.zapCount }})
+                    </span>
                   </div>
                 </div>
-                
-                <span class="text-gray-400">+</span>
-                
-                <!-- Traditional Sales with Tooltip -->
-                <div 
-                  class="flex items-center space-x-1 cursor-help relative group"
-                  :title="getSalesTooltip(item)"
-                >
-                  <span>💰{{ (item.traditionalRevenue || 0).toLocaleString() }}</span>
+                <p class="text-sm text-gray-600 line-clamp-2 mb-2">{{ item.description }}</p>
+                <div class="flex items-center space-x-4 text-xs text-gray-500">
+                  <span>Updated {{ formatDate(item.updatedAt) }}</span>
                   
-                  <!-- Sales Tooltip -->
-                  <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10">
-                    <div class="font-medium">💰 Direct Sales</div>
-                    <div>{{ getSalesTooltip(item) }}</div>
-                    <div class="text-gray-300 mt-1">Traditional purchases & subscriptions</div>
-                    <!-- Tooltip arrow -->
-                    <div class="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
-                  </div>
+                  <!-- Desktop engagement metrics (only if has engagement) -->
+                  <EngagementMetrics 
+                    v-if="item.nostrEventId && getEngagementCounts(item.nostrEventId).totalEngagement > 0"
+                    :key="`desktop-engagement-${item.id}-${getEngagementCounts(item.nostrEventId).totalEngagement}-${item.zapCount || 0}`"
+                    :engagement-counts="getEngagementCounts(item.nostrEventId)"
+                    :zap-count="item.zapCount || 0"
+                    size="default"
+                    text-size="text-xs"
+                    :show-all-metrics="false"
+                    :show-no-engagement-text="false"
+                    :show-tooltips="true"
+                  />
                 </div>
               </div>
-              <div class="text-xs text-gray-400">zaps + sales</div>
+            </div>
+
+            <!-- Desktop Actions -->
+            <div class="flex items-center space-x-2 flex-shrink-0">
+              <button
+                @click="$emit('edit', item)"
+                class="p-2 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
+                title="Edit"
+              >
+                <IconEdit class="w-4 h-4" />
+              </button>
+              <button
+                @click="$emit('preview', item)"
+                class="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                title="Preview"
+              >
+                <IconEye class="w-4 h-4" />
+              </button>
+              <button
+                v-if="item.status === 'draft'"
+                @click="$emit('publish-nostr', item)"
+                class="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                title="Publish to Nostr"
+              >
+                <IconShare class="w-4 h-4" />
+              </button>
+              <button
+                @click="$emit('delete', item)"
+                class="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                title="Delete"
+              >
+                <IconTrash class="w-4 h-4" />
+              </button>
             </div>
           </div>
-          <!--
-          <div class="text-center">
-            <p class="text-sm font-medium text-blue-600">Views</p>
-            <p class="text-lg font-bold text-gray-900">{{ item.views }}</p>
+
+          <!-- Desktop Stats -->
+          <div class="grid grid-cols-2 gap-4 pt-4 border-t border-gray-100">
+            <div class="text-center">
+              <p class="text-sm font-medium text-orange-600">Price</p>
+              <p class="text-lg font-bold text-gray-900">Free</p>
+            </div>
+            <div class="text-center">
+              <p class="text-sm font-medium text-green-600">Revenue</p>
+              <p class="text-lg font-bold text-gray-900">{{ getTotalRevenue(item).toLocaleString() }} sats</p>
+            </div>
           </div>
-          -->
         </div>
       </div>
     </div>
@@ -441,6 +421,14 @@ const getSalesTooltip = (item) => {
   overflow: hidden;
 }
 
+.line-clamp-1 {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
 /* Enhanced tooltip styling */
 .group:hover .group-hover\:opacity-100 {
   opacity: 1;
@@ -449,6 +437,10 @@ const getSalesTooltip = (item) => {
 /* Ensure tooltips appear above other elements */
 .z-10 {
   z-index: 10;
+}
+
+.z-50 {
+  z-index: 50;
 }
 
 /* Smooth tooltip transitions */
