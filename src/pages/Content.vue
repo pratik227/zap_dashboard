@@ -770,9 +770,15 @@ onUnmounted(() => {
 <!--                  <span class="text-sm text-gray-600">Unlocks</span>-->
 <!--                  <span class="font-medium text-gray-900">{{ selectedContent.unlocks || 0 }}</span>-->
 <!--                </div>-->
-                <div class="flex items-center justify-between">
-                  <span class="text-sm text-gray-600">Revenue</span>
-                  <span class="font-medium text-orange-600">{{ (selectedContent.revenue || 0).toLocaleString() }} sats</span>
+                <div class="flex items-center justify-between group relative">
+                  <span class="text-sm text-gray-600 cursor-help">Revenue</span>
+                  <span class="font-medium text-orange-600">{{ getTotalZapAmount(selectedContent.nostrEventId || selectedContent.id).toLocaleString() }} sats</span>
+                  
+                  <!-- Hover Tooltip -->
+                  <div class="absolute bottom-full left-0 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-10">
+                    Total Lightning zaps received for this content
+                    <div class="absolute top-full left-4 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
+                  </div>
                 </div>
                 
                 <div v-if="selectedContent.nostrEventId" class="border-t pt-3 mt-3">
@@ -782,7 +788,7 @@ onUnmounted(() => {
                       <EngagementMetrics 
                         :key="`sidebar-engagement-${selectedContent.id}-${getEngagementCounts(selectedContent.nostrEventId).totalEngagement}-${selectedContent.zapCount || 0}`"
                         :engagement-counts="getEngagementCounts(selectedContent.nostrEventId)"
-                        :zap-count="selectedContent.zapCount || 0"
+                        :zap-count="getZapCount(selectedContent.nostrEventId || selectedContent.id)"
                         size="default"
                         text-size="text-xs"
                         :show-all-metrics="false"
@@ -798,9 +804,15 @@ onUnmounted(() => {
             <!-- Zaps Card -->
             <div v-if="selectedContent.nostrEventId" class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm p-4">
               <div class="flex items-center justify-between mb-3">
-                <h3 class="text-sm font-semibold text-gray-900 flex items-center space-x-2">
+                <h3 class="text-sm font-semibold text-gray-900 flex items-center space-x-2 group relative cursor-help">
                   <IconBolt class="w-4 h-4 text-orange-600" />
                   <span>Lightning Zaps</span>
+                  
+                  <!-- Hover Tooltip -->
+                  <div class="absolute bottom-full left-0 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-10">
+                    Real-time Lightning payments from supporters
+                    <div class="absolute top-full left-4 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
+                  </div>
                 </h3>
                 <div class="text-right">
                   <div class="text-lg font-bold text-orange-600">{{ formatZapAmount(getTotalZapAmount(selectedContent.nostrEventId)) }}</div>
