@@ -776,7 +776,7 @@ onUnmounted(() => {
                   
                   <!-- Hover Tooltip -->
                   <div class="absolute bottom-full left-0 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-10">
-                    Total Lightning zaps received for this content
+                    Total amount received from Lightning zaps and paid content access.
                     <div class="absolute top-full left-4 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
                   </div>
                 </div>
