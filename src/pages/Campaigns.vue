@@ -596,108 +596,69 @@ watch(isAuthenticated, async (isAuth) => {
       </div>
 
       <!-- List View -->
-      <div v-else class="space-y-4">
-        <div 
-          v-for="campaign in filteredCampaigns" 
-          :key="campaign.id"
-          class="bg-white rounded-xl border border-orange-100 shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden"
-        >
-          <div class="flex flex-col sm:flex-row">
-            <!-- Campaign Image (if available) -->
-            <div class="sm:w-48 h-32 sm:h-auto overflow-hidden">
-              <img 
-                :src="campaign.image || '/ZapTracker_campaigns.png'" 
-                :alt="campaign.title"
-                class="w-full h-full object-cover"
-              />
-            </div>
-            
-            <!-- Campaign Content -->
-            <div class="flex-1 p-4 sm:p-6">
-              <div class="flex flex-col h-full">
-                <!-- Header -->
-                <div class="mb-3">
-                  <div class="flex items-center space-x-2 mb-2">
-                    <span :class="[
-                      'px-2 py-1 rounded-full text-xs font-medium',
-                      campaign.closedAt && campaign.closedAt < Math.floor(Date.now() / 1000) ? 'bg-red-100 text-red-700' :
-                      getCampaignProgress(campaign.id).percentage >= 100 ? 'bg-green-100 text-green-700' :
-                      'bg-orange-100 text-orange-700'
-                    ]">
-                      {{ campaign.closedAt && campaign.closedAt < Math.floor(Date.now() / 1000) ? 'Expired' :
-                         getCampaignProgress(campaign.id).percentage >= 100 ? 'Completed' : 'Active' }}
-                    </span>
-                    <span class="text-xs text-gray-500">
-                      {{ formatDate(campaign.createdAt) }}
-                    </span>
-                  </div>
-                  <h3 class="text-lg font-semibold text-gray-900 mb-2">{{ campaign.title }}</h3>
-                  <p v-if="campaign.summary" class="text-sm text-gray-600 mb-3 line-clamp-2">{{ campaign.summary }}</p>
+      <div v-else class="bg-white/95 backdrop-blur-sm rounded-2xl border border-gray-200/50 shadow-lg overflow-hidden">
+        <div class="divide-y divide-gray-100/60">
+          <div
+            v-for="campaign in filteredCampaigns"
+            :key="campaign.id"
+            @click="viewCampaign(campaign)"
+            class="p-3 sm:p-4 hover:bg-gray-50/80 transition-all duration-200 cursor-pointer group"
+          >
+            <div class="flex items-center space-x-3">
+              <!-- Compact Campaign Icon/Image -->
+              <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl overflow-hidden bg-gradient-to-br from-orange-100 to-amber-100 flex items-center justify-center flex-shrink-0 shadow-sm">
+                <img
+                  v-if="campaign.image"
+                  :src="campaign.image"
+                  :alt="campaign.title"
+                  class="w-full h-full object-cover"
+                  @error="$event.target.style.display = 'none'"
+                />
+                <IconTarget v-else class="w-5 h-5 sm:w-6 sm:h-6 text-orange-600" />
+              </div>
+
+              <!-- Campaign Info -->
+              <div class="flex-1 min-w-0">
+                <!-- Title and Status Row -->
+                <div class="flex items-center justify-between mb-1">
+                  <h3 class="font-semibold text-gray-900 text-sm sm:text-base truncate mr-2 group-hover:text-orange-600 transition-colors">
+                    {{ campaign.title }}
+                  </h3>
+                  <span :class="[
+                    'px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0',
+                    isCampaignExpired(campaign) ? 'bg-red-100 text-red-700' :
+                    isCampaignCompleted(campaign.id) ? 'bg-green-100 text-green-700' :
+                    'bg-orange-100 text-orange-700'
+                  ]">
+                    {{ isCampaignExpired(campaign) ? 'Expired' :
+                       isCampaignCompleted(campaign.id) ? 'Done' : 'Active' }}
+                  </span>
                 </div>
-                
-                <!-- Progress Bar -->
-                <div class="mb-3">
-                  <div class="flex items-center justify-between mb-1">
-                    <span class="text-sm font-medium text-gray-700">Progress</span>
-                    <span class="text-sm font-medium text-orange-600">{{ getCampaignProgress(campaign.id).percentage }}%</span>
-                  </div>
-                  <div class="w-full bg-gray-200 rounded-full h-2.5">
-                    <div 
-                      class="bg-gradient-to-r from-orange-400 to-amber-400 h-2.5 rounded-full transition-all duration-500"
-                      :style="{ width: `${getCampaignProgress(campaign.id).percentage}%` }"
-                    ></div>
-                  </div>
-                  <div class="flex items-center justify-between mt-1">
-                    <span class="text-xs text-gray-500">{{ getCampaignProgress(campaign.id).current.toLocaleString() }} sats raised</span>
-                    <span class="text-xs text-gray-500">Goal: {{ formatAmount(campaign.goalAmount) }} sats</span>
-                  </div>
-                </div>
-                
-                <!-- Campaign Info -->
-                <div class="flex items-center space-x-4 mb-3 text-sm">
-                  <div class="flex items-center space-x-1 text-gray-600">
-                    <IconClock class="w-4 h-4" />
-                    <span>{{ getDaysRemaining(campaign.closedAt) }}</span>
-                  </div>
-                </div>
-                
-                <!-- Actions -->
-                <div class="flex items-center justify-between mt-auto pt-3 border-t border-orange-100/50">
-                  <button
-                    @click="viewCampaign(campaign)"
-                    class="text-orange-600 hover:text-orange-700 font-medium text-sm flex items-center space-x-1 group"
-                  >
-                    <span>View Details</span>
-                    <IconArrowRight class="w-4 h-4 transition-transform group-hover:translate-x-1" />
-                  </button>
-                  
+
+                <!-- Progress and Goal Row -->
+                <div class="flex items-center justify-between text-xs text-gray-500 mb-2">
                   <div class="flex items-center space-x-2">
-                    <button
-                      v-if="!isCampaignExpired(campaign) && getCampaignProgress(campaign.id).percentage < 100"
-                      @click="editCampaignHandler(campaign)"
-                      class="p-2 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
-                      title="Edit campaign"
-                    >
-                      <IconEdit class="w-4 h-4" />
-                    </button>
-                    
-                    <button
-                      @click="openShareModal(campaign)"
-                      class="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                      title="Share campaign"
-                    >
-                      <IconShare class="w-4 h-4" />
-                    </button>
-                    
-                    <button
-                      @click="openDeleteModal(campaign)"
-                      class="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                      title="Delete campaign"
-                    >
-                      <IconTrash class="w-4 h-4" />
-                    </button>
+                    <span class="font-medium">{{ getCampaignProgress(campaign.id).percentage }}%</span>
+                    <div class="w-16 sm:w-20 bg-gray-200 rounded-full h-1.5">
+                      <div 
+                        class="bg-gradient-to-r from-orange-400 to-amber-400 h-1.5 rounded-full transition-all duration-300"
+                        :style="{ width: `${getCampaignProgress(campaign.id).percentage}%` }"
+                      ></div>
+                    </div>
                   </div>
+                  <span class="font-medium text-orange-600">{{ formatAmount(campaign.goalAmount) }} sats</span>
                 </div>
+
+                <!-- Meta Info Row -->
+                <div class="flex items-center justify-between text-xs text-gray-400">
+                  <span>{{ getCampaignProgress(campaign.id).current.toLocaleString() }} raised</span>
+                  <span>{{ getDaysRemaining(campaign.closedAt) }}</span>
+                </div>
+              </div>
+
+              <!-- Action Arrow -->
+              <div class="flex-shrink-0">
+                <IconChevronRight class="w-4 h-4 text-gray-400 group-hover:text-orange-500 group-hover:translate-x-0.5 transition-all duration-200" />
               </div>
             </div>
           </div>
