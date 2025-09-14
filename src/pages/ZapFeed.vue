@@ -340,50 +340,55 @@ const formatAmount = (amount) => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-gradient-to-br from-orange-25 via-amber-25 to-yellow-25">
-    <!-- Clean Apple-like Header -->
-    <div class="bg-white/80 backdrop-blur-xl border-b border-gray-200/50 sticky top-0 z-20 shadow-sm">
-      <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        <!-- Apple-like Clean Header -->
-        <div class="flex items-center justify-between py-6">
-          <!-- Left: Zap Count -->
+  <div class="space-y-6">
+    <!-- Clean Apple-like Header with Blue Accent -->
+    <div class="bg-white/95 backdrop-blur-xl rounded-2xl border border-gray-200/60 shadow-xl shadow-gray-200/40 overflow-hidden">
+      <!-- Blue Accent Line -->
+      <div class="h-1 bg-gradient-to-r from-blue-400 via-blue-500 to-blue-600"></div>
+      
+      <!-- Header Content -->
+      <div class="px-6 py-5">
+        <div class="flex items-center justify-between">
+          <!-- Left: Zap Count with Clean Typography -->
           <div class="flex items-center space-x-2">
-            <span class="text-sm font-medium text-gray-600">
+            <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+            <span class="text-sm font-medium text-gray-700">
               {{ filteredZaps.length }} zap{{ filteredZaps.length !== 1 ? 's' : '' }}
             </span>
           </div>
 
-          <!-- Center: Time Filter Buttons -->
-          <div class="flex items-center bg-gray-100/80 backdrop-blur-sm rounded-2xl p-1.5 shadow-sm">
+          <!-- Center: Clean Time Filter Buttons -->
+          <div class="flex items-center bg-gray-50/80 backdrop-blur-sm rounded-2xl p-1 shadow-sm border border-gray-200/50">
             <button
               v-for="range in [
-                { value: '24h', label: '24h' },
-                { value: '7d', label: '7d' },
-                { value: '30d', label: '30d' },
-                { value: 'all', label: 'All' }
+                { value: '24h', label: '24h', icon: '🕐' },
+                { value: '7d', label: '7d', icon: '📅' },
+                { value: '30d', label: '30d', icon: '📊' },
+                { value: 'all', label: 'All', icon: '∞' }
               ]"
               :key="range.value"
               @click="selectedTimeRange = range.value"
               :class="[
-                'px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-300 ease-out min-w-[60px]',
+                'px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ease-out min-w-[70px] flex items-center justify-center space-x-1.5',
                 selectedTimeRange === range.value
-                  ? 'bg-white text-orange-600 shadow-lg shadow-black/10 transform scale-105'
-                  : 'text-gray-500 hover:text-gray-700 hover:bg-white/50'
+                  ? 'bg-white text-orange-600 shadow-md shadow-orange-100/50 transform scale-105 border border-orange-200/30'
+                  : 'text-gray-600 hover:text-gray-800 hover:bg-white/60 hover:shadow-sm'
               ]"
             >
-              {{ range.label }}
+              <span class="text-xs opacity-70">{{ range.icon }}</span>
+              <span>{{ range.label }}</span>
             </button>
           </div>
 
           <!-- Right: View Mode Toggle -->
-          <div class="flex items-center bg-gray-100/80 backdrop-blur-sm rounded-2xl p-1.5 shadow-sm">
+          <div class="flex items-center bg-gray-50/80 backdrop-blur-sm rounded-2xl p-1 shadow-sm border border-gray-200/50">
             <button
               @click="viewMode = 'feed'"
               :class="[
-                'px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-300 ease-out',
+                'px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ease-out',
                 viewMode === 'feed' 
-                  ? 'bg-white text-orange-600 shadow-lg shadow-black/10 transform scale-105' 
-                  : 'text-gray-500 hover:text-gray-700 hover:bg-white/50'
+                  ? 'bg-white text-orange-600 shadow-md shadow-orange-100/50 transform scale-105 border border-orange-200/30' 
+                  : 'text-gray-600 hover:text-gray-800 hover:bg-white/60 hover:shadow-sm'
               ]"
             >
               Feed
@@ -391,10 +396,10 @@ const formatAmount = (amount) => {
             <button
               @click="viewMode = 'compact'"
               :class="[
-                'px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-300 ease-out',
+                'px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ease-out',
                 viewMode === 'compact' 
-                  ? 'bg-white text-orange-600 shadow-lg shadow-black/10 transform scale-105' 
-                  : 'text-gray-500 hover:text-gray-700 hover:bg-white/50'
+                  ? 'bg-white text-orange-600 shadow-md shadow-orange-100/50 transform scale-105 border border-orange-200/30' 
+                  : 'text-gray-600 hover:text-gray-800 hover:bg-white/60 hover:shadow-sm'
               ]"
             >
               Compact
@@ -404,11 +409,11 @@ const formatAmount = (amount) => {
       </div>
     </div>
 
-    <!-- Main Content -->
-    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <!-- Main Content with Proper Spacing -->
+    <div class="">
       <!-- Empty State -->
       <div v-if="!filteredZaps.length" class="text-center py-16">
-        <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+        <div class="w-16 h-16 bg-gray-100/80 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm">
           <IconBolt class="w-8 h-8 text-gray-400" />
         </div>
         <h3 class="text-lg font-medium text-gray-900 mb-2">No zaps found</h3>
@@ -419,7 +424,7 @@ const formatAmount = (amount) => {
         <div v-if="hasActiveFilters" class="mt-4">
           <button
             @click="clearAllFilters"
-            class="btn-secondary"
+            class="bg-gray-100/80 hover:bg-gray-200/80 text-gray-700 px-4 py-2 rounded-xl font-medium transition-all duration-200 shadow-sm hover:shadow-md"
           >
             <IconTrash class="w-4 h-4" />
             Clear all filters
@@ -433,13 +438,13 @@ const formatAmount = (amount) => {
           v-for="(zap, index) in filteredZaps"
           :key="zap.id"
           @click="handleZapClick(zap)"
-          class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 hover:border-orange-200/60 hover:shadow-md transition-all duration-200 cursor-pointer overflow-hidden hover:-translate-y-1"
+          class="bg-white/95 backdrop-blur-sm rounded-2xl border border-gray-200/40 hover:border-gray-300/60 hover:shadow-lg hover:shadow-gray-200/30 transition-all duration-200 cursor-pointer overflow-hidden hover:-translate-y-0.5"
         >
-          <div class="p-4 sm:p-6">
+          <div class="p-5 sm:p-6">
             <!-- Header -->
             <div class="flex items-start space-x-3 mb-4">
               <!-- Avatar -->
-              <div class="w-10 h-10 rounded-full overflow-hidden border border-gray-200 flex-shrink-0">
+              <div class="w-11 h-11 rounded-2xl overflow-hidden border border-gray-200/60 flex-shrink-0 shadow-sm">
                 <img
                   :src="generateAvatar(zap.sender, index)"
                   :alt="getSenderName(zap.sender)"
@@ -450,7 +455,7 @@ const formatAmount = (amount) => {
               <!-- User Info -->
               <div class="flex-1 min-w-0">
                 <div class="flex items-center space-x-2 mb-1">
-                  <h3 class="font-medium text-gray-900 truncate">
+                  <h3 class="font-semibold text-gray-900 truncate">
                     {{ getSenderName(zap.sender) }}
                   </h3>
                   <span v-if="zap.sender?.nip05" class="text-xs text-gray-500 truncate">
@@ -460,10 +465,10 @@ const formatAmount = (amount) => {
                 <div class="flex items-center space-x-2 text-xs text-gray-500">
                   <span>{{ formatDate(zap.timestamp) }}</span>
                   <span>•</span>
-                  <span :class="getTransactionTypeColor(zap)">
+                  <span :class="['font-medium', getTransactionTypeColor(zap)]">
                     {{ getTransactionTypeText(zap) }}
                   </span>
-                  <div :class="['px-1.5 py-0.5 rounded-full flex items-center space-x-1', getSourceColor(zap)]">
+                  <div :class="['px-2 py-1 rounded-lg flex items-center space-x-1 shadow-sm', getSourceColor(zap)]">
                     <component :is="getSourceIcon(zap)" class="w-3 h-3" />
                   </div>
                 </div>
@@ -471,9 +476,9 @@ const formatAmount = (amount) => {
 
               <!-- Amount -->
               <div class="text-right flex-shrink-0">
-                <div class="inline-flex items-center space-x-1 bg-orange-50 px-3 py-1.5 rounded-full">
+                <div class="inline-flex items-center space-x-1.5 bg-gradient-to-r from-orange-50 to-amber-50 px-4 py-2 rounded-2xl border border-orange-200/30 shadow-sm">
                   <IconBolt class="w-4 h-4 text-orange-600" />
-                  <span class="font-semibold text-orange-700">{{ formatAmount(zap.amount) }}</span>
+                  <span class="font-bold text-orange-700">{{ formatAmount(zap.amount) }}</span>
                   <span class="text-xs text-orange-600">sats</span>
                 </div>
               </div>
@@ -481,7 +486,7 @@ const formatAmount = (amount) => {
 
             <!-- Content -->
             <div class="ml-13">
-              <p class="text-gray-700 leading-relaxed">
+              <p class="text-gray-700 leading-relaxed text-sm">
                 {{ parseNoteContent(zap.note) }}
               </p>
             </div>
@@ -490,17 +495,17 @@ const formatAmount = (amount) => {
       </div>
 
       <!-- Compact View -->
-      <div v-else class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm overflow-hidden">
-        <div class="divide-y divide-gray-50">
+      <div v-else class="bg-white/95 backdrop-blur-sm rounded-2xl border border-gray-200/40 shadow-lg shadow-gray-200/30 overflow-hidden">
+        <div class="divide-y divide-gray-100/60">
           <div
             v-for="(zap, index) in filteredZaps"
             :key="zap.id"
             @click="handleZapClick(zap)"
-            class="p-3 hover:bg-orange-25/50 transition-colors cursor-pointer"
+            class="p-4 hover:bg-gray-50/80 transition-all duration-150 cursor-pointer"
           >
             <div class="flex items-center space-x-3">
               <!-- Avatar -->
-              <div class="w-8 h-8 rounded-full overflow-hidden border border-gray-200 flex-shrink-0">
+              <div class="w-9 h-9 rounded-xl overflow-hidden border border-gray-200/60 flex-shrink-0 shadow-sm">
                 <img
                   :src="generateAvatar(zap.sender, index)"
                   :alt="getSenderName(zap.sender)"
@@ -512,19 +517,19 @@ const formatAmount = (amount) => {
               <div class="flex-1 min-w-0">
                 <div class="flex items-center justify-between mb-1">
                   <div class="flex items-center space-x-2 min-w-0">
-                    <span class="font-medium text-gray-900 text-sm truncate">
+                    <span class="font-semibold text-gray-900 text-sm truncate">
                       {{ getSenderName(zap.sender) }}
                     </span>
                     <span class="text-xs text-gray-500">{{ formatDate(zap.timestamp) }}</span>
                   </div>
                   
-                  <div class="flex items-center space-x-1 flex-shrink-0">
+                  <div class="flex items-center space-x-1.5 bg-gradient-to-r from-orange-50 to-amber-50 px-3 py-1 rounded-xl border border-orange-200/30 shadow-sm flex-shrink-0">
                     <IconBolt class="w-3 h-3 text-orange-600" />
-                    <span class="font-semibold text-orange-700 text-sm">{{ formatAmount(zap.amount) }}</span>
+                    <span class="font-bold text-orange-700 text-sm">{{ formatAmount(zap.amount) }}</span>
                   </div>
                 </div>
                 
-                <p class="text-sm text-gray-600 truncate">
+                <p class="text-sm text-gray-600 truncate leading-relaxed">
                   {{ truncateNote(zap.note, 80) }}
                 </p>
               </div>
