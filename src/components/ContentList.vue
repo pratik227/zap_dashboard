@@ -17,6 +17,11 @@ import {
   IconUsers,
   IconMenu
 } from '@iconify-prerendered/vue-tabler'
+import { 
+  IconHeart,
+  IconRepeat,
+  IconBookmark
+} from '@iconify-prerendered/vue-tabler'
 import EngagementMetrics from './EngagementMetrics.vue'
 import { useEngagementMetrics } from '../composables/useEngagementMetrics.js'
 
@@ -263,29 +268,61 @@ const getSalesTooltip = (item) => {
           
           <!-- Bottom Row: Revenue and Date -->
           <div class="flex items-center justify-between">
-            <div class="flex items-center space-x-3">
-              <div class="text-center">
-                <p class="text-xs text-green-600 font-medium">Revenue</p>
-                <p class="text-sm font-bold text-gray-900">{{ getTotalRevenue(item).toLocaleString() }} sats</p>
+            <!-- Revenue and Date Row -->
+            <div class="flex items-center justify-between mb-3">
+              <div class="flex items-center space-x-1">
+                <span class="text-xs text-green-600 font-medium">Revenue:</span>
+                <span class="text-sm font-bold text-gray-900">{{ getTotalRevenue(item).toLocaleString() }} sats</span>
               </div>
-              
-              <!-- Engagement metrics for mobile (only if has engagement) -->
-              <div v-if="item.nostrEventId && getEngagementCounts(item.nostrEventId).totalEngagement > 0">
-                <EngagementMetrics 
-                  :key="`mobile-engagement-${item.id}-${getEngagementCounts(item.nostrEventId).totalEngagement}-${item.zapCount || 0}`"
-                  :engagement-counts="getEngagementCounts(item.nostrEventId)"
-                  :zap-count="item.zapCount || 0"
-                  size="small"
-                  text-size="text-xs"
-                  :show-all-metrics="false"
-                  :show-no-engagement-text="false"
-                  :show-tooltips="false"
-                />
-              </div>
+              <span class="text-xs text-gray-500">{{ formatDate(item.updatedAt) }}</span>
             </div>
             
-            <div class="text-right">
-              <p class="text-xs text-gray-500">{{ formatDate(item.updatedAt) }}</p>
+            <!-- Social Media Style Engagement Row -->
+            <div v-if="item.nostrEventId" class="flex items-center justify-between pt-3 border-t border-gray-100">
+              <!-- Left: Engagement Metrics in Social Media Style -->
+              <div class="flex items-center space-x-4">
+                <!-- Likes -->
+                <button class="flex items-center space-x-1 text-gray-500 hover:text-red-500 transition-colors group">
+                  <IconHeart :class="[
+                    'w-4 h-4 transition-colors',
+                    getEngagementCounts(item.nostrEventId).likes > 0 ? 'text-red-500' : 'text-gray-400 group-hover:text-red-500'
+                  ]" />
+                  <span class="text-xs font-medium">{{ getEngagementCounts(item.nostrEventId).likes || 0 }}</span>
+                </button>
+                
+                <!-- Reposts -->
+                <button class="flex items-center space-x-1 text-gray-500 hover:text-green-500 transition-colors group">
+                  <IconRepeat :class="[
+                    'w-4 h-4 transition-colors',
+                    getEngagementCounts(item.nostrEventId).reposts > 0 ? 'text-green-500' : 'text-gray-400 group-hover:text-green-500'
+                  ]" />
+                  <span class="text-xs font-medium">{{ getEngagementCounts(item.nostrEventId).reposts || 0 }}</span>
+                </button>
+                
+                <!-- Zaps -->
+                <button class="flex items-center space-x-1 text-gray-500 hover:text-orange-500 transition-colors group">
+                  <IconBolt :class="[
+                    'w-4 h-4 transition-colors',
+                    (item.zapCount || 0) > 0 ? 'text-orange-500' : 'text-gray-400 group-hover:text-orange-500'
+                  ]" />
+                  <span class="text-xs font-medium">{{ item.zapCount || 0 }}</span>
+                </button>
+                
+                <!-- Bookmarks -->
+                <button class="flex items-center space-x-1 text-gray-500 hover:text-blue-500 transition-colors group">
+                  <IconBookmark :class="[
+                    'w-4 h-4 transition-colors',
+                    getEngagementCounts(item.nostrEventId).bookmarks > 0 ? 'text-blue-500' : 'text-gray-400 group-hover:text-blue-500'
+                  ]" />
+                  <span class="text-xs font-medium">{{ getEngagementCounts(item.nostrEventId).bookmarks || 0 }}</span>
+                </button>
+              </div>
+              
+              <!-- Right: Zap Amount (if any) -->
+              <div v-if="(item.zapAmount || 0) > 0" class="flex items-center space-x-1 bg-orange-50 px-2 py-1 rounded-full">
+                <IconBolt class="w-3 h-3 text-orange-600" />
+                <span class="text-xs font-bold text-orange-700">{{ formatZapAmount(item.zapAmount || 0) }} sats</span>
+              </div>
             </div>
           </div>
         </div>
@@ -333,18 +370,56 @@ const getSalesTooltip = (item) => {
                 <div class="flex items-center space-x-4 text-xs text-gray-500">
                   <span>Updated {{ formatDate(item.updatedAt) }}</span>
                   
-                  <!-- Desktop engagement metrics (only if has engagement) -->
-                  <EngagementMetrics 
-                    v-if="item.nostrEventId && getEngagementCounts(item.nostrEventId).totalEngagement > 0"
-                    :key="`desktop-engagement-${item.id}-${getEngagementCounts(item.nostrEventId).totalEngagement}-${item.zapCount || 0}`"
-                    :engagement-counts="getEngagementCounts(item.nostrEventId)"
-                    :zap-count="item.zapCount || 0"
-                    size="default"
-                    text-size="text-xs"
-                    :show-all-metrics="false"
-                    :show-no-engagement-text="false"
-                    :show-tooltips="true"
-                  />
+                  <!-- Revenue info -->
+                  <span class="text-green-600 font-medium">{{ getTotalRevenue(item).toLocaleString() }} sats revenue</span>
+                </div>
+                
+                <!-- Social Media Style Engagement Row for Desktop -->
+                <div v-if="item.nostrEventId" class="flex items-center justify-between pt-3 mt-3 border-t border-gray-100">
+                  <!-- Left: Engagement Metrics in Social Media Style -->
+                  <div class="flex items-center space-x-6">
+                    <!-- Likes -->
+                    <button class="flex items-center space-x-2 text-gray-500 hover:text-red-500 transition-colors group">
+                      <IconHeart :class="[
+                        'w-4 h-4 transition-colors',
+                        getEngagementCounts(item.nostrEventId).likes > 0 ? 'text-red-500' : 'text-gray-400 group-hover:text-red-500'
+                      ]" />
+                      <span class="text-sm font-medium">{{ getEngagementCounts(item.nostrEventId).likes || 0 }}</span>
+                    </button>
+                    
+                    <!-- Reposts -->
+                    <button class="flex items-center space-x-2 text-gray-500 hover:text-green-500 transition-colors group">
+                      <IconRepeat :class="[
+                        'w-4 h-4 transition-colors',
+                        getEngagementCounts(item.nostrEventId).reposts > 0 ? 'text-green-500' : 'text-gray-400 group-hover:text-green-500'
+                      ]" />
+                      <span class="text-sm font-medium">{{ getEngagementCounts(item.nostrEventId).reposts || 0 }}</span>
+                    </button>
+                    
+                    <!-- Zaps -->
+                    <button class="flex items-center space-x-2 text-gray-500 hover:text-orange-500 transition-colors group">
+                      <IconBolt :class="[
+                        'w-4 h-4 transition-colors',
+                        (item.zapCount || 0) > 0 ? 'text-orange-500' : 'text-gray-400 group-hover:text-orange-500'
+                      ]" />
+                      <span class="text-sm font-medium">{{ item.zapCount || 0 }}</span>
+                    </button>
+                    
+                    <!-- Bookmarks -->
+                    <button class="flex items-center space-x-2 text-gray-500 hover:text-blue-500 transition-colors group">
+                      <IconBookmark :class="[
+                        'w-4 h-4 transition-colors',
+                        getEngagementCounts(item.nostrEventId).bookmarks > 0 ? 'text-blue-500' : 'text-gray-400 group-hover:text-blue-500'
+                      ]" />
+                      <span class="text-sm font-medium">{{ getEngagementCounts(item.nostrEventId).bookmarks || 0 }}</span>
+                    </button>
+                  </div>
+                  
+                  <!-- Right: Zap Amount (if any) -->
+                  <div v-if="(item.zapAmount || 0) > 0" class="flex items-center space-x-1 bg-orange-50 px-3 py-1 rounded-full">
+                    <IconBolt class="w-3 h-3 text-orange-600" />
+                    <span class="text-sm font-bold text-orange-700">{{ formatZapAmount(item.zapAmount || 0) }} sats</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -384,14 +459,11 @@ const getSalesTooltip = (item) => {
           </div>
 
           <!-- Desktop Stats -->
-          <div class="grid grid-cols-2 gap-4 pt-4 border-t border-gray-100">
-            <div class="text-center">
-              <p class="text-sm font-medium text-orange-600">Price</p>
-              <p class="text-lg font-bold text-gray-900">Free</p>
-            </div>
-            <div class="text-center">
-              <p class="text-sm font-medium text-green-600">Revenue</p>
-              <p class="text-lg font-bold text-gray-900">{{ getTotalRevenue(item).toLocaleString() }} sats</p>
+          <!-- Simplified Desktop Stats -->
+          <div class="flex items-center justify-between pt-3 mt-3 border-t border-gray-100 text-sm">
+            <div class="flex items-center space-x-4">
+              <span class="text-gray-600">Price: <span class="font-semibold text-gray-900">Free</span></span>
+              <span class="text-gray-600">Revenue: <span class="font-semibold text-green-600">{{ getTotalRevenue(item).toLocaleString() }} sats</span></span>
             </div>
           </div>
         </div>
