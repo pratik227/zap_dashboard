@@ -341,121 +341,68 @@ const formatAmount = (amount) => {
 
 <template>
   <div class="min-h-screen bg-gradient-to-br from-orange-25 via-amber-25 to-yellow-25">
-    <!-- Enhanced Header Section with ZapTracker Brand Styling -->
-    <div class="bg-gradient-to-r from-white/95 via-orange-25/80 to-amber-25/80 backdrop-blur-md border-b border-orange-200/30 sticky top-0 z-20 shadow-lg shadow-orange-100/50">
+    <!-- Clean Apple-like Header -->
+    <div class="bg-white/80 backdrop-blur-xl border-b border-gray-200/50 sticky top-0 z-20 shadow-sm">
       <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        <!-- Main Header Content -->
-        <div class="flex items-center justify-between py-4">
-          <!-- Left: Results and Status -->
-          <div class="flex items-center space-x-4">
-            <div class="flex items-center space-x-2">
-              <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-              <span class="text-sm font-medium text-gray-700">
-                {{ filteredZaps.length }} zap{{ filteredZaps.length !== 1 ? 's' : '' }}
-              </span>
-            </div>
-            
-            <!-- Active Filters Indicator -->
-            <div v-if="hasActiveFilters" class="flex items-center space-x-2">
-              <div class="w-1 h-4 bg-orange-400 rounded-full"></div>
-              <span class="text-xs text-orange-600 font-medium bg-orange-100/60 px-2 py-1 rounded-full">
-                Filtered
-              </span>
-            </div>
+        <!-- Apple-like Clean Header -->
+        <div class="flex items-center justify-between py-6">
+          <!-- Left: Zap Count -->
+          <div class="flex items-center space-x-2">
+            <span class="text-sm font-medium text-gray-600">
+              {{ filteredZaps.length }} zap{{ filteredZaps.length !== 1 ? 's' : '' }}
+            </span>
           </div>
 
-          <!-- Right: Enhanced Actions -->
-          <div class="flex items-center space-x-3">
-            <!-- Clear Filters Button (enhanced styling) -->
+          <!-- Center: Time Filter Buttons -->
+          <div class="flex items-center bg-gray-100/80 backdrop-blur-sm rounded-2xl p-1.5 shadow-sm">
             <button
-              v-if="hasActiveFilters"
-              @click="clearAllFilters"
-              class="flex items-center space-x-2 px-4 py-2 bg-red-50/80 hover:bg-red-100/80 text-red-600 hover:text-red-700 border border-red-200/50 hover:border-red-300/60 rounded-xl transition-all duration-200 text-sm font-medium shadow-sm hover:shadow-md transform hover:scale-105 active:scale-95"
-            >
-              <IconTrash class="w-4 h-4" />
-              <span class="hidden sm:inline">Clear filters</span>
-            </button>
-
-            <!-- Enhanced Filter Toggle -->
-            <button
-              @click="showFilters = !showFilters"
+              v-for="range in [
+                { value: '24h', label: '24h' },
+                { value: '7d', label: '7d' },
+                { value: '30d', label: '30d' },
+                { value: 'all', label: 'All' }
+              ]"
+              :key="range.value"
+              @click="selectedTimeRange = range.value"
               :class="[
-                'p-3 rounded-xl transition-all duration-200 shadow-sm hover:shadow-md transform hover:scale-105 active:scale-95',
-                showFilters 
-                  ? 'bg-orange-100/80 text-orange-600 border border-orange-300/50 shadow-orange-100/50' 
-                  : 'bg-white/60 text-gray-500 hover:text-orange-600 hover:bg-orange-50/60 border border-gray-200/50 hover:border-orange-200/50'
+                'px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-300 ease-out min-w-[60px]',
+                selectedTimeRange === range.value
+                  ? 'bg-white text-orange-600 shadow-lg shadow-black/10 transform scale-105'
+                  : 'text-gray-500 hover:text-gray-700 hover:bg-white/50'
               ]"
             >
-              <IconFilter class="w-4 h-4" />
+              {{ range.label }}
             </button>
-
-            <!-- Enhanced View Mode Toggle -->
-            <div class="flex items-center bg-white/60 backdrop-blur-sm rounded-xl p-1 border border-gray-200/50 shadow-sm">
-              <button
-                @click="viewMode = 'feed'"
-                :class="[
-                  'px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center space-x-2',
-                  viewMode === 'feed' 
-                    ? 'bg-gradient-to-r from-orange-400 to-amber-400 text-white shadow-md transform scale-105' 
-                    : 'text-gray-600 hover:text-orange-600 hover:bg-orange-50/60'
-                ]"
-              >
-                <span class="hidden sm:inline">Feed</span>
-                <span class="sm:hidden">📋</span>
-              </button>
-              <button
-                @click="viewMode = 'compact'"
-                :class="[
-                  'px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center space-x-2',
-                  viewMode === 'compact' 
-                    ? 'bg-gradient-to-r from-orange-400 to-amber-400 text-white shadow-md transform scale-105' 
-                    : 'text-gray-600 hover:text-orange-600 hover:bg-orange-50/60'
-                ]"
-              >
-                <span class="hidden sm:inline">Compact</span>
-                <span class="sm:hidden">📝</span>
-              </button>
-            </div>
           </div>
-        </div>
-        
-        <!-- Enhanced Time Range Selector -->
-        <div class="pb-4">
-          <div class="flex items-center justify-center">
-            <div class="flex items-center bg-white/70 backdrop-blur-sm rounded-xl p-1 border border-orange-200/40 shadow-lg shadow-orange-100/30">
-              <button
-                v-for="range in [
-                  { value: '24h', label: '24h', icon: '🕐' },
-                  { value: '7d', label: '7d', icon: '📅' },
-                  { value: '30d', label: '30d', icon: '📊' },
-                  { value: 'all', label: 'All', icon: '∞' }
-                ]"
-                :key="range.value"
-                @click="selectedTimeRange = range.value"
-                :class="[
-                  'px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center space-x-2 min-w-[60px] justify-center',
-                  selectedTimeRange === range.value
-                    ? 'bg-gradient-to-r from-orange-400 to-amber-400 text-white shadow-lg shadow-orange-200/50 transform scale-110'
-                    : 'text-gray-600 hover:text-orange-600 hover:bg-orange-50/60 hover:scale-105'
-                ]"
-              >
-                <span class="text-xs">{{ range.icon }}</span>
-                <span>{{ range.label }}</span>
-              </button>
-            </div>
+
+          <!-- Right: View Mode Toggle -->
+          <div class="flex items-center bg-gray-100/80 backdrop-blur-sm rounded-2xl p-1.5 shadow-sm">
+            <button
+              @click="viewMode = 'feed'"
+              :class="[
+                'px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-300 ease-out',
+                viewMode === 'feed' 
+                  ? 'bg-white text-orange-600 shadow-lg shadow-black/10 transform scale-105' 
+                  : 'text-gray-500 hover:text-gray-700 hover:bg-white/50'
+              ]"
+            >
+              Feed
+            </button>
+            <button
+              @click="viewMode = 'compact'"
+              :class="[
+                'px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-300 ease-out',
+                viewMode === 'compact' 
+                  ? 'bg-white text-orange-600 shadow-lg shadow-black/10 transform scale-105' 
+                  : 'text-gray-500 hover:text-gray-700 hover:bg-white/50'
+              ]"
+            >
+              Compact
+            </button>
           </div>
         </div>
       </div>
     </div>
-
-    <!-- Filters Section -->
-    <transition name="slide-down">
-      <div v-if="showFilters" class="bg-white/80 backdrop-blur-sm border-b border-orange-100/50">
-        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <Filters />
-        </div>
-      </div>
-    </transition>
 
     <!-- Main Content -->
     <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
