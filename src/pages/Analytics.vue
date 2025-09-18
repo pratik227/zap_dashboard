@@ -64,15 +64,12 @@ const analyticsData = computed(() => {
   let zaps = allZaps
   
   // Determine which data to use based on connection status
-  if (isWalletConnected.value && isAuthenticated.value) {
+  if (isAuthenticated.value) {
     // Both connected: use all data (NWC + NIP-57)
-    return allZaps
+    zaps = zaps.filter(zap => zap.source === 'nip57')
   } else  if (connectionStatus.value.type === 'nostr-only') {
     // Only Nostr connected: show only Nostr zaps
     zaps = zaps.filter(zap => zap.source === 'nip57')
-  } else if (connectionStatus.value.type === 'nwc-only') {
-    // Only NWC connected: show only NWC payments
-    zaps = zaps.filter(zap => zap.source === 'nwc')
   } else if (connectionStatus.value.type === 'none') {
     // No connections: show nothing
     zaps = []

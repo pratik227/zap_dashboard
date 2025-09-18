@@ -232,26 +232,26 @@ const combinedZapData = computed(() => {
   }
   
   // Process NWC payments only if NWC wallet is connected
-  if (hasNWCConnection) {
-    zapData.value.forEach(zap => {
-      // If both connections are active, only add NWC payment if we don't already have a NIP-57 zap with the same ID
-      // If only NWC is connected, add all NWC payments
-      if (!hasNostrConnection || !uniqueZapsMap.has(zap.id)) {
-        uniqueZapsMap.set(zap.id, {
-          ...zap,
-          source: 'nwc', // Explicitly mark as NWC payment
-          eventId: null, // NWC payments don't have associated event IDs
-          // Add profile fetching capability for NWC payments if they have sender pubkey
-          sender: zap.sender?.pubkey ? {
-            ...zap.sender,
-            fetchProfile: () => fetchAuthorProfile(zap.sender.pubkey)
-          } : zap.sender
-        })
-      } else if (hasNostrConnection && uniqueZapsMap.has(zap.id)) {
-        console.log(`Skipping duplicate NWC payment with id ${zap.id?.substring(0, 16)}... (already have NIP-57 zap)`)
-      }
-    })
-  }
+  // if (hasNWCConnection) {
+  //   zapData.value.forEach(zap => {
+  //     // If both connections are active, only add NWC payment if we don't already have a NIP-57 zap with the same ID
+  //     // If only NWC is connected, add all NWC payments
+  //     if (!hasNostrConnection || !uniqueZapsMap.has(zap.id)) {
+  //       uniqueZapsMap.set(zap.id, {
+  //         ...zap,
+  //         source: 'nwc', // Explicitly mark as NWC payment
+  //         eventId: null, // NWC payments don't have associated event IDs
+  //         // Add profile fetching capability for NWC payments if they have sender pubkey
+  //         sender: zap.sender?.pubkey ? {
+  //           ...zap.sender,
+  //           fetchProfile: () => fetchAuthorProfile(zap.sender.pubkey)
+  //         } : zap.sender
+  //       })
+  //     } else if (hasNostrConnection && uniqueZapsMap.has(zap.id)) {
+  //       console.log(`Skipping duplicate NWC payment with id ${zap.id?.substring(0, 16)}... (already have NIP-57 zap)`)
+  //     }
+  //   })
+  // }
 
   // Convert map values to array and sort by timestamp
   return Array.from(uniqueZapsMap.values()).sort((a, b) => 
