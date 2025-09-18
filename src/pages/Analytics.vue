@@ -86,13 +86,13 @@ const connectionStatus = computed(() => {
     return {
       type: 'both',
       dataLabel: 'payments and zaps',
-      emptyMessage: 'No activity yet. Try receiving some zaps or making payments.'
+      emptyMessage: 'No activity yet. Try receiving some zaps.'
     }
   } else if (hasNostr) {
     return {
       type: 'nostr-only',
       dataLabel: 'Nostr zaps',
-      emptyMessage: 'No Nostr zaps yet. Try receiving some zaps or connect your NWC wallet for more data.'
+      emptyMessage: 'No Nostr zaps yet. Try receiving some zaps for more data.'
     }
   } else if (hasNWC) {
     return {
