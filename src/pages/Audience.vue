@@ -76,7 +76,8 @@ const {
   isFollowing,
   getMutualFollows,
   getFollowersCount,
-  getFollowingCount
+  getFollowingCount,
+  fetchProfile
 } = useAudience()
 
 // UI State
@@ -97,6 +98,7 @@ const tabs = [
   {
     id: 'overview', label: 'Overview', icon: IconTarget, count: null },
   { id: 'following', label: 'Following', icon: IconUserCheck, count: computed(() => getFollowingCount()) },
+  { id: 'followers', label: 'Followers', icon: IconUsers, count: computed(() => getFollowersCount()) },
   { id: 'lists', label: 'Follow Packs', icon: IconList, count: computed(() => myLists.value.length) },
   { id: 'suggestions', label: 'Suggestions', icon: IconUserPlus, count: computed(() => suggestedUsers.value.length) }
 ]
@@ -456,6 +458,7 @@ onMounted(() => {
   if (isAuthenticated.value) {
     // Start with overview for first-time users
     refreshFollowing()
+    refreshFollowers()
     
     // Generate suggestions after following list is loaded
     setTimeout(() => {
@@ -468,6 +471,7 @@ onMounted(() => {
 watch(isAuthenticated, (authenticated) => {
   if (authenticated) {
     refreshFollowing()
+    refreshFollowers()
     
     // Generate suggestions after following list is loaded
     setTimeout(() => {
