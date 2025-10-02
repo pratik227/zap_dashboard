@@ -34,6 +34,7 @@ import { useBtcPrice } from '../composables/useBtcPrice.js'
 import { useMentions } from '../composables/useMentions.js'
 import EngagementMetrics from '../components/EngagementMetrics.vue'
 import NoteSuccessModal from '../components/NoteSuccessModal.vue'
+import ContentRenderer from '../components/ContentRenderer.vue'
 import MentionInput from '../components/MentionInput.vue'
 import MentionRenderer from '../components/MentionRenderer.vue'
 
@@ -174,7 +175,7 @@ const handleSubmit = async () => {
   try {
     // Extract p tags from mentions in content (NIP-10)
     const pTags = extractPTags(noteForm.content)
-    
+
     let result
     if (editingNote.value) {
       result = await updateNote(editingNote.value.id, noteForm.content, noteForm.tags, pTags)
@@ -640,6 +641,13 @@ const handleMentionClick = ({ pubkey, profile }) => {
                       mention-class="text-orange-600 hover:text-orange-700 font-medium cursor-pointer hover:underline"
                       class="text-gray-800 leading-relaxed line-clamp-3"
                     />
+<!--                    <div class="text-gray-800 leading-relaxed line-clamp-3">-->
+<!--                      <ContentRenderer -->
+<!--                        :content="note.content" -->
+<!--                        :preferred-client="'primal'"-->
+<!--                        :show-debug-info="false"-->
+<!--                      />-->
+<!--                    </div>-->
                   </div>
                   
                   <!-- Hashtags -->
@@ -767,7 +775,7 @@ const handleMentionClick = ({ pubkey, profile }) => {
                     @mention-added="handleMentionAdded"
                   />
                 </div>
-                
+
                 <!-- Preview Mode -->
                 <div v-else class="min-h-[120px] max-h-[400px] overflow-y-auto">
                   <MentionRenderer
@@ -818,7 +826,7 @@ const handleMentionClick = ({ pubkey, profile }) => {
                   <IconEye class="w-4 h-4" />
                   <span>{{ showPreview ? 'Edit' : 'Preview' }}</span>
                 </button>
-                
+
                 <div class="text-sm text-gray-500 flex items-center space-x-1">
                   <IconUsers class="w-4 h-4" />
                   <span>Everyone can reply</span>
@@ -879,6 +887,13 @@ const handleMentionClick = ({ pubkey, profile }) => {
                       @mention-click="handleMentionClick"
                       class="text-gray-800 leading-relaxed whitespace-pre-wrap"
                     />
+<!--                    <div class="text-gray-800 leading-relaxed">-->
+<!--                      <ContentRenderer -->
+<!--                        :content="enhancedSelectedNote.content" -->
+<!--                        :preferred-client="'primal'"-->
+<!--                        :show-debug-info="false"-->
+<!--                      />-->
+<!--                    </div>-->
                   </div>
                 </div>
 
@@ -938,7 +953,7 @@ const handleMentionClick = ({ pubkey, profile }) => {
                         :src="zap.sender?.picture || zap.sender?.avatar"
                         :alt="zap.sender?.name || 'Zapper'"
                         class="w-8 h-8 rounded-full object-cover border border-orange-200"
-                        @error="$event.target.src = generateFallbackAvatar(zap.zapperPubkey)"
+                        @error="$event.target.src = 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'"
                       />
                       <div class="flex-1 min-w-0">
                         <div class="font-medium text-gray-900 text-sm">
