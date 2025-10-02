@@ -355,6 +355,10 @@ export function useContent() {
         throw new Error('No write-enabled relays available. Please check your relay configuration.')
       }
 
+      // Extract p tags from mentions in content (NIP-10)
+      const { extractPTags } = await import('./useMentions.js').then(m => m.useMentions())
+      const pTags = extractPTags(content.content || '')
+      
       // Create NIP-23 long-form content event (kind:30023)
       let eventTemplate = {
         kind: 30023, // Long-form content (NIP-23)
@@ -364,7 +368,8 @@ export function useContent() {
           ['title', content.title], // Article title
           ['summary', content.description || ''], // Article summary
           ['published_at', Math.floor(new Date(content.createdAt).getTime() / 1000).toString()],
-          ...content.tags.map(tag => ['t', tag]) // Topic tags
+          ...content.tags.map(tag => ['t', tag]), // Topic tags
+          ...pTags // Add p tags for mentions (NIP-10)
         ],
         content: content.content // Main blog content
       }

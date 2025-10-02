@@ -133,13 +133,18 @@
           
           <transition name="slide-down">
             <div v-if="showCustomMessage" class="mt-3 space-y-3">
-              <textarea
+              <MentionInput
                 v-model="customMessage"
-                rows="3"
-                :placeholder="defaultMessagePlaceholder"
-                class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:border-orange-400 focus:ring-1 focus:ring-orange-200 transition-colors resize-none"
-              ></textarea>
-              <p class="text-xs text-gray-500">Leave empty to use the default message</p>
+                :placeholder="defaultMessagePlaceholder + ' Type @ to mention someone.'"
+                min-height="80px"
+                max-height="200px"
+                @mention-added="handleMentionAdded"
+              />
+              <p class="text-xs text-gray-500">Leave empty to use the default message. Mentions supported!</p>
+              <div v-if="mentionCount > 0" class="flex items-center space-x-2 text-xs text-orange-600">
+                <IconAt class="w-3 h-3" />
+                <span>{{ mentionCount }} mention{{ mentionCount !== 1 ? 's' : '' }}</span>
+              </div>
             </div>
           </transition>
         </div>
@@ -195,12 +200,15 @@ import {
   IconAlertCircle,
   IconChevronDown,
   IconEdit,
-  IconTarget
+  IconTarget,
+  IconAt
 } from '@iconify-prerendered/vue-tabler'
 import { useCampaigns } from '../composables/useCampaigns.js'
 import { useNostrAuth } from '../composables/useNostrAuth.js'
+import { useMentions } from '../composables/useMentions.js'
 import { finalizeEvent, verifyEvent } from 'nostr-tools/pure'
 import { nostrRelayManager } from '../utils/nostrRelayManager.js'
+import MentionInput from './MentionInput.vue'
 
 const props = defineProps({
   campaign: {
@@ -217,6 +225,7 @@ const emit = defineEmits(['close'])
 
 const { shareCampaignOnNostr } = useCampaigns()
 const { currentUser } = useNostrAuth()
+const { extractPTags, parseMentions } = useMentions()
 
 // State
 const shareUrl = ref('')
@@ -242,6 +251,16 @@ shareUrl.value = generateShareUrl()
 const defaultMessagePlaceholder = computed(() => {
   return `Support my campaign: ${props.campaign.title}\n\n${shareUrl.value}\n\n#ZapTracker #Lightning #Nostr`
 })
+
+// Mention count
+const mentionCount = computed(() => {
+  return parseMentions(customMessage.value || '').length
+})
+
+// Handle mention added
+const handleMentionAdded = (user) => {
+  console.log('Mention added to campaign share:', user)
+}
 
 // Copy to clipboard and trigger native share if available
 const copyAndShare = async () => {
@@ -308,6 +327,9 @@ const shareOnNostr = async () => {
     
     console.log('Share content:', content)
     
+    // Extract p tags from mentions in content (NIP-10)
+    const mentionPTags = extractPTags(content)
+    
     // Create event template with proper goal tag
     const eventTemplate = {
       kind: 1, // Text note
@@ -321,6 +343,9 @@ const shareOnNostr = async () => {
         
         // Reference the campaign creator
         ['p', props.campaign.pubkey],
+        
+        // Add p tags for mentions (NIP-10)
+        ...mentionPTags,
         
         // Add hashtags as t tags
         ...defaultTags.map(tag => ['t', tag])

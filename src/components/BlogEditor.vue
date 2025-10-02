@@ -31,8 +31,13 @@ import {
   IconMaximize,
   IconEdit,
   IconArrowLeft,
-  IconSettings
+  IconSettings,
+  IconAt,
+  IconUser
 } from '@iconify-prerendered/vue-tabler'
+import { useMentions } from '../composables/useMentions.js'
+import MentionInput from './MentionInput.vue'
+import MentionRenderer from './MentionRenderer.vue'
 
 const props = defineProps({
   form: {
@@ -55,11 +60,15 @@ const props = defineProps({
 
 const emit = defineEmits(['submit', 'save-draft', 'cancel'])
 
+// Use mentions composable
+const { parseMentions, extractPTags } = useMentions()
+
 // Editor state
 const viewMode = ref('both') // 'edit', 'preview', 'both'
 const focusMode = ref(false)
 const showToolbar = ref(true)
 const showMetadata = ref(true)
+const useMentionInput = ref(true) // Toggle for mention support
 
 // Refs for editor functionality
 const contentTextarea = ref(null)
@@ -80,6 +89,21 @@ const videoForm = ref({ url: '', title: '' })
 const isFormValid = computed(() => {
   return props.form.title?.trim() && props.form.content?.trim()
 })
+
+// Mention count
+const mentionCount = computed(() => {
+  return parseMentions(props.form.content || '').length
+})
+
+// Handle mention added
+const handleMentionAdded = (user) => {
+  console.log('Mention added to long-form content:', user)
+}
+
+// Handle mention click in preview
+const handleMentionClick = ({ pubkey, profile }) => {
+  console.log('Mention clicked:', pubkey, profile)
+}
 
 // Add tag functionality
 const newTag = ref('')
@@ -882,11 +906,11 @@ const syncScroll = (source) => {
       <!-- Editor Panel -->
       <div :class="editorClasses">
         <div class="h-full flex flex-col bg-white">
-          <!-- Editor -->
-          <textarea
-            ref="contentTextarea"
-            v-model="props.form.content"
-            placeholder="Start writing your story...
+          <!-- Editor with Mention Support -->
+          <div v-if="useMentionInput" class="flex-1 overflow-y-auto">
+            <MentionInput
+              v-model="props.form.content"
+              placeholder="Start writing your story... Type @ to mention someone.
 
 # Your Amazing Title
 
@@ -895,8 +919,9 @@ Write your content here using Markdown. The preview will update in real-time.
 **Bold text** and *italic text* are supported.
 
 - Create lists
-- Add links
+- Add links  
 - Include images
+- Mention users with @
 
 > Use quotes for emphasis
 
@@ -905,6 +930,20 @@ Code blocks work too
 ```
 
 Focus on your content - everything else fades away."
+              min-height="100%"
+              max-height="none"
+              class="w-full p-6 lg:p-8 text-gray-800 leading-relaxed text-base lg:text-lg"
+              style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; line-height: 1.7;"
+              @mention-added="handleMentionAdded"
+            />
+          </div>
+          
+          <!-- Fallback: Regular Textarea -->
+          <textarea
+            v-else
+            ref="contentTextarea"
+            v-model="props.form.content"
+            placeholder="Start writing your story..."
             class="flex-1 w-full p-6 lg:p-8 border-0 resize-none focus:outline-none text-gray-800 leading-relaxed text-base lg:text-lg bg-transparent"
             style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; line-height: 1.7;"
             @scroll="syncScroll('editor')"
@@ -944,9 +983,28 @@ Focus on your content - everything else fades away."
             
             <!-- Preview Content -->
             <div class="prose prose-lg max-w-none">
-              <div v-if="props.form.content" v-html="parseMarkdown(props.form.content)"></div>
+              <div v-if="props.form.content">
+                <!-- Render with mentions support -->
+                <MentionRenderer
+                  :content="props.form.content"
+                  :show-profile-on-click="true"
+                  @mention-click="handleMentionClick"
+                />
+                <!-- Then render markdown (mentions already processed) -->
+                <div v-html="parseMarkdown(props.form.content)"></div>
+              </div>
               <div v-else class="text-gray-400 italic text-center py-12">
                 Start writing to see your content preview...
+              </div>
+            </div>
+            
+            <!-- Mention Count -->
+            <div v-if="mentionCount > 0" class="mt-6 pt-4 border-t border-gray-200">
+              <div class="flex items-center space-x-2 text-sm text-gray-600">
+                <IconAt class="w-4 h-4 text-orange-500" />
+                <span class="font-medium text-orange-600">{{ mentionCount }} mention{{ mentionCount !== 1 ? 's' : '' }}</span>
+                <span class="text-gray-400">•</span>
+                <span class="text-gray-500">Users will be notified</span>
               </div>
             </div>
           </div>

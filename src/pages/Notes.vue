@@ -31,9 +31,12 @@ import { useNostrAuth } from '../composables/useNostrAuth.js'
 import { useContentZaps } from '../composables/useContentZaps.js'
 import { useEngagementMetrics } from '../composables/useEngagementMetrics.js'
 import { useBtcPrice } from '../composables/useBtcPrice.js'
+import { useMentions } from '../composables/useMentions.js'
 import EngagementMetrics from '../components/EngagementMetrics.vue'
 import NoteSuccessModal from '../components/NoteSuccessModal.vue'
 import ContentRenderer from '../components/ContentRenderer.vue'
+import MentionInput from '../components/MentionInput.vue'
+import MentionRenderer from '../components/MentionRenderer.vue'
 
 const { isAuthenticated, currentUser, userProfile, login } = useNostrAuth()
 
@@ -76,6 +79,9 @@ const {
 // Use BTC price composable
 const { satsToUSD, formatUSD } = useBtcPrice()
 
+// Use mentions composable
+const { extractPTags, parseMentions } = useMentions()
+
 // UI State
 const showViewModal = ref(false)
 const showRawDataModal = ref(false)
@@ -85,6 +91,7 @@ const showZapperModal = ref(false)
 const selectedZapper = ref(null)
 const showSuccessModal = ref(false)
 const lastPublishResult = ref(null)
+const showPreview = ref(false)
 
 // Enhanced computed properties
 const noteStats = computed(() => {
@@ -166,11 +173,14 @@ const handleSubmit = async () => {
   if (!noteForm.content.trim()) return
   
   try {
+    // Extract p tags from mentions in content (NIP-10)
+    const pTags = extractPTags(noteForm.content)
+
     let result
     if (editingNote.value) {
-      result = await updateNote(editingNote.value.id, noteForm.content, noteForm.tags)
+      result = await updateNote(editingNote.value.id, noteForm.content, noteForm.tags, pTags)
     } else {
-      result = await publishNote(noteForm.content, noteForm.tags)
+      result = await publishNote(noteForm.content, noteForm.tags, pTags)
     }
     
     // Store the publish result and note content for the success modal
@@ -183,6 +193,7 @@ const handleSubmit = async () => {
     
     // Reset form and go back to list
     noteForm.content = ''
+    showPreview.value = false
     setView('list')
   } catch (err) {
     console.error('Failed to save note:', err)
@@ -217,11 +228,13 @@ const handleNostrLogin = async () => {
 const startEditing = (note) => {
   editNote(note)
   noteForm.content = note.content
+  showPreview.value = false
 }
 
 const startCreating = () => {
   createNewNote()
   noteForm.content = ''
+  showPreview.value = false
 }
 
 // Open detailed view
@@ -426,6 +439,22 @@ const formatRawEvent = (note) => {
   // Return formatted JSON with proper indentation
   return JSON.stringify(cleanEvent, null, 2)
 }
+
+// Toggle preview mode
+const togglePreview = () => {
+  showPreview.value = !showPreview.value
+}
+
+// Handle mention added
+const handleMentionAdded = (user) => {
+  console.log('Mention added:', user)
+}
+
+// Handle mention click in preview
+const handleMentionClick = ({ pubkey, profile }) => {
+  console.log('Mention clicked:', pubkey, profile)
+  // Could open a profile modal here
+}
 </script>
 
 <template>
@@ -606,13 +635,19 @@ const formatRawEvent = (note) => {
                   
                   <!-- Note Preview -->
                   <div class="mb-3">
-                    <div class="text-gray-800 leading-relaxed line-clamp-3">
-                      <ContentRenderer 
-                        :content="note.content" 
-                        :preferred-client="'primal'"
-                        :show-debug-info="false"
-                      />
-                    </div>
+                    <MentionRenderer
+                      :content="note.content"
+                      :show-profile-on-click="true"
+                      mention-class="text-orange-600 hover:text-orange-700 font-medium cursor-pointer hover:underline"
+                      class="text-gray-800 leading-relaxed line-clamp-3"
+                    />
+<!--                    <div class="text-gray-800 leading-relaxed line-clamp-3">-->
+<!--                      <ContentRenderer -->
+<!--                        :content="note.content" -->
+<!--                        :preferred-client="'primal'"-->
+<!--                        :show-debug-info="false"-->
+<!--                      />-->
+<!--                    </div>-->
                   </div>
                   
                   <!-- Hashtags -->
@@ -729,14 +764,27 @@ const formatRawEvent = (note) => {
               
               <!-- Text Input Area -->
               <div class="flex-1">
-                <textarea
-                  ref="noteTextarea"
-                  v-model="noteForm.content"
-                  placeholder="What's happening?"
-                  class="w-full border-0 resize-none focus:ring-0 focus:outline-none text-xl placeholder-gray-500 bg-transparent"
-                  style="min-height: 120px; max-height: 400px;"
-                  @input="autoResize"
-                ></textarea>
+                <!-- Edit Mode -->
+                <div v-if="!showPreview">
+                  <MentionInput
+                    v-model="noteForm.content"
+                    placeholder="What's happening? Type @ to mention someone..."
+                    min-height="120px"
+                    max-height="400px"
+                    :auto-focus="true"
+                    @mention-added="handleMentionAdded"
+                  />
+                </div>
+
+                <!-- Preview Mode -->
+                <div v-else class="min-h-[120px] max-h-[400px] overflow-y-auto">
+                  <MentionRenderer
+                    :content="noteForm.content"
+                    :show-profile-on-click="true"
+                    @mention-click="handleMentionClick"
+                    class="text-xl text-gray-800 leading-relaxed whitespace-pre-wrap"
+                  />
+                </div>
                 
                 <!-- Character Counter -->
                 <div v-if="noteForm.content.length > 1800" class="flex justify-end mt-2">
@@ -768,14 +816,32 @@ const formatRawEvent = (note) => {
             
             <!-- Bottom Bar -->
             <div class="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
-              <div class="text-sm text-gray-500 flex items-center space-x-1">
-                <IconUsers class="w-4 h-4" />
-                <span>Everyone can reply</span>
+              <div class="flex items-center space-x-3">
+                <!-- Preview Toggle -->
+                <button
+                  v-if="noteForm.content.length > 0"
+                  @click="togglePreview"
+                  class="text-sm text-gray-600 hover:text-orange-600 px-3 py-1 rounded-lg hover:bg-orange-50 transition-colors flex items-center space-x-1"
+                >
+                  <IconEye class="w-4 h-4" />
+                  <span>{{ showPreview ? 'Edit' : 'Preview' }}</span>
+                </button>
+
+                <div class="text-sm text-gray-500 flex items-center space-x-1">
+                  <IconUsers class="w-4 h-4" />
+                  <span>Everyone can reply</span>
+                </div>
               </div>
               
-              <!-- Character count for mobile -->
-              <div v-if="noteForm.content.length > 0" class="text-sm text-gray-500">
-                {{ noteForm.content.length }}/2000
+              <!-- Character count and mention count -->
+              <div class="flex items-center space-x-3">
+                <div v-if="parseMentions(noteForm.content).length > 0" class="text-sm text-orange-600 flex items-center space-x-1">
+                  <IconUser class="w-4 h-4" />
+                  <span>{{ parseMentions(noteForm.content).length }} mention{{ parseMentions(noteForm.content).length !== 1 ? 's' : '' }}</span>
+                </div>
+                <div v-if="noteForm.content.length > 0" class="text-sm text-gray-500">
+                  {{ noteForm.content.length }}/2000
+                </div>
               </div>
             </div>
           </div>
@@ -815,13 +881,19 @@ const formatRawEvent = (note) => {
                 <!-- Note Content -->
                 <div class="mb-6">
                   <div class="prose prose-lg max-w-none">
-                    <div class="text-gray-800 leading-relaxed">
-                      <ContentRenderer 
-                        :content="enhancedSelectedNote.content" 
-                        :preferred-client="'primal'"
-                        :show-debug-info="false"
-                      />
-                    </div>
+                    <MentionRenderer
+                      :content="enhancedSelectedNote.content"
+                      :show-profile-on-click="true"
+                      @mention-click="handleMentionClick"
+                      class="text-gray-800 leading-relaxed whitespace-pre-wrap"
+                    />
+<!--                    <div class="text-gray-800 leading-relaxed">-->
+<!--                      <ContentRenderer -->
+<!--                        :content="enhancedSelectedNote.content" -->
+<!--                        :preferred-client="'primal'"-->
+<!--                        :show-debug-info="false"-->
+<!--                      />-->
+<!--                    </div>-->
                   </div>
                 </div>
 

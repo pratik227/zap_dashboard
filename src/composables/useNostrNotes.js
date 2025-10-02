@@ -192,7 +192,7 @@ export function useNostrNotes() {
   }
 
   // Publish note to Nostr
-  const publishNote = async (content, tags = []) => {
+  const publishNote = async (content, tags = [], pTags = []) => {
     if (!isAuthenticated.value || !window.nostr) {
       throw new Error('Nostr authentication required')
     }
@@ -213,11 +213,17 @@ export function useNostrNotes() {
       // Combine provided tags with hashtags from content
       const allTags = [...new Set([...tags, ...contentHashtags])]
 
+      // Build event tags array
+      const eventTags = [
+        ...allTags.map(tag => ['t', tag]), // Add hashtags as 't' tags
+        ...pTags // Add p tags for mentions (NIP-10)
+      ]
+
       // Create note event
       let eventTemplate = {
         kind: 1, // Text note
         created_at: Math.floor(Date.now() / 1000),
-        tags: allTags.map(tag => ['t', tag]), // Add hashtags as 't' tags
+        tags: eventTags,
         content: content.trim()
       }
 
@@ -288,7 +294,7 @@ export function useNostrNotes() {
   }
 
   // Update existing note
-  const updateNote = async (noteId, newContent, tags = []) => {
+  const updateNote = async (noteId, newContent, tags = [], pTags = []) => {
     // In Nostr, we can't actually update events, so we publish a new one
     // and mark the old one as deleted with a kind:5 event
     
@@ -312,11 +318,17 @@ export function useNostrNotes() {
       // Combine provided tags with hashtags from content
       const allTags = [...new Set([...tags, ...contentHashtags])]
 
+      // Build event tags array
+      const eventTags = [
+        ...allTags.map(tag => ['t', tag]), // Add hashtags as 't' tags
+        ...pTags // Add p tags for mentions (NIP-10)
+      ]
+
       // Create note event
       let eventTemplate = {
         kind: 1, // Text note
         created_at: Math.floor(Date.now() / 1000),
-        tags: allTags.map(tag => ['t', tag]), // Add hashtags as 't' tags
+        tags: eventTags,
         content: newContent.trim()
       }
 
