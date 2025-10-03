@@ -557,6 +557,26 @@ const parseMarkdown = (content) => {
   const mediaElements = []
   let mediaIndex = 0
 
+  // Process standalone image URLs (not in markdown syntax) - must be on its own line
+  html = html.replace(/^(https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|svg))$/gim, (match, url) => {
+    const placeholder = `__MEDIA__${mediaIndex}__`
+    mediaElements[mediaIndex] = `<div class="my-6 rounded-lg overflow-hidden shadow-md"><img src="${url}" alt="Image" class="w-full h-auto" loading="lazy" onerror="this.parentElement.innerHTML='<div class=\\'p-4 bg-gray-100 text-gray-500 text-center\\'>Image failed to load</div>'"/></div>`
+    mediaIndex++
+    return placeholder
+  })
+
+  // Process standalone YouTube/Vimeo URLs (not in markdown syntax) - must be on its own line
+  html = html.replace(/^(https?:\/\/(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/|vimeo\.com\/)[\w-]+(?:[^\s]*))$/gim, (match, url) => {
+    const embedUrl = getVideoEmbedUrl(url)
+    if (embedUrl) {
+      const placeholder = `__MEDIA__${mediaIndex}__`
+      mediaElements[mediaIndex] = `<div class="my-6 aspect-video rounded-lg overflow-hidden shadow-md"><iframe src="${embedUrl}" class="w-full h-full" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>`
+      mediaIndex++
+      return placeholder
+    }
+    return match
+  })
+
   // Process nostr mentions BEFORE escaping HTML - convert to display format
   html = html.replace(/nostr:(npub1[a-z0-9]+)/g, (match, npub) => {
     return `__MENTION__${npub}__ENDMENTION__`
