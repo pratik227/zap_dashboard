@@ -484,67 +484,143 @@ const handleKeydown = (event) => {
   }
 }
 
-// Parse markdown content to HTML for preview
+// Enhanced markdown parser with media support
 const parseMarkdown = (content) => {
   if (!content) return ''
-  
+
+  // Store code blocks and inline code to protect them from processing
+  const codeBlocks = []
+  const inlineCodes = []
+
   let html = content
-    // Escape HTML first
+
+  // Extract and protect code blocks
+  html = html.replace(/```([\s\S]*?)```/g, (match, code) => {
+    const index = codeBlocks.length
+    codeBlocks.push(code)
+    return `__CODE_BLOCK_${index}__`
+  })
+
+  // Extract and protect inline code
+  html = html.replace(/`([^`]+)`/g, (match, code) => {
+    const index = inlineCodes.length
+    inlineCodes.push(code)
+    return `__INLINE_CODE_${index}__`
+  })
+
+  // Now escape HTML (after extracting code)
+  html = html
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
-  
-  // Parse markdown syntax
-  html = html
-    // Headers
-    .replace(/^### (.*$)/gm, '<h3 class="text-xl font-bold text-gray-900 mt-8 mb-4 leading-tight">$1</h3>')
-    .replace(/^## (.*$)/gm, '<h2 class="text-2xl font-bold text-gray-900 mt-10 mb-6 leading-tight">$1</h2>')
-    .replace(/^# (.*$)/gm, '<h1 class="text-3xl font-bold text-gray-900 mt-12 mb-8 leading-tight">$1</h1>')
-    
-    // Bold and italic
-    .replace(/\*\*\*(.*?)\*\*\*/g, '<strong class="font-bold"><em class="italic">$1</em></strong>')
-    .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-gray-900">$1</strong>')
-    .replace(/\*(.*?)\*/g, '<em class="italic text-gray-700">$1</em>')
-    
-    // Links
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-orange-600 hover:text-orange-700 underline underline-offset-2 transition-colors">$1</a>')
-    
-    // Code blocks (triple backticks)
-    .replace(/```([\s\S]*?)```/g, '<pre class="bg-gray-100 border border-gray-200 rounded-lg p-4 my-4 overflow-x-auto"><code class="text-sm font-mono text-gray-800">$1</code></pre>')
-    
-    // Inline code
-    .replace(/`([^`]+)`/g, '<code class="bg-gray-100 text-gray-800 px-2 py-1 rounded text-sm font-mono">$1</code>')
-    
-    // Unordered lists
-    .replace(/^[\s]*[-*+] (.+)$/gm, '<li class="ml-4 mb-2 text-gray-700">$1</li>')
-    
-    // Ordered lists
-    .replace(/^[\s]*\d+\. (.+)$/gm, '<li class="ml-4 mb-2 text-gray-700">$1</li>')
-    
-    // Blockquotes
-    .replace(/^> (.+)$/gm, '<blockquote class="border-l-4 border-orange-400 pl-4 py-2 my-4 bg-orange-50/50 italic text-gray-700">$1</blockquote>')
-    
-    // Horizontal rules
-    .replace(/^---$/gm, '<hr class="border-t border-gray-300 my-8">')
-    
-    // Line breaks (convert double newlines to paragraphs)
-    .replace(/\n\n/g, '</p><p class="mb-4 text-gray-700 leading-relaxed">')
-    
-    // Single line breaks
-    .replace(/\n/g, '<br>')
-  
-  // Wrap in paragraph tags if not already wrapped
-  if (!html.includes('<p>') && !html.includes('<h1>') && !html.includes('<h2>') && !html.includes('<h3>')) {
-    html = `<p class="mb-4 text-gray-700 leading-relaxed">${html}</p>`
-  } else if (html.includes('</p><p>')) {
-    html = `<p class="mb-4 text-gray-700 leading-relaxed">${html}</p>`
-  }
-  
-  // Wrap lists in proper ul/ol tags
-  html = html.replace(/(<li class="ml-4 mb-2 text-gray-700">.*?<\/li>)/gs, (match) => {
-    return `<ul class="list-disc list-inside mb-4 space-y-2">${match}</ul>`
+
+  // Process images (before links to avoid conflicts)
+  // Format: ![alt text](url)
+  html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (match, alt, url) => {
+    const cleanUrl = url.trim()
+    return `<div class="my-6"><img src="${cleanUrl}" alt="${alt || 'Image'}" class="rounded-lg shadow-md max-w-full h-auto" loading="lazy" onerror="this.parentElement.innerHTML='<div class=\'bg-gray-100 border-2 border-dashed border-gray-300 rounded-lg p-8 text-center\'><svg class=\'w-12 h-12 mx-auto mb-2 text-gray-400\' fill=\'none\' stroke=\'currentColor\' viewBox=\'0 0 24 24\'><path stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'2\' d=\'M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z\'></path></svg><p class=\'text-gray-500 text-sm\'>Image failed to load</p><p class=\'text-gray-400 text-xs mt-1 break-all\'>${cleanUrl}</p></div>'" /></div>`
   })
-  
+
+  // Process video embeds for YouTube, Vimeo, and direct video URLs
+  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (match, text, url) => {
+    const cleanUrl = url.trim()
+
+    // YouTube embed
+    const youtubeMatch = cleanUrl.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)/)
+    if (youtubeMatch) {
+      const videoId = youtubeMatch[1]
+      return `<div class="my-6 aspect-video rounded-lg overflow-hidden shadow-lg"><iframe src="https://www.youtube.com/embed/${videoId}" class="w-full h-full" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>`
+    }
+
+    // Vimeo embed
+    const vimeoMatch = cleanUrl.match(/vimeo\.com\/(\d+)/)
+    if (vimeoMatch) {
+      const videoId = vimeoMatch[1]
+      return `<div class="my-6 aspect-video rounded-lg overflow-hidden shadow-lg"><iframe src="https://player.vimeo.com/video/${videoId}" class="w-full h-full" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe></div>`
+    }
+
+    // Direct video files
+    if (/\.(mp4|webm|ogg)$/i.test(cleanUrl)) {
+      return `<div class="my-6"><video controls class="w-full rounded-lg shadow-lg"><source src="${cleanUrl}" type="video/${cleanUrl.split('.').pop()}">Your browser does not support the video tag.</video></div>`
+    }
+
+    // Regular link with enhanced styling
+    return `<a href="${cleanUrl}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center text-orange-600 hover:text-orange-700 underline underline-offset-2 transition-colors font-medium">${text}<svg class="w-3 h-3 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg></a>`
+  })
+
+  // Headers (process in reverse order to avoid conflicts)
+  html = html.replace(/^#### (.*$)/gm, '<h4 class="text-lg font-bold text-gray-900 mt-6 mb-3 leading-tight">$1</h4>')
+  html = html.replace(/^### (.*$)/gm, '<h3 class="text-xl font-bold text-gray-900 mt-8 mb-4 leading-tight">$1</h3>')
+  html = html.replace(/^## (.*$)/gm, '<h2 class="text-2xl font-bold text-gray-900 mt-10 mb-6 leading-tight">$1</h2>')
+  html = html.replace(/^# (.*$)/gm, '<h1 class="text-3xl font-bold text-gray-900 mt-12 mb-8 leading-tight">$1</h1>')
+
+  // Bold, italic, and strikethrough
+  html = html.replace(/~~(.*?)~~/g, '<del class="text-gray-500 line-through">$1</del>')
+  html = html.replace(/\*\*\*(.*?)\*\*\*/g, '<strong class="font-bold"><em class="italic">$1</em></strong>')
+  html = html.replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-gray-900">$1</strong>')
+  html = html.replace(/\*(.*?)\*/g, '<em class="italic text-gray-700">$1</em>')
+  html = html.replace(/__(.*?)__/g, '<strong class="font-bold text-gray-900">$1</strong>')
+  html = html.replace(/_(.*?)_/g, '<em class="italic text-gray-700">$1</em>')
+
+  // Blockquotes
+  html = html.replace(/^> (.+)$/gm, '<blockquote class="border-l-4 border-orange-400 pl-4 py-2 my-4 bg-orange-50/50 italic text-gray-700">$1</blockquote>')
+
+  // Horizontal rules
+  html = html.replace(/^---$/gm, '<hr class="border-t-2 border-gray-200 my-8">')
+  html = html.replace(/^\*\*\*$/gm, '<hr class="border-t-2 border-gray-200 my-8">')
+
+  // Lists (unordered)
+  html = html.replace(/^[\s]*[-*+] (.+)$/gm, (match, item) => {
+    return `<li class="ml-6 mb-2 text-gray-700 relative before:content-['•'] before:absolute before:-ml-4 before:text-orange-500 before:font-bold">${item}</li>`
+  })
+
+  // Lists (ordered)
+  let listCounter = 0
+  html = html.replace(/^[\s]*(\d+)\. (.+)$/gm, (match, num, item) => {
+    return `<li class="ml-6 mb-2 text-gray-700" style="list-style-type: decimal;">${item}</li>`
+  })
+
+  // Restore code blocks with syntax highlighting
+  html = html.replace(/__CODE_BLOCK_(\d+)__/g, (match, index) => {
+    const code = codeBlocks[index]
+    // Detect language (optional)
+    const lines = code.split('\n')
+    let language = ''
+    let codeContent = code
+
+    if (lines[0] && /^[a-z]+$/i.test(lines[0].trim())) {
+      language = lines[0].trim()
+      codeContent = lines.slice(1).join('\n')
+    }
+
+    return `<div class="my-6"><pre class="bg-gradient-to-br from-gray-900 to-gray-800 text-gray-100 rounded-lg p-4 overflow-x-auto shadow-lg"><code class="text-sm font-mono leading-relaxed">${codeContent}</code></pre>${language ? `<div class="text-xs text-gray-500 mt-1 text-right">${language}</div>` : ''}</div>`
+  })
+
+  // Restore inline code
+  html = html.replace(/__INLINE_CODE_(\d+)__/g, (match, index) => {
+    return `<code class="bg-orange-50 text-orange-700 border border-orange-200 px-2 py-0.5 rounded text-sm font-mono">${inlineCodes[index]}</code>`
+  })
+
+  // Process paragraphs (split by double newlines)
+  const blocks = html.split(/\n\n+/)
+  html = blocks.map(block => {
+    // Skip if already a block element
+    if (/^<(h[1-6]|div|pre|blockquote|ul|ol|hr|li)/.test(block.trim())) {
+      return block
+    }
+    // Single line breaks within paragraphs
+    const content = block.replace(/\n/g, '<br>')
+    return `<p class="mb-4 text-gray-700 leading-relaxed">${content}</p>`
+  }).join('\n')
+
+  // Wrap consecutive list items in ul/ol tags
+  html = html.replace(/((?:<li class="ml-6 mb-2 text-gray-700[^>]*>.*?<\/li>\s*)+)/gs, (match) => {
+    if (match.includes('list-style-type: decimal')) {
+      return `<ol class="list-decimal mb-4 space-y-1">${match}</ol>`
+    }
+    return `<ul class="mb-4 space-y-1">${match}</ul>`
+  })
+
   return html
 }
 
@@ -956,16 +1032,7 @@ Focus on your content - everything else fades away."
 
             <!-- Preview Content -->
             <div class="prose prose-lg max-w-none">
-              <div v-if="props.form.content">
-                <!-- Render with mentions support -->
-                <MentionRenderer
-                  :content="props.form.content"
-                  :show-profile-on-click="true"
-                  @mention-click="handleMentionClick"
-                />
-                <!-- Then render markdown (mentions already processed) -->
-                <div v-html="parseMarkdown(props.form.content)"></div>
-              </div>
+              <div v-if="props.form.content" v-html="parseMarkdown(props.form.content)"></div>
               <div v-else class="text-gray-400 italic text-center py-12">
                 Start writing to see your content preview...
               </div>
@@ -1059,16 +1126,7 @@ Focus on your content - everything else fades away."
 
           <!-- Preview Content -->
           <div class="prose prose-lg max-w-none">
-            <div v-if="props.form.content">
-              <!-- Render with mentions support -->
-              <MentionRenderer
-                :content="props.form.content"
-                :show-profile-on-click="true"
-                @mention-click="handleMentionClick"
-              />
-              <!-- Then render markdown (mentions already processed) -->
-              <div v-html="parseMarkdown(props.form.content)"></div>
-            </div>
+            <div v-if="props.form.content" v-html="parseMarkdown(props.form.content)"></div>
             <div v-else class="text-gray-400 italic text-center py-12">
               Start writing to see your content preview...
             </div>
@@ -1339,7 +1397,7 @@ textarea {
   }
 }
 
-/* Preview prose styling */
+/* Enhanced preview prose styling */
 :deep(.prose) {
   max-width: none;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -1351,16 +1409,28 @@ textarea {
   font-size: 2.25rem;
   line-height: 1.2;
   margin-top: 0;
+  font-weight: 800;
+  letter-spacing: -0.025em;
 }
 
 :deep(.prose h2) {
   font-size: 1.875rem;
   line-height: 1.3;
+  font-weight: 700;
+  letter-spacing: -0.02em;
 }
 
 :deep(.prose h3) {
   font-size: 1.5rem;
   line-height: 1.4;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+
+:deep(.prose h4) {
+  font-size: 1.25rem;
+  line-height: 1.5;
+  font-weight: 600;
 }
 
 :deep(.prose p) {
@@ -1371,27 +1441,61 @@ textarea {
 :deep(.prose a) {
   color: #f97316;
   text-decoration: none;
-  border-bottom: 1px solid transparent;
-  transition: border-color 0.2s ease;
+  transition: all 0.2s ease;
 }
 
 :deep(.prose a:hover) {
-  border-bottom-color: #f97316;
+  color: #ea580c;
+}
+
+:deep(.prose img) {
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  margin: 1.5rem 0;
+  max-width: 100%;
+  height: auto;
+}
+
+:deep(.prose video) {
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  margin: 1.5rem 0;
+  max-width: 100%;
+}
+
+:deep(.prose iframe) {
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  margin: 1.5rem 0;
 }
 
 :deep(.prose code) {
-  background-color: #f3f4f6;
+  background-color: #fff7ed;
+  color: #ea580c;
   padding: 0.125rem 0.375rem;
   border-radius: 0.375rem;
-  font-size: 0.875rem;
+  font-size: 0.875em;
+  border: 1px solid #fed7aa;
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', 'Fira Mono', monospace;
 }
 
 :deep(.prose pre) {
-  background-color: #f9fafb;
-  border: 1px solid #e5e7eb;
+  background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+  color: #f3f4f6;
   border-radius: 0.5rem;
   padding: 1rem;
   overflow-x: auto;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  margin: 1.5rem 0;
+}
+
+:deep(.prose pre code) {
+  background: transparent;
+  color: inherit;
+  padding: 0;
+  border: none;
+  font-size: 0.875em;
+  line-height: 1.7;
 }
 
 :deep(.prose blockquote) {
@@ -1405,19 +1509,57 @@ textarea {
 }
 
 :deep(.prose ul) {
-  list-style-type: disc;
-  padding-left: 1.5rem;
+  padding-left: 0;
   margin-bottom: 1.5rem;
+  list-style: none;
 }
 
 :deep(.prose ol) {
-  list-style-type: decimal;
   padding-left: 1.5rem;
   margin-bottom: 1.5rem;
+  list-style-type: decimal;
 }
 
 :deep(.prose li) {
   margin-bottom: 0.5rem;
+  padding-left: 0.5rem;
+}
+
+:deep(.prose hr) {
+  border-top: 2px solid #e5e7eb;
+  margin: 2rem 0;
+}
+
+:deep(.prose del) {
+  text-decoration: line-through;
+  color: #9ca3af;
+}
+
+:deep(.prose strong) {
+  font-weight: 700;
+  color: #111827;
+}
+
+:deep(.prose em) {
+  font-style: italic;
+  color: #4b5563;
+}
+
+/* Aspect ratio container for videos */
+:deep(.prose .aspect-video) {
+  position: relative;
+  padding-bottom: 56.25%;
+  height: 0;
+  overflow: hidden;
+}
+
+:deep(.prose .aspect-video iframe) {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
 }
 
 /* Emoji picker styling */
