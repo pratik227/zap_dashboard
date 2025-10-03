@@ -72,6 +72,7 @@ const useMentionInput = ref(true) // Toggle for mention support
 
 // Refs for editor functionality
 const contentTextarea = ref(null)
+const mentionInputRef = ref(null)
 const previewContainer = ref(null)
 const editorContainer = ref(null)
 const emojiButton = ref(null)
@@ -125,8 +126,9 @@ const setViewMode = (mode) => {
   // Auto-focus editor when switching to edit mode
   if (mode === 'edit' || mode === 'both') {
     nextTick(() => {
-      if (contentTextarea.value) {
-        contentTextarea.value.focus()
+      const textarea = getActiveTextarea()
+      if (textarea) {
+        textarea.focus()
       }
     })
   }
@@ -141,25 +143,34 @@ const toggleFocusMode = () => {
   }
 }
 
+// Get the active textarea (either from MentionInput or regular textarea)
+const getActiveTextarea = () => {
+  if (useMentionInput.value && mentionInputRef.value) {
+    // Access the textarea inside MentionInput via $el
+    return mentionInputRef.value.$el?.querySelector('textarea')
+  }
+  return contentTextarea.value
+}
+
 // Toolbar functionality
 const insertAtCursor = (before, after = '', placeholder = '') => {
-  const textarea = contentTextarea.value
+  const textarea = getActiveTextarea()
   if (!textarea) return
 
   const start = textarea.selectionStart
   const end = textarea.selectionEnd
   const selectedText = props.form.content.substring(start, end)
-  
+
   let insertText
   if (selectedText) {
     insertText = before + selectedText + after
   } else {
     insertText = before + placeholder + after
   }
-  
+
   const newContent = props.form.content.substring(0, start) + insertText + props.form.content.substring(end)
   props.form.content = newContent
-  
+
   // Set cursor position
   nextTick(() => {
     const newCursorPos = selectedText ? start + insertText.length : start + before.length + placeholder.length
@@ -169,21 +180,21 @@ const insertAtCursor = (before, after = '', placeholder = '') => {
 }
 
 const insertAtNewLine = (text) => {
-  const textarea = contentTextarea.value
+  const textarea = getActiveTextarea()
   if (!textarea) return
 
   const start = textarea.selectionStart
   const beforeCursor = props.form.content.substring(0, start)
   const afterCursor = props.form.content.substring(start)
-  
+
   // Add newlines if needed
   const needsNewlineBefore = beforeCursor && !beforeCursor.endsWith('\n')
   const needsNewlineAfter = afterCursor && !afterCursor.startsWith('\n')
-  
+
   const insertText = (needsNewlineBefore ? '\n' : '') + text + (needsNewlineAfter ? '\n' : '')
-  
+
   props.form.content = beforeCursor + insertText + afterCursor
-  
+
   nextTick(() => {
     const newCursorPos = start + insertText.length
     textarea.focus()
@@ -199,7 +210,7 @@ const makeInlineCode = () => insertAtCursor('`', '`', 'code')
 
 // Enhanced formatting functions with proper toggle behavior
 const toggleInlineFormat = (marker, placeholder) => {
-  const textarea = contentTextarea.value
+  const textarea = getActiveTextarea()
   if (!textarea) return
 
   const start = textarea.selectionStart
@@ -248,7 +259,7 @@ const toggleInlineFormat = (marker, placeholder) => {
 }
 
 const toggleBlockFormat = (prefix, placeholder) => {
-  const textarea = contentTextarea.value
+  const textarea = getActiveTextarea()
   if (!textarea) return
 
   const start = textarea.selectionStart
@@ -319,7 +330,7 @@ const insertHeaderToggle = (level) => {
 
 const insertBulletListToggle = () => toggleBlockFormat('-', 'List item')
 const insertNumberedListToggle = () => {
-  const textarea = contentTextarea.value
+  const textarea = getActiveTextarea()
   if (!textarea) return
 
   const start = textarea.selectionStart
@@ -428,8 +439,8 @@ const insertVideo = () => {
 
 // Emoji picker
 const handleEmojiSelect = (emoji) => {
-  const textarea = contentTextarea.value
-  
+  const textarea = getActiveTextarea()
+
   if (textarea) {
     const cursorPos = textarea.selectionStart
     const textBefore = props.form.content.substring(0, cursorPos)
@@ -517,6 +528,11 @@ const parseMarkdown = (content) => {
 
   let html = content
 
+  // Process nostr mentions BEFORE escaping HTML - convert to display format
+  html = html.replace(/nostr:(npub1[a-z0-9]+)/g, (match, npub) => {
+    return `__MENTION__${npub}__ENDMENTION__`
+  })
+
   // Process images BEFORE escaping HTML - ![alt](url)
   html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (match, alt, url) => {
     return `<div class="my-6 rounded-lg overflow-hidden shadow-md"><img src="${url}" alt="${alt}" class="w-full h-auto" loading="lazy" onerror="this.parentElement.innerHTML='<div class=\'p-4 bg-gray-100 text-gray-500 text-center\'>Image failed to load</div>'"/></div>`
@@ -543,6 +559,11 @@ const parseMarkdown = (content) => {
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
+
+  // Restore processed mentions
+  html = html.replace(/__MENTION__([^_]+)__ENDMENTION__/g, (match, npub) => {
+    return `<span class="inline-flex items-center bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full text-sm font-medium cursor-pointer hover:bg-orange-200 transition-colors" onclick="window.open('https://primal.net/p/${npub}', '_blank')">@${npub.substring(0, 12)}...</span>`
+  })
 
   // Restore processed links
   html = html.replace(/__LINK__([^_]+)__URL__([^_]+)__ENDLINK__/g, (match, text, url) => {
@@ -998,6 +1019,7 @@ const syncScroll = (source) => {
           <!-- Editor with Mention Support -->
           <div v-if="useMentionInput" class="flex-1 overflow-y-auto">
             <MentionInput
+              ref="mentionInputRef"
               v-model="props.form.content"
               placeholder="Start writing your story... Type @ to mention someone.
 
@@ -1083,14 +1105,8 @@ Focus on your content - everything else fades away."
             <!-- Preview Content -->
             <article class="prose prose-lg max-w-none">
               <div v-if="props.form.content" class="content-preview">
-                <!-- Render with mentions support -->
-                <MentionRenderer
-                  :content="props.form.content"
-                  :show-profile-on-click="true"
-                  @mention-click="handleMentionClick"
-                />
-                <!-- Then render markdown (mentions already processed) -->
-                <div v-html="parseMarkdown(props.form.content)" class="markdown-content"></div>
+                <!-- Render markdown content with mentions handled inline -->
+                <div class="markdown-content" v-html="parseMarkdown(props.form.content)"></div>
               </div>
               <div v-else class="text-gray-400 text-center py-20">
                 <IconEdit class="w-16 h-16 mx-auto mb-6 opacity-30" />
