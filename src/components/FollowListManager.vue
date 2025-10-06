@@ -38,9 +38,9 @@ const {
   discoveredListsCount,
   fetchMyLists,
   discoverLists,
-  createFollowList,
-  updateFollowList,
-  deleteFollowList,
+  createFollowPack,
+  updateFollowPack,
+  deleteFollowPack,
   followEntirePack,
   followSelectedMembers,
   filterLists
@@ -146,9 +146,9 @@ const handleDeleteList = (list) => {
 // Confirm list deletion
 const confirmDeleteList = async () => {
   if (!selectedList.value) return
-  
+
   try {
-    await deleteFollowList(selectedList.value.id)
+    await deleteFollowPack(selectedList.value.id)
     showDeleteModal.value = false
     selectedList.value = null
   } catch (error) {
@@ -160,14 +160,15 @@ const confirmDeleteList = async () => {
 const handleSaveList = async (listId, listData) => {
   try {
     if (listId) {
-      await updateFollowList(listId, listData)
+      await updateFollowPack(listId, listData)
     } else {
-      await createFollowList(listData)
+      await createFollowPack(listData)
     }
     showCreateModal.value = false
     selectedList.value = null
   } catch (error) {
     console.error('Failed to save list:', error)
+    throw error
   }
 }
 

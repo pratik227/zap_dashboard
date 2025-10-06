@@ -170,11 +170,11 @@ const saveList = async () => {
   error.value = ''
 
   try {
-    await emit('save', props.list?.id, form.value)
-    emit('close')
+    // Emit save event - parent will handle the actual saving
+    emit('save', props.list?.id, form.value)
+    // Don't close immediately - let parent close on success
   } catch (err) {
     error.value = err.message || 'Failed to save list'
-  } finally {
     isLoading.value = false
   }
 }
