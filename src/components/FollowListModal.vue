@@ -255,11 +255,11 @@ const saveList = async () => {
                     rows="3"
                     placeholder="Describe what this pack is about..."
                     class="w-full px-4 py-3 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base resize-none"
-                    maxlength="200"
+                    maxlength="600"
                   ></textarea>
                   <div class="flex justify-between mt-1">
                     <p class="text-xs text-gray-500">Help others understand the purpose</p>
-                    <p class="text-xs text-gray-400">{{ form.description.length }}/200</p>
+                    <p class="text-xs text-gray-400">{{ form.description.length }}/600</p>
                   </div>
                 </div>
 
