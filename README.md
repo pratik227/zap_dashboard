@@ -5,8 +5,12 @@
   <img src="https://img.shields.io/badge/OpenSats-Grant_Supported-blue?style=for-the-badge&logo=bitcoin&logoColor=white" alt="OpenSats Grant"/>
 </p> 
 
-
-
+<p align="center">
+  <img alt="Vue.js Icon" src="https://img.shields.io/badge/-Vue.js-42b883?style=flat-square&logo=vuedotjs&logoColor=white" />
+  <img alt="Vite Icon" src="https://img.shields.io/badge/-Vite-646CFF?style=flat-square&logo=vite&logoColor=white" />
+  <img alt="Tailwind CSS Icon" src="https://img.shields.io/badge/-Tailwind%20CSS-38B2AC?style=flat-square&logo=tailwindcss&logoColor=white" />
+  <img alt="Iconify Icon" src="https://img.shields.io/badge/-Iconify-1769aa?style=flat-square&logo=iconify&logoColor=white" />
+</p>
 
 ### Project Overview
 Zap Tracker revolutionizes how creators and users interact with Bitcoin Lightning & Nostr by providing a unified dashboard experience. In today's fragmented ecosystem, managing Zap payments, analytics, and community engagement requires juggling multiple platforms and tools. Zap Tracker eliminates this complexity by bringing everything together in one comprehensive interface.
