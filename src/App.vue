@@ -267,48 +267,76 @@ const isPageLoading = ref(false)
 // Reactive profile store
 const profileStore = ref(new Map())
 
-// Enhanced profile fetching with batching and progress tracking
+// Enhanced profile fetching with batching, caching, and progress tracking
 const fetchProfilesInBatches = async (pubkeys, batchSize = 10) => {
-  const batches = []
-  for (let i = 0; i < pubkeys.length; i += batchSize) {
-    batches.push(pubkeys.slice(i, i + batchSize))
+  // Filter out already cached profiles to avoid redundant fetches
+  const uncachedPubkeys = pubkeys.filter(pubkey => !profileStore.value.has(pubkey))
+
+  if (uncachedPubkeys.length === 0) {
+    console.log('✅ All profiles already cached, skipping fetch')
+    return
   }
-  
+
+  console.log(`📥 Fetching ${uncachedPubkeys.length} uncached profiles (${pubkeys.length - uncachedPubkeys.length} already cached)`)
+
+  const batches = []
+  for (let i = 0; i < uncachedPubkeys.length; i += batchSize) {
+    batches.push(uncachedPubkeys.slice(i, i + batchSize))
+  }
+
   let totalProcessed = 0
-  const totalProfiles = pubkeys.length
-  
+  const totalProfiles = uncachedPubkeys.length
+  const startTime = Date.now()
+
   for (const batch of batches) {
-    const batchPromises = batch.map(pubkey => 
+    const batchPromises = batch.map(pubkey =>
       fetchAuthorProfile(pubkey).then(profile => {
         profileStore.value.set(pubkey, profile)
         totalProcessed++
-        
-        // Update progress
+
+        // Update progress with estimated time remaining
+        const elapsedTime = Date.now() - startTime
+        const avgTimePerProfile = elapsedTime / totalProcessed
+        const remainingProfiles = totalProfiles - totalProcessed
+        const estimatedTimeRemaining = Math.round((avgTimePerProfile * remainingProfiles) / 1000)
+
         dataLoadingProgress.value.progress = Math.round((totalProcessed / totalProfiles) * 100)
         dataLoadingProgress.value.loadedItems = totalProcessed
-        dataLoadingProgress.value.currentStep = `Loading profiles (${totalProcessed}/${totalProfiles})`
-        
+        dataLoadingProgress.value.estimatedTimeRemaining = estimatedTimeRemaining
+        dataLoadingProgress.value.currentStep = `Loading profiles (${totalProcessed}/${totalProfiles})${estimatedTimeRemaining > 0 ? ` • ~${estimatedTimeRemaining}s remaining` : ''}`
+
         return profile
       }).catch(error => {
-        console.warn('Failed to fetch profile for pubkey:', pubkey, error)
+        console.warn('Failed to fetch profile for pubkey:', pubkey.substring(0, 16) + '...', error.message)
         totalProcessed++
-        
+
         // Update progress even on error
+        const elapsedTime = Date.now() - startTime
+        const avgTimePerProfile = elapsedTime / totalProcessed
+        const remainingProfiles = totalProfiles - totalProcessed
+        const estimatedTimeRemaining = Math.round((avgTimePerProfile * remainingProfiles) / 1000)
+
         dataLoadingProgress.value.progress = Math.round((totalProcessed / totalProfiles) * 100)
         dataLoadingProgress.value.loadedItems = totalProcessed
-        dataLoadingProgress.value.currentStep = `Loading profiles (${totalProcessed}/${totalProfiles})`
-        
+        dataLoadingProgress.value.estimatedTimeRemaining = estimatedTimeRemaining
+        dataLoadingProgress.value.currentStep = `Loading profiles (${totalProcessed}/${totalProfiles})${estimatedTimeRemaining > 0 ? ` • ~${estimatedTimeRemaining}s remaining` : ''}`
+
         return null
       })
     )
-    
+
     await Promise.allSettled(batchPromises)
-    
-    // Small delay between batches to prevent overwhelming the relays
+
+    // Adaptive delay between batches based on success rate
     if (batches.indexOf(batch) < batches.length - 1) {
-      await new Promise(resolve => setTimeout(resolve, 100))
+      const successRate = totalProcessed / (batches.indexOf(batch) + 1) / batchSize
+      const delay = successRate > 0.8 ? 100 : 200 // Slower if many failures
+      await new Promise(resolve => setTimeout(resolve, delay))
     }
   }
+
+  const totalTime = Date.now() - startTime
+  console.log(`✅ Profile batch fetch complete: ${totalProcessed} profiles in ${totalTime}ms (${Math.round(totalProcessed / (totalTime / 1000))} profiles/sec)`)
 }
 
 // Watch for new zaps and fetch profiles with batching

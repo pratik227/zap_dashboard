@@ -31,12 +31,32 @@ const DEFAULT_RELAYS = [
 const CONNECTION_TIMEOUT = 10000 // 10 seconds
 const QUERY_TIMEOUT = 15000 // 15 seconds
 
-// Load user from localStorage
+// Load user from localStorage with validation
 const loadUserFromStorage = () => {
   try {
     const stored = localStorage.getItem(NOSTR_USER_KEY)
     if (stored) {
       const userData = JSON.parse(stored)
+
+      // Validate user data structure
+      if (!userData.pubkey || !userData.npub || !userData.profile) {
+        console.warn('Invalid user data in storage, clearing...')
+        localStorage.removeItem(NOSTR_USER_KEY)
+        return false
+      }
+
+      // Check if data is too old (older than 7 days)
+      if (userData.lastUpdated) {
+        const lastUpdate = new Date(userData.lastUpdated)
+        const daysSinceUpdate = (Date.now() - lastUpdate.getTime()) / (1000 * 60 * 60 * 24)
+
+        if (daysSinceUpdate > 7) {
+          console.log('User data is stale (>7 days), will refresh profile on next fetch')
+          // Still load the user but mark for refresh
+          userData.needsRefresh = true
+        }
+      }
+
       currentUser.value = userData
       console.log('Loaded user from storage:', userData.npub)
       return true
@@ -44,6 +64,8 @@ const loadUserFromStorage = () => {
   } catch (error) {
     console.error('Failed to load user from storage:', error)
     authError.value = 'Failed to load saved user data'
+    // Clear corrupted data
+    localStorage.removeItem(NOSTR_USER_KEY)
   }
   return false
 }
@@ -344,8 +366,15 @@ const startUserEventListener = (pubkey) => {
       },
       onclose: (reasons) => {
         console.log('User event subscription closed:', reasons)
+        // Remove from active subscriptions when closed
+        activeSubscriptions.delete(sub)
       }
     })
+
+    // Track subscription for cleanup
+    if (sub) {
+      activeSubscriptions.add(sub)
+    }
 
     console.log('Started listening for events for user:', pubkey)
     return sub
@@ -398,8 +427,10 @@ const login = () => {
     let timeoutId = null
     let progressInterval = null
 
-    // Listen for auth events
+    // Listen for auth events with proper cleanup tracking
     const handleAuth = async (event) => {
+      // Remove from tracking since we're handling it now
+      activeEventListeners.delete(document)
       try {
         console.log('🎉 Nostr auth event received:', {
           type: event.type,
@@ -461,22 +492,34 @@ const login = () => {
         }
       } catch (error) {
         console.error('❌ Auth error:', error)
-        authError.value = error.message
 
-        // Clean up timers
+        // Provide more specific error messages
+        if (error.message.includes('getPublicKey')) {
+          authError.value = 'Failed to get public key. Please check your Nostr extension or bunker connection.'
+        } else if (error.message.includes('timeout')) {
+          authError.value = 'Connection timed out. Please check your internet connection and try again.'
+        } else if (error.message.includes('relay')) {
+          authError.value = 'Relay connection failed. Some features may be limited.'
+        } else {
+          authError.value = error.message
+        }
+
+        // Clean up all resources
         if (timeoutId) clearTimeout(timeoutId)
         if (progressInterval) clearInterval(progressInterval)
-
         document.removeEventListener('nlAuth', handleAuth)
+        activeEventListeners.delete(document)
+
         reject(error)
       } finally {
         isLoading.value = false
       }
     }
 
-    // Add event listener
+    // Add event listener and track it for cleanup
     console.log('👂 Adding nlAuth event listener...')
     document.addEventListener('nlAuth', handleAuth)
+    activeEventListeners.set(document, handleAuth)
 
     // Dispatch login event
     console.log('🚀 Dispatching nlLaunch event to trigger nostr-login modal...')
@@ -517,8 +560,11 @@ const login = () => {
         console.log('   • The modal did not appear due to popup blocker')
         console.log('   • You can try clicking "Connect Nostr" again')
 
-        clearInterval(progressInterval)
+        // Clean up all resources
+        if (progressInterval) clearInterval(progressInterval)
         document.removeEventListener('nlAuth', handleAuth)
+        activeEventListeners.delete(document)
+
         isLoading.value = false
         authError.value = 'Authentication timed out. Please try again.'
         reject(new Error('Login timeout'))
@@ -592,37 +638,45 @@ const logout = () => {
   }
 }
 
-// Initialize auth and relays
+// Initialize auth and relays with recovery
 const initAuthAndRelays = async () => {
   console.log('Initializing Nostr auth and relays...')
-  
+
   try {
     // Load user from storage
     const hasUser = loadUserFromStorage()
-    
+
     // Load or initialize relays
     if (!loadRelaysFromStorage()) {
       console.log('No saved relays found, using defaults')
       userRelays.value = [...DEFAULT_RELAYS]
       saveRelaysToStorage(userRelays.value)
     }
-    
+
     // Initialize relay manager with user relays
     await nostrRelayManager.initialize(userRelays.value)
-    
+
     // Set up relay manager event listeners
     nostrRelayManager.addEventListener((event) => {
-      if (event.type === 'relayConnected' || event.type === 'relayDisconnected' || 
+      if (event.type === 'relayConnected' || event.type === 'relayDisconnected' ||
           event.type === 'relayHealthy' || event.type === 'relayUnhealthy') {
         syncRelayStatuses()
       }
     })
-    
+
     // Sync initial statuses
     syncRelayStatuses()
-    
+
     // If user exists, start listening for their events
     if (hasUser && currentUser.value) {
+      // Refresh profile if stale
+      if (currentUser.value.needsRefresh) {
+        console.log('User profile is stale, refreshing...')
+        fetchAndStoreProfile(currentUser.value.pubkey).catch(err => {
+          console.warn('Failed to refresh stale profile:', err)
+        })
+      }
+
       setTimeout(() => {
         startUserEventListener(currentUser.value.pubkey)
       }, 2000)
@@ -630,6 +684,16 @@ const initAuthAndRelays = async () => {
   } catch (error) {
     console.error('Failed to initialize auth and relays:', error)
     authError.value = 'Failed to initialize Nostr connection'
+
+    // Attempt recovery: Try with default relays only
+    console.log('Attempting recovery with default relays...')
+    try {
+      userRelays.value = [...DEFAULT_RELAYS]
+      await nostrRelayManager.initialize(DEFAULT_RELAYS)
+      console.log('✅ Recovery successful with default relays')
+    } catch (recoveryError) {
+      console.error('❌ Recovery failed:', recoveryError)
+    }
   }
 }
 
@@ -661,9 +725,37 @@ watch(userRelays, (newRelays) => {
   saveRelaysToStorage(newRelays)
 }, { deep: true })
 
+// Track active subscriptions for cleanup
+const activeSubscriptions = new Set()
+const activeEventListeners = new Map()
+
 // Cleanup on unmount
 onUnmounted(() => {
-  // Relay manager cleanup is handled by the manager itself
+  console.log('🧹 useNostrAuth: Cleaning up event listeners and subscriptions...')
+
+  // Close all active subscriptions
+  activeSubscriptions.forEach(sub => {
+    try {
+      if (sub && typeof sub.close === 'function') {
+        sub.close()
+      }
+    } catch (error) {
+      console.warn('Failed to close subscription:', error)
+    }
+  })
+  activeSubscriptions.clear()
+
+  // Remove all event listeners
+  activeEventListeners.forEach((handler, element) => {
+    try {
+      element.removeEventListener('nlAuth', handler)
+    } catch (error) {
+      console.warn('Failed to remove event listener:', error)
+    }
+  })
+  activeEventListeners.clear()
+
+  console.log('✅ useNostrAuth: Cleanup complete')
 })
 
 // Track if initialization has been done
