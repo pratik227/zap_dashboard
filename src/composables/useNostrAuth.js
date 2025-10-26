@@ -40,6 +40,7 @@ const loadUserFromStorage = () => {
       currentUser.value = userData
       console.log('✅ Loaded user from storage:', userData.npub)
       console.log('   isAuthenticated should now be:', !!userData)
+      console.log('   currentUser.value is now:', currentUser.value)
       return true
     } else {
       console.log('ℹ️ No stored user found in localStorage')
@@ -146,6 +147,8 @@ const fetchAndStoreProfile = async (pubkey) => {
     }
     currentUser.value = userData
     saveUserToStorage(userData)
+    console.log('🔄 currentUser.value updated to:', currentUser.value?.npub)
+    console.log('🔄 isAuthenticated.value should be:', isAuthenticated.value)
     return userData
   } catch (error) {
     authError.value = `Failed to fetch profile: ${error.message}`
@@ -670,16 +673,16 @@ onUnmounted(() => {
 })
 
 // Initialize auth immediately when module loads (only once)
-let initPromise = null
-const ensureInitialized = () => {
-  if (!initPromise) {
+let isInitialized = false
+const ensureInitialized = async () => {
+  if (!isInitialized) {
     console.log('🚀 useNostrAuth: Initializing auth and relays (module load)...')
-    initPromise = initAuthAndRelays()
+    isInitialized = true
+    await initAuthAndRelays()
   }
-  return initPromise
 }
 
-// Start initialization immediately
+// Start initialization immediately when module loads
 ensureInitialized()
 
 export function useNostrAuth() {
