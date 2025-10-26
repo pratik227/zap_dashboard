@@ -527,11 +527,80 @@ const extractTextFromArray = (noteArray) => {
 
 <template>
   <div class="space-y-6">
-    <!-- Connection Status -->
-    <div v-if="!isWalletConnected" class="bg-amber-50 border border-amber-200 rounded-lg p-4">
-      <div class="flex items-center space-x-2">
-        <IconAlertCircle class="w-5 h-5 text-amber-600" />
-        <span class="text-amber-800">Please connect your wallet to access wallet features.</span>
+    <!-- Empty Wallet State -->
+    <div v-if="!isWalletConnected" class="wallet-empty-state">
+      <!-- Hero Section -->
+      <div class="wallet-empty-hero">
+        <div class="wallet-empty-icon-wrapper">
+          <IconWallet class="wallet-empty-icon" />
+          <div class="wallet-empty-icon-pulse"></div>
+        </div>
+
+        <h2 class="wallet-empty-title">Connect Your Lightning Wallet</h2>
+        <p class="wallet-empty-description">
+          Connect your Nostr Wallet Connect (NWC) enabled wallet to manage payments, create invoices, and track transactions.
+        </p>
+
+        <button
+          @click="changePage('settings', 'wallet')"
+          class="wallet-empty-button"
+        >
+          <IconBolt class="w-5 h-5" />
+          <span>Connect Wallet</span>
+        </button>
+      </div>
+
+      <!-- Features Grid -->
+      <div class="wallet-features-grid">
+        <div class="wallet-feature-card">
+          <div class="wallet-feature-icon wallet-feature-icon-receive">
+            <IconArrowDownLeft class="w-5 h-5" />
+          </div>
+          <h3 class="wallet-feature-title">Receive Payments</h3>
+          <p class="wallet-feature-description">
+            Create Lightning invoices and receive sats instantly
+          </p>
+        </div>
+
+        <div class="wallet-feature-card">
+          <div class="wallet-feature-icon wallet-feature-icon-send">
+            <IconArrowUpRight class="w-5 h-5" />
+          </div>
+          <h3 class="wallet-feature-title">Send Payments</h3>
+          <p class="wallet-feature-description">
+            Pay Lightning invoices with a single tap
+          </p>
+        </div>
+
+        <div class="wallet-feature-card">
+          <div class="wallet-feature-icon wallet-feature-icon-history">
+            <IconClock class="w-5 h-5" />
+          </div>
+          <h3 class="wallet-feature-title">Transaction History</h3>
+          <p class="wallet-feature-description">
+            Track all your payments and receipts in one place
+          </p>
+        </div>
+      </div>
+
+      <!-- Info Card -->
+      <div class="wallet-info-card">
+        <div class="wallet-info-header">
+          <IconBolt class="w-5 h-5 text-orange-600" />
+          <h4 class="wallet-info-title">What is NWC?</h4>
+        </div>
+        <p class="wallet-info-text">
+          Nostr Wallet Connect (NWC) is a secure protocol that allows apps to interact with your Lightning wallet without exposing your private keys. Your funds always stay in your control.
+        </p>
+        <a
+          href="https://nwc.wtf"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="wallet-info-link"
+        >
+          <span>Learn more about NWC</span>
+          <IconExternalLink class="w-4 h-4" />
+        </a>
       </div>
     </div>
 
@@ -894,3 +963,187 @@ const extractTextFromArray = (noteArray) => {
     </div>
   </div>
 </template>
+
+<style scoped>
+/* Empty Wallet State */
+.wallet-empty-state {
+  @apply space-y-6;
+}
+
+.wallet-empty-hero {
+  @apply bg-white rounded-2xl p-8 text-center;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.wallet-empty-icon-wrapper {
+  @apply relative inline-flex items-center justify-center mb-6;
+}
+
+.wallet-empty-icon {
+  @apply w-20 h-20 text-orange-600;
+  position: relative;
+  z-index: 2;
+}
+
+.wallet-empty-icon-pulse {
+  @apply absolute inset-0 rounded-full bg-orange-100;
+  animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse-ring {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.3);
+    opacity: 0;
+  }
+}
+
+.wallet-empty-title {
+  @apply text-2xl font-semibold text-gray-900 mb-3;
+  letter-spacing: -0.01em;
+}
+
+.wallet-empty-description {
+  @apply text-gray-600 mb-6 max-w-md mx-auto;
+  line-height: 1.6;
+}
+
+.wallet-empty-button {
+  @apply inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-xl font-medium transition-all duration-200;
+  box-shadow: 0 2px 8px rgba(251, 146, 60, 0.3);
+}
+
+.wallet-empty-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(251, 146, 60, 0.4);
+}
+
+.wallet-empty-button:active {
+  transform: translateY(0);
+}
+
+/* Features Grid */
+.wallet-features-grid {
+  @apply grid grid-cols-1 md:grid-cols-3 gap-4;
+}
+
+.wallet-feature-card {
+  @apply bg-white rounded-2xl p-6 text-center;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.wallet-feature-card:hover {
+  box-shadow: 0 4px 12px 0 rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
+}
+
+.wallet-feature-icon {
+  @apply w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4;
+}
+
+.wallet-feature-icon-receive {
+  @apply bg-green-100 text-green-600;
+}
+
+.wallet-feature-icon-send {
+  @apply bg-blue-100 text-blue-600;
+}
+
+.wallet-feature-icon-history {
+  @apply bg-orange-100 text-orange-600;
+}
+
+.wallet-feature-title {
+  @apply text-base font-semibold text-gray-900 mb-2;
+  letter-spacing: -0.01em;
+}
+
+.wallet-feature-description {
+  @apply text-sm text-gray-600;
+  line-height: 1.5;
+}
+
+/* Info Card */
+.wallet-info-card {
+  @apply bg-gradient-to-br from-orange-50 to-amber-50 rounded-2xl p-6;
+  border: 1px solid rgba(251, 146, 60, 0.2);
+}
+
+.wallet-info-header {
+  @apply flex items-center gap-2 mb-3;
+}
+
+.wallet-info-title {
+  @apply text-base font-semibold text-gray-900;
+  letter-spacing: -0.01em;
+}
+
+.wallet-info-text {
+  @apply text-sm text-gray-700 mb-4;
+  line-height: 1.6;
+}
+
+.wallet-info-link {
+  @apply inline-flex items-center gap-2 text-sm font-medium text-orange-600 hover:text-orange-700 transition-colors duration-150;
+}
+
+.wallet-info-link:hover {
+  @apply underline;
+}
+
+/* Mobile Optimizations */
+@media (max-width: 640px) {
+  .wallet-empty-hero {
+    @apply p-6;
+  }
+
+  .wallet-empty-title {
+    @apply text-xl;
+  }
+
+  .wallet-empty-description {
+    @apply text-sm;
+  }
+
+  .wallet-empty-icon {
+    @apply w-16 h-16;
+  }
+
+  .wallet-feature-card {
+    @apply p-5;
+  }
+
+  .wallet-feature-icon {
+    @apply w-10 h-10;
+  }
+
+  .wallet-info-card {
+    @apply p-5;
+  }
+}
+
+/* Accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .wallet-empty-icon-pulse,
+  .wallet-empty-button,
+  .wallet-feature-card {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* High contrast mode */
+@media (prefers-contrast: high) {
+  .wallet-empty-hero,
+  .wallet-feature-card,
+  .wallet-info-card {
+    border-width: 2px;
+  }
+}
+</style>
