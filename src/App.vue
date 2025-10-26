@@ -882,7 +882,7 @@ const handleWritingModeChange = (writingMode) => {
       <main :class="['flex-1 overflow-y-auto scrollbar-thin', isWritingMode ? 'p-0' : 'p-3 sm:p-4 lg:p-6']">
         <div class="p-3 sm:p-4 lg:p-6">
           <!-- Connection Status Bar -->
-          <transition name="slide-down">
+         <!--  <transition name="slide-down">
             <div v-if="!isWalletConnected && currentPage === 'wallet'" class="mb-4 lg:mb-6">
               <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 sm:p-4 animate-pulse-subtle">
                 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -899,7 +899,7 @@ const handleWritingModeChange = (writingMode) => {
                 </div>
               </div>
             </div>
-          </transition>
+          </transition> -->
           
           <!-- Loading State -->
           <transition name="slide-down">
