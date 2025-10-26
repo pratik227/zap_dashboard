@@ -181,19 +181,12 @@ const formatDate = (dateString) => {
 <template>
   <div class="space-y-6">
     <!-- Simplified Header -->
-    <div class="flex items-center justify-between">
-      <div>
-        <h2 class="text-xl font-semibold text-gray-900 flex items-center space-x-2">
-          <IconBolt class="w-5 h-5 text-orange-600" />
-          <span>Wallet Connections</span>
-        </h2>
-        <p class="text-gray-600 text-sm mt-1">{{ connections.length }} connection{{ connections.length !== 1 ? 's' : '' }}</p>
-      </div>
-      
-      <button @click="openAddForm" class="btn-primary">
-        <IconPlus class="w-4 h-4" />
-        Add Connection
-      </button>
+    <div>
+      <h2 class="text-xl font-semibold text-gray-900 flex items-center space-x-2">
+        <IconBolt class="w-5 h-5 text-orange-600" />
+        <span>Wallet Connections</span>
+      </h2>
+      <p class="text-gray-600 text-sm mt-1">{{ connections.length }} connection{{ connections.length !== 1 ? 's' : '' }}</p>
     </div>
 
     <!-- Simplified Search (only show if more than 3 connections) -->
@@ -320,10 +313,12 @@ const formatDate = (dateString) => {
         <p class="text-gray-600 mb-4">
           {{ searchQuery ? 'Try adjusting your search terms.' : 'Add your first wallet connection to get started.' }}
         </p>
-        <button v-if="!searchQuery" @click="openAddForm" class="btn-primary">
-          <IconPlus class="w-4 h-4" />
-          Add Connection
-        </button>
+        <div v-if="!searchQuery" class="flex justify-center">
+          <button @click="openAddForm" class="btn-primary">
+            <IconPlus class="w-4 h-4" />
+            Add Connection
+          </button>
+        </div>
       </div>
     </div>
 
