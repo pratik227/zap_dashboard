@@ -89,10 +89,6 @@ const withMinimumDuration = async (asyncFn, loadingKey) => {
   }
 }
 
-onMounted(async () => {
-  await initAuthAndRelays()
-})
-
 const handleLogin = async () => {
   await withMinimumDuration(async () => {
     try {

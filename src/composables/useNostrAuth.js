@@ -38,8 +38,11 @@ const loadUserFromStorage = () => {
     if (stored) {
       const userData = JSON.parse(stored)
       currentUser.value = userData
-      console.log('Loaded user from storage:', userData.npub)
+      console.log('✅ Loaded user from storage:', userData.npub)
+      console.log('   isAuthenticated should now be:', !!userData)
       return true
+    } else {
+      console.log('ℹ️ No stored user found in localStorage')
     }
   } catch (error) {
     console.error('Failed to load user from storage:', error)
@@ -666,13 +669,20 @@ onUnmounted(() => {
   // Relay manager cleanup is handled by the manager itself
 })
 
-export function useNostrAuth() {
-  // Initialize auth and relays when the composable is first used
-  onMounted(async () => {
-    console.log('🚀 useNostrAuth: Initializing auth and relays on mount...')
-    await initAuthAndRelays()
-  })
+// Initialize auth immediately when module loads (only once)
+let initPromise = null
+const ensureInitialized = () => {
+  if (!initPromise) {
+    console.log('🚀 useNostrAuth: Initializing auth and relays (module load)...')
+    initPromise = initAuthAndRelays()
+  }
+  return initPromise
+}
 
+// Start initialization immediately
+ensureInitialized()
+
+export function useNostrAuth() {
   return {
     // State
     currentUser,
