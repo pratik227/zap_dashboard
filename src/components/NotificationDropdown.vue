@@ -332,33 +332,40 @@ const setCategory = (categoryId) => {
             </div>
           </div>
 
-          <!-- Category Tabs -->
-          <div class="flex items-center space-x-1 overflow-x-auto scrollbar-thin pb-2">
-            <button
-              v-for="category in categories"
-              :key="category.id"
-              @click="setCategory(category.id)"
-              :class="[
-                'flex items-center space-x-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap',
-                activeCategory === category.id
-                  ? 'bg-orange-600 text-white shadow-md'
-                  : 'bg-white text-gray-600 hover:bg-gray-50'
-              ]"
-            >
-              <component :is="category.icon" class="w-3.5 h-3.5" />
-              <span>{{ category.label }}</span>
-              <span
-                v-if="category.count > 0"
+          <!-- Category Tabs with Scroll Indicators -->
+          <div class="relative">
+            <!-- Scroll fade indicators -->
+            <div class="absolute left-0 top-0 bottom-2 w-8 bg-gradient-to-r from-orange-50 to-transparent pointer-events-none z-10"></div>
+            <div class="absolute right-0 top-0 bottom-2 w-8 bg-gradient-to-l from-amber-50 to-transparent pointer-events-none z-10"></div>
+
+            <!-- Scrollable tabs -->
+            <div class="flex items-center space-x-1 overflow-x-auto scrollbar-hide pb-2 snap-x snap-mandatory scroll-smooth">
+              <button
+                v-for="category in categories"
+                :key="category.id"
+                @click="setCategory(category.id)"
                 :class="[
-                  'ml-1 px-1.5 py-0.5 rounded-full text-xs font-medium',
+                  'flex items-center space-x-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap flex-shrink-0 snap-start',
                   activeCategory === category.id
-                    ? 'bg-white/20 text-white'
-                    : 'bg-orange-100 text-orange-600'
+                    ? 'bg-orange-600 text-white shadow-md'
+                    : 'bg-white text-gray-600 hover:bg-gray-50'
                 ]"
               >
-                {{ category.count }}
-              </span>
-            </button>
+                <component :is="category.icon" class="w-3.5 h-3.5" />
+                <span>{{ category.label }}</span>
+                <span
+                  v-if="category.count > 0"
+                  :class="[
+                    'ml-1 px-1.5 py-0.5 rounded-full text-xs font-medium',
+                    activeCategory === category.id
+                      ? 'bg-white/20 text-white'
+                      : 'bg-orange-100 text-orange-600'
+                  ]"
+                >
+                  {{ category.count }}
+                </span>
+              </button>
+            </div>
           </div>
         </div>
 
