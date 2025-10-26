@@ -181,19 +181,12 @@ const formatDate = (dateString) => {
 <template>
   <div class="space-y-6">
     <!-- Simplified Header -->
-    <div class="flex items-center justify-between">
-      <div>
-        <h2 class="text-xl font-semibold text-gray-900 flex items-center space-x-2">
-          <IconBolt class="w-5 h-5 text-orange-600" />
-          <span>Wallet Connections</span>
-        </h2>
-        <p class="text-gray-600 text-sm mt-1">{{ connections.length }} connection{{ connections.length !== 1 ? 's' : '' }}</p>
-      </div>
-      
-      <button @click="openAddForm" class="btn-primary">
-        <IconPlus class="w-4 h-4" />
-        Add Connection
-      </button>
+    <div>
+      <h2 class="text-xl font-semibold text-gray-900 flex items-center space-x-2">
+        <IconBolt class="w-5 h-5 text-orange-600" />
+        <span>Wallet Connections</span>
+      </h2>
+      <p class="text-gray-600 text-sm mt-1">{{ connections.length }} connection{{ connections.length !== 1 ? 's' : '' }}</p>
     </div>
 
     <!-- Simplified Search (only show if more than 3 connections) -->
@@ -312,18 +305,27 @@ const formatDate = (dateString) => {
       </div>
       
       <!-- Simplified Empty State -->
-      <div v-if="filteredConnections.length === 0" class="text-center py-8">
-        <IconBolt class="w-12 h-12 mx-auto text-gray-300 mb-3" />
-        <h3 class="text-lg font-medium text-gray-900 mb-2">
-          {{ searchQuery ? 'No connections found' : 'No connections yet' }}
-        </h3>
-        <p class="text-gray-600 mb-4">
-          {{ searchQuery ? 'Try adjusting your search terms.' : 'Add your first wallet connection to get started.' }}
-        </p>
-        <button v-if="!searchQuery" @click="openAddForm" class="btn-primary">
-          <IconPlus class="w-4 h-4" />
-          Add Connection
-        </button>
+      <div v-if="filteredConnections.length === 0" class="wallet-connections-empty-state">
+        <div class="wallet-connections-empty-hero">
+          <div class="wallet-connections-empty-icon-wrapper">
+            <IconBolt class="wallet-connections-empty-icon" />
+            <div class="wallet-connections-empty-icon-pulse"></div>
+          </div>
+
+          <h3 class="wallet-connections-empty-title">
+            {{ searchQuery ? 'No connections found' : 'No connections yet' }}
+          </h3>
+          <p class="wallet-connections-empty-description">
+            {{ searchQuery ? 'Try adjusting your search terms.' : 'Add your first wallet connection to get started.' }}
+          </p>
+
+          <div v-if="!searchQuery" class="flex justify-center">
+            <button @click="openAddForm" class="wallet-connections-empty-button">
+              <IconPlus class="w-5 h-5" />
+              <span>Add Connection</span>
+            </button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -469,3 +471,101 @@ const formatDate = (dateString) => {
     </Teleport>
   </div>
 </template>
+
+<style scoped>
+/* Empty State Styles */
+.wallet-connections-empty-state {
+  @apply py-8;
+}
+
+.wallet-connections-empty-hero {
+  @apply bg-white rounded-2xl p-8 text-center;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.wallet-connections-empty-icon-wrapper {
+  @apply relative inline-flex items-center justify-center mb-6;
+}
+
+.wallet-connections-empty-icon {
+  @apply w-16 h-16 text-orange-600;
+  position: relative;
+  z-index: 2;
+}
+
+.wallet-connections-empty-icon-pulse {
+  @apply absolute inset-0 rounded-full bg-orange-100;
+  animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse-ring {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.3);
+    opacity: 0;
+  }
+}
+
+.wallet-connections-empty-title {
+  @apply text-xl font-semibold text-gray-900 mb-3;
+  letter-spacing: -0.01em;
+}
+
+.wallet-connections-empty-description {
+  @apply text-gray-600 mb-6 max-w-md mx-auto;
+  line-height: 1.6;
+}
+
+.wallet-connections-empty-button {
+  @apply inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-xl font-medium transition-all duration-200;
+  box-shadow: 0 2px 8px rgba(251, 146, 60, 0.3);
+}
+
+.wallet-connections-empty-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(251, 146, 60, 0.4);
+}
+
+.wallet-connections-empty-button:active {
+  transform: translateY(0);
+}
+
+/* Mobile Optimizations */
+@media (max-width: 640px) {
+  .wallet-connections-empty-hero {
+    @apply p-6;
+  }
+
+  .wallet-connections-empty-title {
+    @apply text-lg;
+  }
+
+  .wallet-connections-empty-description {
+    @apply text-sm;
+  }
+
+  .wallet-connections-empty-icon {
+    @apply w-12 h-12;
+  }
+}
+
+/* Accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .wallet-connections-empty-icon-pulse,
+  .wallet-connections-empty-button {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* High contrast mode */
+@media (prefers-contrast: high) {
+  .wallet-connections-empty-hero {
+    border-width: 2px;
+  }
+}
+</style>
