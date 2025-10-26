@@ -666,10 +666,19 @@ onUnmounted(() => {
   // Relay manager cleanup is handled by the manager itself
 })
 
+// Track if initialization has been done
+let isInitialized = false
+
 export function useNostrAuth() {
-  // Initialize auth and relays when the composable is first used
+  // Initialize auth and relays only once, when the composable is first used
   onMounted(async () => {
+    if (isInitialized) {
+      console.log('✅ useNostrAuth: Already initialized, skipping...')
+      return
+    }
+
     console.log('🚀 useNostrAuth: Initializing auth and relays on mount...')
+    isInitialized = true
     await initAuthAndRelays()
   })
 
