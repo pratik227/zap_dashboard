@@ -29,15 +29,14 @@
 
     <!-- Nostr Login Modal -->
     <script
-      src="https://www.unpkg.com/nostr-login@latest/dist/unpkg.js"
+      src="https://unpkg.com/nostr-login@latest/dist/unpkg.js"
       data-dark-mode="true"
       data-theme="default"
-      data-perms="sign_event:*,nip04_encrypt,nip04_decrypt,zap,pay_invoice,make_invoice,get_balance,list_transactions"
+      data-perms="sign_event:*,nip04_encrypt,nip04_decrypt"
       data-title="Welcome to ZapTracker!"
-      data-description="Connect your Nostr identity to access social features"
-      data-no-banner="false"
+      data-description="Connect your Nostr identity to get started"
+      data-no-banner="true"
       data-start-screen="welcome"
-      data-allow-local="true"
       data-methods="connect,extension,local,readOnly"
       data-bunkers="nsec.app,amber"
       onload="console.log('✅ Nostr-login script loaded successfully')"
