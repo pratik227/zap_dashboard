@@ -331,56 +331,74 @@ const handleRefresh = () => {
           
           <!-- Dropdown Menu -->
           <transition name="dropdown">
-            <div 
+            <div
               v-if="showProfileDropdown"
-              class="absolute right-0 top-full mt-2 w-64 bg-white rounded-xl shadow-lg border border-gray-200 py-2 z-50"
+              class="profile-dropdown"
             >
               <!-- Profile Header -->
-              <div class="px-4 py-3 border-b border-gray-100">
-                <div class="flex items-center space-x-3">
-                  <img 
+              <div class="profile-dropdown-header">
+                <div class="profile-avatar-wrapper">
+                  <img
                     :src="getUserAvatar"
                     :alt="getUserName"
-                    class="w-10 h-10 rounded-full border-2 border-orange-200"
+                    class="profile-dropdown-avatar"
                     @error="$event.target.src = 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'"
                   />
-                  <div class="flex-1 min-w-0">
-                    <div class="font-medium text-gray-900 truncate">{{ getUserName }}</div>
-                    <div class="text-sm text-gray-500 truncate">{{ getUserIdentifier }}</div>
-                  </div>
+                  <div class="profile-status-indicator"></div>
+                </div>
+                <div class="profile-info-wrapper">
+                  <h3 class="profile-dropdown-name">{{ getUserName }}</h3>
+                  <p class="profile-dropdown-identifier">{{ getUserIdentifier }}</p>
                 </div>
               </div>
-              
-              <!-- Account Section -->
-              <div class="py-1">
-                <div class="px-4 py-2">
-                  <div class="text-xs font-medium text-gray-500 uppercase tracking-wider">My Account</div>
-                </div>
-                
-                <button 
-                  @click="handleProfileAction('profile')"
-                  class="w-full flex items-center space-x-3 px-4 py-2 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-700 transition-colors duration-200"
-                >
-                  <IconUser class="w-4 h-4" />
-                  <span>Profile</span>
-                </button>
-                
-                <button 
-                  @click="handleProfileAction('settings')"
-                  class="w-full flex items-center space-x-3 px-4 py-2 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-700 transition-colors duration-200"
-                >
-                  <IconSettings class="w-4 h-4" />
-                  <span>Settings</span>
-                </button>
-              </div>
-              
+
               <!-- Divider -->
-              <div class="border-t border-gray-100 my-1"></div>
-              
+              <div class="profile-dropdown-divider"></div>
+
+              <!-- Public Key Section -->
+              <div class="profile-dropdown-section">
+                <div class="profile-dropdown-label">
+                  <IconBolt class="w-4 h-4 text-gray-400" />
+                  <span>PUBLIC KEY</span>
+                </div>
+                <p class="profile-dropdown-value">{{ getUserIdentifier }}</p>
+              </div>
+
+              <!-- Connection Status -->
+              <div class="profile-dropdown-section">
+                <div class="profile-dropdown-status">
+                  <div class="w-2 h-2 rounded-full bg-green-500"></div>
+                  <span class="text-xs font-medium text-gray-500 uppercase tracking-wider">{{ hasConnection ? 'Connected' : 'Disconnected' }}</span>
+                </div>
+              </div>
+
+              <!-- Divider -->
+              <div class="profile-dropdown-divider"></div>
+
+              <!-- Menu Items -->
+              <button
+                @click="handleProfileAction('profile')"
+                class="profile-dropdown-item"
+              >
+                <IconUser class="w-4 h-4" />
+                <span>Edit Profile</span>
+              </button>
+
+              <button
+                @click="handleProfileAction('settings')"
+                class="profile-dropdown-item"
+              >
+                <IconSettings class="w-4 h-4" />
+                <span>Settings</span>
+              </button>
+
+              <!-- Divider -->
+              <div class="profile-dropdown-divider"></div>
+
               <!-- Sign Out -->
-              <button 
+              <button
                 @click="handleProfileAction('signout')"
-                class="w-full flex items-center space-x-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors duration-200"
+                class="profile-dropdown-item-danger"
               >
                 <IconLogout class="w-4 h-4" />
                 <span>Sign out</span>
@@ -394,19 +412,162 @@ const handleRefresh = () => {
 </template>
 
 <style scoped>
+/* Profile Dropdown Styles */
+.profile-dropdown {
+  @apply absolute right-0 top-full mt-2 w-80 bg-white rounded-2xl overflow-hidden z-50;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.05);
+}
+
+.profile-dropdown-header {
+  @apply flex items-start gap-3 p-4;
+}
+
+.profile-avatar-wrapper {
+  @apply relative flex-shrink-0;
+}
+
+.profile-dropdown-avatar {
+  @apply w-12 h-12 rounded-full object-cover;
+  border: 2px solid rgba(0, 0, 0, 0.06);
+}
+
+.profile-status-indicator {
+  @apply absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full;
+  border: 2px solid white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.profile-info-wrapper {
+  @apply flex-1 min-w-0;
+}
+
+.profile-dropdown-name {
+  @apply text-base font-semibold text-gray-900 truncate mb-0.5;
+  letter-spacing: -0.01em;
+}
+
+.profile-dropdown-identifier {
+  @apply text-sm text-gray-500 truncate font-mono;
+  font-size: 13px;
+}
+
+.profile-dropdown-divider {
+  @apply mx-4 h-px bg-gray-100;
+}
+
+.profile-dropdown-section {
+  @apply px-4 py-3;
+}
+
+.profile-dropdown-section + .profile-dropdown-section {
+  @apply border-t border-gray-100;
+}
+
+.profile-dropdown-label {
+  @apply flex items-center gap-2 mb-1;
+}
+
+.profile-dropdown-label span {
+  @apply text-xs font-medium text-gray-500 uppercase tracking-wider;
+  letter-spacing: 0.05em;
+}
+
+.profile-dropdown-value {
+  @apply text-sm text-gray-900 font-mono truncate;
+  padding-left: 24px;
+}
+
+.profile-dropdown-status {
+  @apply flex items-center gap-2;
+}
+
+.profile-dropdown-item {
+  @apply w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors duration-150;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.profile-dropdown-item:active {
+  @apply bg-gray-100;
+}
+
+.profile-dropdown-item-danger {
+  @apply w-full flex items-center gap-3 px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors duration-150;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.profile-dropdown-item-danger:active {
+  @apply bg-red-100;
+}
+
 /* Dropdown transition */
 .dropdown-enter-active,
 .dropdown-leave-active {
-  transition: all 0.2s ease-out;
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .dropdown-enter-from {
   opacity: 0;
-  transform: translateY(-10px) scale(0.95);
+  transform: scale(0.95) translateY(-4px);
 }
 
 .dropdown-leave-to {
   opacity: 0;
-  transform: translateY(-10px) scale(0.95);
+  transform: scale(0.95) translateY(-4px);
+}
+
+/* Mobile Optimizations */
+@media (max-width: 640px) {
+  .profile-dropdown {
+    @apply w-screen max-w-sm rounded-xl;
+    right: -12px;
+  }
+
+  .profile-dropdown-header {
+    @apply p-3.5;
+  }
+
+  .profile-dropdown-avatar {
+    @apply w-11 h-11;
+  }
+
+  .profile-dropdown-name {
+    @apply text-[15px];
+  }
+
+  .profile-dropdown-identifier {
+    font-size: 12px;
+  }
+
+  .profile-dropdown-section {
+    @apply px-3.5 py-2.5;
+  }
+
+  /* Larger touch targets on mobile */
+  .profile-dropdown-item,
+  .profile-dropdown-item-danger {
+    @apply py-3.5;
+    min-height: 52px;
+  }
+}
+
+/* Accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .dropdown-enter-active,
+  .dropdown-leave-active,
+  .profile-dropdown-item,
+  .profile-dropdown-item-danger {
+    transition: none !important;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .profile-dropdown {
+    border: 2px solid rgba(0, 0, 0, 0.2);
+  }
+
+  .profile-dropdown-avatar {
+    border-width: 2px;
+  }
 }
 </style>
