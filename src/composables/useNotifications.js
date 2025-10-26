@@ -11,7 +11,11 @@ const notificationSettings = ref({
   zapReceived: true,
   zapSent: true,
   balanceChange: false,
-  connectionStatus: false
+  connectionStatus: false,
+  engagements: true,
+  social: true,
+  content: true,
+  system: true
 })
 
 // Notification types
