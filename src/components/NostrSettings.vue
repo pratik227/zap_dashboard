@@ -27,6 +27,9 @@ import { useNostrAuth } from '../composables/useNostrAuth.js'
 import * as nip19 from 'nostr-tools/nip19'
 import NostrProfileEditor from './NostrProfileEditor.vue'
 
+// Define emits to prevent Vue warning
+defineEmits(['changePage'])
+
 const {
   currentUser,
   isLoading,
