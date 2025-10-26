@@ -881,26 +881,6 @@ const handleWritingModeChange = (writingMode) => {
       <!-- Scrollable Main Content -->
       <main :class="['flex-1 overflow-y-auto scrollbar-thin', isWritingMode ? 'p-0' : 'p-3 sm:p-4 lg:p-6']">
         <div class="p-3 sm:p-4 lg:p-6">
-          <!-- Connection Status Bar -->
-          <transition name="slide-down">
-            <div v-if="!isWalletConnected && currentPage === 'wallet'" class="mb-4 lg:mb-6">
-              <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 sm:p-4 animate-pulse-subtle">
-                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                  <div class="flex items-center space-x-2">
-                    <IconAlertTriangle class="w-5 h-5 text-amber-600 animate-bounce-subtle" />
-                    <span class="text-amber-800 text-sm sm:text-base">No NWC wallet connected. Connect it now.</span>
-                  </div>
-                  <button 
-                    @click="showConnectionModal = true"
-                    class="btn-primary text-sm whitespace-nowrap animate-pulse-button"
-                  >
-                    Connect Wallet
-                  </button>
-                </div>
-              </div>
-            </div>
-          </transition>
-          
           <!-- Loading State -->
           <transition name="slide-down">
             <div v-if="isLoadingConnection || isRefreshingData || dataLoadingProgress.isLoading" class="mb-4 lg:mb-6">
