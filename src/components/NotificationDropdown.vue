@@ -69,8 +69,8 @@ const handleNotificationClick = (notification) => {
 // Get filtered notifications by active category
 const filteredNotifications = computed(() => {
   let filtered = activeCategory.value === 'all'
-    ? notifications.value
-    : notificationsByCategory.value[activeCategory.value] || []
+    ? (notifications?.value || [])
+    : (notificationsByCategory?.value?.[activeCategory.value] || [])
 
   if (searchQuery.value) {
     const query = searchQuery.value.toLowerCase()
@@ -211,46 +211,57 @@ const getFullTime = (timestamp) => {
   return new Date(timestamp).toLocaleString()
 }
 
-const hasUnread = computed(() => unreadCount.value > 0)
+const hasUnread = computed(() => (unreadCount?.value || 0) > 0)
 
-const categories = computed(() => [
-  {
-    id: 'all',
-    label: 'All',
-    icon: IconBell,
-    count: unreadCountByCategory.value.all
-  },
-  {
-    id: 'zaps',
-    label: 'Zaps',
-    icon: IconBolt,
-    count: unreadCountByCategory.value.zaps
-  },
-  {
-    id: 'engagements',
-    label: 'Engagements',
-    icon: IconHeart,
-    count: unreadCountByCategory.value.engagements
-  },
-  {
-    id: 'social',
-    label: 'Social',
-    icon: IconUsers,
-    count: unreadCountByCategory.value.social
-  },
-  {
-    id: 'wallet',
-    label: 'Wallet',
-    icon: IconWallet,
-    count: unreadCountByCategory.value.wallet
-  },
-  {
-    id: 'system',
-    label: 'System',
-    icon: IconSettings,
-    count: unreadCountByCategory.value.system
+const categories = computed(() => {
+  const counts = unreadCountByCategory?.value || {
+    all: 0,
+    zaps: 0,
+    engagements: 0,
+    social: 0,
+    wallet: 0,
+    system: 0
   }
-])
+
+  return [
+    {
+      id: 'all',
+      label: 'All',
+      icon: IconBell,
+      count: counts.all
+    },
+    {
+      id: 'zaps',
+      label: 'Zaps',
+      icon: IconBolt,
+      count: counts.zaps
+    },
+    {
+      id: 'engagements',
+      label: 'Engagements',
+      icon: IconHeart,
+      count: counts.engagements
+    },
+    {
+      id: 'social',
+      label: 'Social',
+      icon: IconUsers,
+      count: counts.social
+    },
+    {
+      id: 'wallet',
+      label: 'Wallet',
+      icon: IconWallet,
+      count: counts.wallet
+    },
+    {
+      id: 'system',
+      label: 'System',
+      icon: IconSettings,
+      count: counts.system
+    }
+  ]
+})
 
 const getContentTypeBadge = (contentType) => {
   if (!contentType) return null
@@ -292,10 +303,10 @@ const setCategory = (categoryId) => {
 
       <!-- Unread Count Badge -->
       <span
-        v-if="unreadCount > 0"
+        v-if="(unreadCount || 0) > 0"
         class="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-gradient-to-r from-red-500 to-pink-500 rounded-full text-white text-xs font-medium flex items-center justify-center animate-pulse shadow-lg"
       >
-        {{ unreadCount > 99 ? '99+' : unreadCount }}
+        {{ (unreadCount || 0) > 99 ? '99+' : (unreadCount || 0) }}
       </span>
     </button>
 
@@ -314,7 +325,7 @@ const setCategory = (categoryId) => {
             </h3>
             <div class="flex items-center space-x-2">
               <button
-                v-if="unreadCount > 0"
+                v-if="(unreadCount || 0) > 0"
                 @click="markAllAsRead"
                 class="text-xs text-orange-600 hover:text-orange-700 font-medium p-1 hover:bg-white rounded transition-colors"
                 title="Mark all as read"
@@ -322,7 +333,7 @@ const setCategory = (categoryId) => {
                 <IconCheck class="w-4 h-4" />
               </button>
               <button
-                v-if="notifications.length > 0"
+                v-if="(notifications?.length || 0) > 0"
                 @click="clearAllNotifications"
                 class="text-xs text-gray-500 hover:text-red-600 font-medium p-1 hover:bg-white rounded transition-colors"
                 title="Clear all"
