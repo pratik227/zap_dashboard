@@ -1,6 +1,13 @@
 import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useNostrConnections } from './useNostrConnections.js'
 import { fetchTransactions, getBalance } from '../utils/nwcClient.js'
+import {
+  detectContentType,
+  generateActionUrl,
+  extractContentMetadata,
+  formatNotificationMessage,
+  enrichNotificationData
+} from '../utils/notificationHelpers.js'
 
 // Global notification state
 const notifications = ref([])
@@ -500,14 +507,31 @@ const isInQuietHours = () => {
 }
 
 // Notification handlers for different events
-const handleZapReceived = (zapData) => {
-  if (!shouldShowNotification(NOTIFICATION_TYPES.ZAP_RECEIVED, zapData)) return
+const handleZapReceived = async (zapData) => {
+  const enrichedData = {
+    ...zapData,
+    contentType: zapData.contentType || detectContentType(zapData),
+    contentId: zapData.contentId || zapData.eventId
+  }
+
+  if (!shouldShowNotification(NOTIFICATION_TYPES.ZAP_RECEIVED, enrichedData)) return
+
+  const metadata = extractContentMetadata(enrichedData)
+  const actionUrl = generateActionUrl(NOTIFICATION_TYPES.ZAP_RECEIVED, enrichedData)
+  const message = formatNotificationMessage(NOTIFICATION_TYPES.ZAP_RECEIVED, enrichedData)
 
   const notification = createNotification(
     NOTIFICATION_TYPES.ZAP_RECEIVED,
     '⚡ Zap Received!',
-    `You received ${zapData.amount} sats from ${zapData.sender?.name || 'Anonymous'}`,
-    { amount: zapData.amount, sender: zapData.sender, contentType: zapData.contentType, contentId: zapData.contentId }
+    message,
+    {
+      amount: enrichedData.amount,
+      sender: enrichedData.sender,
+      contentType: enrichedData.contentType,
+      contentId: enrichedData.contentId,
+      actionUrl,
+      metadata
+    }
   )
 
   addNotification(notification)

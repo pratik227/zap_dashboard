@@ -303,7 +303,7 @@ const setCategory = (categoryId) => {
     <transition name="dropdown">
       <div
         v-if="showDropdown"
-        class="absolute right-0 top-full mt-2 w-96 bg-white rounded-xl shadow-2xl border border-gray-200 z-50 overflow-hidden"
+        class="absolute right-0 top-full mt-2 w-96 max-w-[calc(100vw-2rem)] md:w-96 bg-white rounded-xl shadow-2xl border border-gray-200 z-50 overflow-hidden"
       >
         <!-- Header -->
         <div class="p-4 border-b border-gray-100 bg-gradient-to-r from-orange-50 to-amber-50">

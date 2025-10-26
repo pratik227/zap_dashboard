@@ -470,15 +470,67 @@
       transition-duration: 0.01ms !important;
     }
   }
-  
+
   /* Optimize tap highlights */
   * {
     -webkit-tap-highlight-color: rgba(251, 146, 60, 0.2);
   }
-  
+
   /* Prevent horizontal scroll */
   body {
     overflow-x: hidden;
+  }
+
+  /* Mobile notification optimizations */
+  .notification-dropdown-mobile {
+    @apply fixed inset-0 z-50 bg-white;
+    animation: mobile-slide-up 0.3s ease-out;
+  }
+
+  @keyframes mobile-slide-up {
+    0% {
+      transform: translateY(100%);
+    }
+    100% {
+      transform: translateY(0);
+    }
+  }
+
+  /* Swipe gesture support */
+  .notification-swipeable {
+    touch-action: pan-y;
+    position: relative;
+  }
+
+  .notification-swipeable.swiping {
+    transition: transform 0.1s ease-out;
+  }
+
+  .notification-swipeable.dismissed {
+    animation: swipe-out 0.3s ease-out forwards;
+  }
+
+  @keyframes swipe-out {
+    0% {
+      transform: translateX(0);
+      opacity: 1;
+    }
+    100% {
+      transform: translateX(-100%);
+      opacity: 0;
+    }
+  }
+
+  /* Mobile touch improvements */
+  .touch-scroll {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+
+  /* Haptic feedback class */
+  .haptic-feedback:active {
+    transform: scale(0.98);
+    transition: transform 0.05s ease-out;
   }
 }
 
@@ -615,17 +667,209 @@
   }
 }
 
+/* Notification Animations */
+@keyframes notification-slide-in {
+  0% {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes notification-badge-pulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+  }
+  50% {
+    transform: scale(1.1);
+    box-shadow: 0 0 0 8px rgba(239, 68, 68, 0);
+  }
+}
+
+@keyframes notification-icon-bounce {
+  0%, 100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  25% {
+    transform: translateY(-5px) rotate(-5deg);
+  }
+  75% {
+    transform: translateY(-3px) rotate(5deg);
+  }
+}
+
+@keyframes notification-glow {
+  0%, 100% {
+    box-shadow: 0 0 5px rgba(251, 146, 60, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(251, 146, 60, 0.8);
+  }
+}
+
+@keyframes priority-pulse {
+  0%, 100% {
+    border-color: rgba(239, 68, 68, 0.5);
+  }
+  50% {
+    border-color: rgba(239, 68, 68, 1);
+  }
+}
+
+.notification-enter-active {
+  animation: notification-slide-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.notification-badge-pulse {
+  animation: notification-badge-pulse 2s ease-in-out infinite;
+}
+
+.notification-icon-bounce {
+  animation: notification-icon-bounce 0.6s ease-in-out;
+}
+
+.notification-glow {
+  animation: notification-glow 2s ease-in-out infinite;
+}
+
+.notification-priority-pulse {
+  animation: priority-pulse 1.5s ease-in-out infinite;
+}
+
+/* Toast Notification Styles */
+.toast-notification {
+  @apply fixed bottom-4 right-4 bg-white shadow-2xl rounded-xl p-4 border-l-4 max-w-sm z-[9999] transform transition-all duration-300;
+}
+
+.toast-notification.success {
+  @apply border-green-500;
+}
+
+.toast-notification.error {
+  @apply border-red-500;
+}
+
+.toast-notification.info {
+  @apply border-blue-500;
+}
+
+.toast-notification.warning {
+  @apply border-orange-500;
+}
+
+@keyframes toast-slide-in {
+  0% {
+    opacity: 0;
+    transform: translateX(100%) translateY(0);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) translateY(0);
+  }
+}
+
+@keyframes toast-slide-out {
+  0% {
+    opacity: 1;
+    transform: translateX(0) translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(100%) translateY(0);
+  }
+}
+
+.toast-enter {
+  animation: toast-slide-in 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+.toast-exit {
+  animation: toast-slide-out 0.3s ease-in-out;
+}
+
+/* Category Badge Animations */
+@keyframes badge-shimmer {
+  0% {
+    background-position: -100% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.badge-shimmer {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.5) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: badge-shimmer 2s linear infinite;
+}
+
+/* Hover Effect Enhancements */
+.notification-card-hover {
+  @apply transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5;
+}
+
+.notification-card-hover:hover {
+  box-shadow: 0 10px 25px -5px rgba(251, 146, 60, 0.2), 0 10px 10px -5px rgba(251, 146, 60, 0.1);
+}
+
+/* Unread Indicator Animation */
+@keyframes unread-pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.2);
+  }
+}
+
+.unread-indicator {
+  animation: unread-pulse 2s ease-in-out infinite;
+}
+
+/* Stagger Animation for Lists */
+.stagger-item {
+  animation: stagger-fade-in 0.5s ease-out backwards;
+}
+
+@keyframes stagger-fade-in {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.stagger-item:nth-child(1) { animation-delay: 0.05s; }
+.stagger-item:nth-child(2) { animation-delay: 0.1s; }
+.stagger-item:nth-child(3) { animation-delay: 0.15s; }
+.stagger-item:nth-child(4) { animation-delay: 0.2s; }
+.stagger-item:nth-child(5) { animation-delay: 0.25s; }
+
 /* Print styles */
 @media print {
   .no-print {
     display: none !important;
   }
-  
+
   body {
     background: white !important;
     color: black !important;
   }
-  
+
   .card {
     border: 1px solid #ccc !important;
     background: white !important;
