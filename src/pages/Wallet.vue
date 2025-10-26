@@ -593,7 +593,7 @@ const extractTextFromArray = (noteArray) => {
           Nostr Wallet Connect (NWC) is a secure protocol that allows apps to interact with your Lightning wallet without exposing your private keys. Your funds always stay in your control.
         </p>
         <a
-          href="https://nwc.getalby.com"
+          href="https://nwc.wtf"
           target="_blank"
           rel="noopener noreferrer"
           class="wallet-info-link"
