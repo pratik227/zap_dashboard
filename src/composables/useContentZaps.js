@@ -329,6 +329,17 @@ const extractAmountFromBolt11 = (bolt11) => {
 export function useContentZaps() {
   const { isAuthenticated, currentUser } = useNostrAuth()
 
+  // Import notification handler dynamically to avoid circular dependency
+  let notificationHandler = null
+  const getNotificationHandler = async () => {
+    if (!notificationHandler) {
+      const { useNotifications } = await import('./useNotifications.js')
+      const { handleZapReceivedNostr } = useNotifications()
+      notificationHandler = handleZapReceivedNostr
+    }
+    return notificationHandler
+  }
+
   // Initialize zap tracking for all published content
   const initializeZapTracking = async () => {
     try {
@@ -402,6 +413,13 @@ export function useContentZaps() {
               existingZaps.unshift(zapData) // Add to beginning (newest first)
               contentZaps.set(eventId, existingZaps)
               console.log(`✅ Added zap: ${zapData.amount} sats from ${zapData.zapperPubkey.substring(0, 8)}... for event ${eventId}`)
+
+              // Trigger notification for new zap receipt
+              getNotificationHandler().then(handler => {
+                if (handler) {
+                  handler(zapData)
+                }
+              }).catch(err => console.warn('Failed to trigger notification:', err))
             }
           }
         },

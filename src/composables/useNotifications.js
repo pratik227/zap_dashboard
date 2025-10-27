@@ -1,4 +1,4 @@
-import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useNostrConnections } from './useNostrConnections.js'
 import { fetchTransactions, getBalance } from '../utils/nwcClient.js'
 
@@ -10,13 +10,16 @@ const notificationSettings = ref({
   desktop: true,
   zapReceived: true,
   zapSent: true,
+  nwcTransactions: true,
+  nostrZaps: true,
   balanceChange: false,
   connectionStatus: false
 })
 
 // Notification types
 const NOTIFICATION_TYPES = {
-  ZAP_RECEIVED: 'zap_received',
+  ZAP_RECEIVED_NWC: 'zap_received_nwc',
+  ZAP_RECEIVED_NOSTR: 'zap_received_nostr',
   ZAP_SENT: 'zap_sent',
   BALANCE_CHANGE: 'balance_change',
   CONNECTION_SUCCESS: 'connection_success',
@@ -56,7 +59,7 @@ const loadNotifications = () => {
     if (stored) {
       const parsed = JSON.parse(stored)
       notifications.value = Array.isArray(parsed) ? parsed : []
-      console.log('Loaded notifications from storage:', notifications.value.length, 'notifications')
+      console.log('✅ Loaded notifications from storage:', notifications.value.length)
     }
   } catch (error) {
     console.error('Failed to load notifications:', error)
@@ -67,7 +70,6 @@ const loadNotifications = () => {
 // Save notifications to localStorage
 const saveNotifications = () => {
   try {
-    // Only keep the last 50 notifications to avoid storage bloat
     const notificationsToSave = notifications.value.slice(0, 50)
     localStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(notificationsToSave))
   } catch (error) {
@@ -99,7 +101,7 @@ const createNotification = (type, title, message, data = {}) => {
     message,
     timestamp: new Date().toISOString(),
     read: false,
-    played: false, // Track if sound was already played
+    played: false,
     data,
     ...data
   }
@@ -110,7 +112,7 @@ const addNotification = (notification, isNewNotification = true) => {
   if (!notificationSettings.value.enabled) return
 
   notifications.value.unshift(notification)
-  
+
   // Limit to 50 notifications
   if (notifications.value.length > 50) {
     notifications.value = notifications.value.slice(0, 50)
@@ -127,12 +129,12 @@ const addNotification = (notification, isNewNotification = true) => {
     if (notificationSettings.value.sound) {
       playNotificationSound()
     }
-    
+
     // Mark as played to prevent replay
     notification.played = true
   }
 
-  console.log('Notification added:', notification)
+  console.log('✅ Notification added:', notification.title)
 }
 
 // Show desktop notification
@@ -140,12 +142,11 @@ const showDesktopNotification = (notification) => {
   if (Notification.permission === 'granted') {
     const desktopNotification = new Notification(notification.title, {
       body: notification.message,
-      icon: '/vite.svg', // You can replace with your app icon
+      icon: '/new_logo3.png',
       tag: notification.type,
       requireInteraction: false
     })
 
-    // Auto close after 5 seconds
     setTimeout(() => {
       desktopNotification.close()
     }, 5000)
@@ -155,20 +156,19 @@ const showDesktopNotification = (notification) => {
 // Play notification sound
 const playNotificationSound = () => {
   try {
-    // Create a simple beep sound using Web Audio API
     const audioContext = new (window.AudioContext || window.webkitAudioContext)()
     const oscillator = audioContext.createOscillator()
     const gainNode = audioContext.createGain()
-    
+
     oscillator.connect(gainNode)
     gainNode.connect(audioContext.destination)
-    
+
     oscillator.frequency.value = 800
     oscillator.type = 'sine'
-    
+
     gainNode.gain.setValueAtTime(0.3, audioContext.currentTime)
     gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5)
-    
+
     oscillator.start(audioContext.currentTime)
     oscillator.stop(audioContext.currentTime + 0.5)
   } catch (error) {
@@ -203,7 +203,7 @@ const markAllAsRead = () => {
 // Clear all notifications
 const clearAllNotifications = () => {
   notifications.value = []
-  saveNotifications() // Ensure empty state is saved
+  saveNotifications()
 }
 
 // Remove specific notification
@@ -224,32 +224,82 @@ const recentNotifications = computed(() => {
 })
 
 // Notification handlers for different events
-const handleZapReceived = (zapData) => {
-  if (!notificationSettings.value.zapReceived) return
+
+// Handle incoming NWC transactions
+const handleZapReceivedNWC = (transaction) => {
+  if (!notificationSettings.value.zapReceived || !notificationSettings.value.nwcTransactions) return
 
   const notification = createNotification(
-    NOTIFICATION_TYPES.ZAP_RECEIVED,
-    '⚡ Zap Received!',
-    `You received ${zapData.amount} sats from ${zapData.sender?.name || 'Anonymous'}`,
-    { amount: zapData.amount, sender: zapData.sender }
+    NOTIFICATION_TYPES.ZAP_RECEIVED_NWC,
+    '⚡ Payment Received',
+    `You received ${transaction.amount} sats`,
+    {
+      amount: transaction.amount,
+      source: 'nwc',
+      paymentHash: transaction.paymentHash,
+      timestamp: transaction.timestamp
+    }
   )
-  
+
   addNotification(notification)
 }
 
+// Handle incoming Nostr zap receipts
+const handleZapReceivedNostr = (zapData) => {
+  if (!notificationSettings.value.zapReceived || !notificationSettings.value.nostrZaps) return
+
+  const notification = createNotification(
+    NOTIFICATION_TYPES.ZAP_RECEIVED_NOSTR,
+    '⚡ Zap Received!',
+    `${zapData.sender?.name || 'Anonymous'} zapped ${zapData.amount} sats`,
+    {
+      amount: zapData.amount,
+      sender: zapData.sender,
+      source: 'nostr',
+      eventId: zapData.eventId,
+      message: zapData.message,
+      paymentHash: zapData.id,
+      timestamp: zapData.timestamp
+    }
+  )
+
+  addNotification(notification)
+}
+
+// Legacy handler for backward compatibility
+const handleZapReceived = (zapData) => {
+  // Determine if this is NWC or Nostr based on data structure
+  if (zapData.source === 'nwc' || zapData.type === 'incoming') {
+    handleZapReceivedNWC(zapData)
+  } else if (zapData.source === 'nostr' || zapData.eventId) {
+    handleZapReceivedNostr(zapData)
+  } else {
+    // Default to NWC for backward compatibility
+    handleZapReceivedNWC(zapData)
+  }
+}
+
+// Handle outgoing payments
 const handleZapSent = (paymentData) => {
   if (!notificationSettings.value.zapSent) return
 
+  const amount = paymentData.amount
+    ? (typeof paymentData.amount === 'number' && paymentData.amount > 1000
+        ? Math.floor(paymentData.amount / 1000)
+        : paymentData.amount)
+    : 0
+
   const notification = createNotification(
     NOTIFICATION_TYPES.ZAP_SENT,
-    '⚡ Zap Sent!',
-    `You sent ${Math.floor(paymentData.amount / 1000)} sats`,
-    { amount: Math.floor(paymentData.amount / 1000) }
+    '⚡ Payment Sent',
+    `You sent ${amount} sats`,
+    { amount, source: paymentData.source || 'nwc' }
   )
-  
+
   addNotification(notification)
 }
 
+// Handle balance changes
 const handleBalanceChange = (oldBalance, newBalance) => {
   if (!notificationSettings.value.balanceChange) return
   if (oldBalance === newBalance) return
@@ -261,10 +311,11 @@ const handleBalanceChange = (oldBalance, newBalance) => {
     `Balance ${difference > 0 ? 'increased' : 'decreased'} by ${Math.abs(difference)} sats`,
     { oldBalance, newBalance, difference }
   )
-  
+
   addNotification(notification)
 }
 
+// Handle connection success
 const handleConnectionSuccess = (connectionName) => {
   if (!notificationSettings.value.connectionStatus) return
 
@@ -274,10 +325,11 @@ const handleConnectionSuccess = (connectionName) => {
     `Successfully connected to ${connectionName}`,
     { connectionName }
   )
-  
+
   addNotification(notification)
 }
 
+// Handle connection errors
 const handleConnectionError = (error) => {
   if (!notificationSettings.value.connectionStatus) return
 
@@ -287,10 +339,11 @@ const handleConnectionError = (error) => {
     `Failed to connect to wallet: ${error.message}`,
     { error: error.message }
   )
-  
+
   addNotification(notification)
 }
 
+// Handle payment success
 const handlePaymentSuccess = (paymentData) => {
   const notification = createNotification(
     NOTIFICATION_TYPES.PAYMENT_SUCCESS,
@@ -298,10 +351,11 @@ const handlePaymentSuccess = (paymentData) => {
     `Payment completed successfully`,
     paymentData
   )
-  
+
   addNotification(notification)
 }
 
+// Handle payment errors
 const handlePaymentError = (error) => {
   const notification = createNotification(
     NOTIFICATION_TYPES.PAYMENT_ERROR,
@@ -309,35 +363,43 @@ const handlePaymentError = (error) => {
     `Payment failed: ${error.message}`,
     { error: error.message }
   )
-  
+
   addNotification(notification)
 }
 
-// Transaction monitoring
+// NWC Transaction monitoring
 let transactionPolling = null
 let lastTransactionTimestamp = null
 let lastBalance = null
 let processedTransactions = new Set()
 
 const startTransactionMonitoring = async () => {
-  if (transactionPolling) return
+  if (transactionPolling) {
+    console.log('⚠️ Transaction monitoring already active')
+    return
+  }
 
-  // Load last known state
+  console.log('🔍 Starting NWC transaction monitoring...')
+
+  // Load last known state from localStorage
   try {
     const storedTimestamp = localStorage.getItem(LAST_TRANSACTION_KEY)
     const storedBalance = localStorage.getItem(LAST_BALANCE_KEY)
     const storedProcessedTransactions = localStorage.getItem(PROCESSED_TRANSACTIONS_KEY)
-    
+
     if (storedTimestamp) {
       lastTransactionTimestamp = parseInt(storedTimestamp)
+      console.log('📌 Loaded last transaction timestamp:', new Date(lastTransactionTimestamp * 1000).toISOString())
     }
-    
+
     if (storedBalance) {
       lastBalance = parseInt(storedBalance)
+      console.log('📌 Loaded last balance:', lastBalance, 'sats')
     }
-    
+
     if (storedProcessedTransactions) {
       processedTransactions = new Set(JSON.parse(storedProcessedTransactions))
+      console.log('📌 Loaded', processedTransactions.size, 'processed transaction hashes')
     }
   } catch (error) {
     console.warn('Failed to load last transaction state:', error)
@@ -352,47 +414,50 @@ const startTransactionMonitoring = async () => {
       const transactions = await fetchTransactions()
       if (transactions && transactions.length > 0) {
         let hasNewTransactions = false
-        
-        // Process each transaction to check if it's new
+
+        // Process each transaction
         for (const transaction of transactions) {
           const paymentHash = transaction.payment_hash
           const timestamp = transaction.settled_at || transaction.created_at
-          
-          // Skip if we've already processed this transaction
+
+          // Skip if already processed
           if (processedTransactions.has(paymentHash)) {
             continue
           }
-          
-          // Skip if transaction is not settled
+
+          // Skip if not settled
           if (transaction.state !== 'settled') {
             continue
           }
-          
-          // Mark as processed to avoid duplicates
+
+          // Mark as processed
           processedTransactions.add(paymentHash)
           hasNewTransactions = true
-          
-          // Create notification for incoming transactions
+
+          // Create notification for incoming transactions only
           if (transaction.type === 'incoming') {
-            handleZapReceived({
+            console.log('💰 New incoming transaction detected:', Math.floor(transaction.amount / 1000), 'sats')
+
+            handleZapReceivedNWC({
               amount: Math.floor(transaction.amount / 1000),
-              sender: { name: 'Anonymous' }, // NWC doesn't provide sender info
               timestamp: new Date(timestamp * 1000).toISOString(),
-              paymentHash: paymentHash
+              paymentHash: paymentHash,
+              type: 'incoming',
+              source: 'nwc'
             })
           }
-          
+
           // Update last transaction timestamp
           if (!lastTransactionTimestamp || timestamp > lastTransactionTimestamp) {
             lastTransactionTimestamp = timestamp
           }
         }
-        
+
         // Save state if we processed new transactions
         if (hasNewTransactions) {
           localStorage.setItem(LAST_TRANSACTION_KEY, lastTransactionTimestamp.toString())
-          
-          // Keep only recent transaction hashes (last 1000 to avoid storage bloat)
+
+          // Keep only recent transaction hashes (last 1000)
           const recentTransactions = Array.from(processedTransactions).slice(-1000)
           processedTransactions = new Set(recentTransactions)
           localStorage.setItem(PROCESSED_TRANSACTIONS_KEY, JSON.stringify(Array.from(processedTransactions)))
@@ -402,44 +467,46 @@ const startTransactionMonitoring = async () => {
       // Check for balance changes
       const balanceData = await getBalance()
       if (balanceData && balanceData.balance !== undefined) {
-        const currentBalance = Math.floor(balanceData.balance / 1000) // Convert to sats
-        
+        const currentBalance = Math.floor(balanceData.balance / 1000)
+
         if (lastBalance !== null && currentBalance !== lastBalance && !isInitialBalanceCheck) {
           handleBalanceChange(lastBalance, currentBalance)
         }
-        
-        // Update lastBalance and save to localStorage
+
         lastBalance = currentBalance
         localStorage.setItem(LAST_BALANCE_KEY, lastBalance.toString())
-        
-        // After first balance check, allow balance change notifications
         isInitialBalanceCheck = false
       }
     } catch (error) {
-      console.warn('Transaction monitoring error:', error)
+      console.warn('Transaction monitoring error:', error.message)
     }
   }, 10000) // Check every 10 seconds
+
+  console.log('✅ NWC transaction monitoring started')
 }
 
 const stopTransactionMonitoring = () => {
   if (transactionPolling) {
     clearInterval(transactionPolling)
     transactionPolling = null
+    console.log('🛑 NWC transaction monitoring stopped')
   }
-  
-  // Clear processed transactions when stopping monitoring
+
   processedTransactions.clear()
 }
 
 // Initialize notification system
 const initializeNotifications = async () => {
+  console.log('🔔 Initializing notifications system...')
   loadNotificationSettings()
   loadNotifications()
-  
+
   // Request desktop notification permission if enabled
   if (notificationSettings.value.desktop) {
     await requestNotificationPermission()
   }
+
+  console.log('✅ Notifications system initialized')
 }
 
 export function useNotifications() {
@@ -448,8 +515,10 @@ export function useNotifications() {
   // Watch for wallet connection changes
   watch(isWalletConnected, (connected) => {
     if (connected) {
+      console.log('💳 Wallet connected, starting transaction monitoring...')
       startTransactionMonitoring()
     } else {
+      console.log('💳 Wallet disconnected, stopping transaction monitoring...')
       stopTransactionMonitoring()
     }
   }, { immediate: true })
@@ -470,7 +539,7 @@ export function useNotifications() {
     notificationSettings,
     unreadCount,
     recentNotifications,
-    
+
     // Actions
     addNotification,
     markAsRead,
@@ -478,20 +547,22 @@ export function useNotifications() {
     clearAllNotifications,
     removeNotification,
     requestNotificationPermission,
-    
+
     // Event handlers
     handleZapReceived,
+    handleZapReceivedNWC,
+    handleZapReceivedNostr,
     handleZapSent,
     handleBalanceChange,
     handleConnectionSuccess,
     handleConnectionError,
     handlePaymentSuccess,
     handlePaymentError,
-    
+
     // Monitoring
     startTransactionMonitoring,
     stopTransactionMonitoring,
-    
+
     // Constants
     NOTIFICATION_TYPES
   }
