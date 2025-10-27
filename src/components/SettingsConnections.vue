@@ -45,12 +45,30 @@ const deletingConnection = ref(null)
 
 const newConnectionName = ref('')
 const newConnectionUrl = ref('')
+const newConnectionColor = ref('orange')
+const newConnectionEmoji = ref('⚡')
 const editConnectionName = ref('')
 const editConnectionUrl = ref('')
+const editConnectionColor = ref('orange')
+const editConnectionEmoji = ref('⚡')
 
 const formError = ref('')
 const searchQuery = ref('')
 const showAdvanced = ref(false)
+
+// Customization options
+const availableColors = [
+  { name: 'Orange', value: 'orange', bg: 'bg-orange-100', text: 'text-orange-600', hover: 'hover:bg-orange-200' },
+  { name: 'Blue', value: 'blue', bg: 'bg-blue-100', text: 'text-blue-600', hover: 'hover:bg-blue-200' },
+  { name: 'Green', value: 'green', bg: 'bg-green-100', text: 'text-green-600', hover: 'hover:bg-green-200' },
+  { name: 'Purple', value: 'purple', bg: 'bg-purple-100', text: 'text-purple-600', hover: 'hover:bg-purple-200' },
+  { name: 'Red', value: 'red', bg: 'bg-red-100', text: 'text-red-600', hover: 'hover:bg-red-200' },
+  { name: 'Yellow', value: 'yellow', bg: 'bg-yellow-100', text: 'text-yellow-600', hover: 'hover:bg-yellow-200' },
+  { name: 'Pink', value: 'pink', bg: 'bg-pink-100', text: 'text-pink-600', hover: 'hover:bg-pink-200' },
+  { name: 'Teal', value: 'teal', bg: 'bg-teal-100', text: 'text-teal-600', hover: 'hover:bg-teal-200' }
+]
+
+const availableEmojis = ['⚡', '💰', '🔥', '💎', '🚀', '⭐', '💳', '🎯', '🌟', '💫', '🔔', '🎪']
 
 // Filter connections based on search
 const filteredConnections = computed(() => {
@@ -68,6 +86,8 @@ const openAddForm = () => {
   showAddForm.value = true
   newConnectionName.value = ''
   newConnectionUrl.value = ''
+  newConnectionColor.value = 'orange'
+  newConnectionEmoji.value = '⚡'
   formError.value = ''
 }
 
@@ -75,6 +95,8 @@ const closeAddForm = () => {
   showAddForm.value = false
   newConnectionName.value = ''
   newConnectionUrl.value = ''
+  newConnectionColor.value = 'orange'
+  newConnectionEmoji.value = '⚡'
   formError.value = ''
 }
 
@@ -82,6 +104,8 @@ const openEditForm = (connection) => {
   editingConnection.value = connection
   editConnectionName.value = connection.name
   editConnectionUrl.value = connection.nwcUrl
+  editConnectionColor.value = connection.color || 'orange'
+  editConnectionEmoji.value = connection.emoji || '⚡'
   showEditForm.value = true
   formError.value = ''
 }
@@ -91,6 +115,8 @@ const closeEditForm = () => {
   editingConnection.value = null
   editConnectionName.value = ''
   editConnectionUrl.value = ''
+  editConnectionColor.value = 'orange'
+  editConnectionEmoji.value = '⚡'
   formError.value = ''
 }
 
@@ -107,11 +133,13 @@ const closeDeleteConfirm = () => {
 // Simplified actions
 const handleAddConnection = async () => {
   formError.value = ''
-  
+
   try {
     const connection = addConnection(newConnectionName.value, newConnectionUrl.value)
+    connection.color = newConnectionColor.value
+    connection.emoji = newConnectionEmoji.value
     closeAddForm()
-    
+
     if (connections.value.length === 1) {
       await setActiveConnection(connection.id)
     }
@@ -122,9 +150,11 @@ const handleAddConnection = async () => {
 
 const handleEditConnection = () => {
   formError.value = ''
-  
+
   try {
     editConnection(editingConnection.value.id, editConnectionName.value, editConnectionUrl.value)
+    editingConnection.value.color = editConnectionColor.value
+    editingConnection.value.emoji = editConnectionEmoji.value
     closeEditForm()
   } catch (error) {
     formError.value = error.message
@@ -176,6 +206,11 @@ const formatDate = (dateString) => {
     day: 'numeric'
   })
 }
+
+const getColorClasses = (colorValue) => {
+  const color = availableColors.find(c => c.value === colorValue) || availableColors[0]
+  return { bg: color.bg, text: color.text }
+}
 </script>
 
 <template>
@@ -220,10 +255,11 @@ const formatDate = (dateString) => {
           <!-- Left -->
           <div class="flex items-center gap-3 flex-1 min-w-0">
             <div :class="[
-              'w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0',
-              connection.isActive ? 'bg-orange-100' : 'bg-gray-100'
+              'w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 text-xl',
+              connection.isActive ? getColorClasses(connection.color || 'orange').bg : 'bg-gray-100'
             ]">
-              <IconBolt :class="['w-5 h-5', connection.isActive ? 'text-orange-600' : 'text-gray-400']" />
+              <span v-if="connection.emoji">{{ connection.emoji }}</span>
+              <IconBolt v-else :class="['w-5 h-5', connection.isActive ? getColorClasses(connection.color || 'orange').text : 'text-gray-400']" />
             </div>
 
             <div class="flex-1 min-w-0">
@@ -410,7 +446,7 @@ const formatDate = (dateString) => {
                   class="w-full px-3 py-3 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base"
                 />
               </div>
-              
+
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">Connection String</label>
                 <input
@@ -422,6 +458,43 @@ const formatDate = (dateString) => {
                 <p class="text-xs text-gray-500 mt-1">
                   Get this from your wallet's NWC settings
                 </p>
+              </div>
+
+              <!-- Color Selection -->
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Color</label>
+                <div class="grid grid-cols-8 gap-2">
+                  <button
+                    v-for="color in availableColors"
+                    :key="color.value"
+                    @click="newConnectionColor = color.value"
+                    type="button"
+                    :class="[
+                      'w-10 h-10 rounded-lg transition-all',
+                      color.bg,
+                      color.hover,
+                      newConnectionColor === color.value ? 'ring-2 ring-offset-2 ring-gray-400 scale-110' : ''
+                    ]"
+                    :title="color.name"
+                  ></button>
+                </div>
+              </div>
+
+              <!-- Emoji Selection -->
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Symbol</label>
+                <div class="grid grid-cols-6 gap-2">
+                  <button
+                    v-for="emoji in availableEmojis"
+                    :key="emoji"
+                    @click="newConnectionEmoji = emoji"
+                    type="button"
+                    :class="[
+                      'w-10 h-10 rounded-lg text-xl transition-all bg-gray-50 hover:bg-gray-100',
+                      newConnectionEmoji === emoji ? 'ring-2 ring-offset-2 ring-gray-400 scale-110 bg-gray-100' : ''
+                    ]"
+                  >{{ emoji }}</button>
+                </div>
               </div>
               
               <!-- Error Message -->
@@ -474,7 +547,7 @@ const formatDate = (dateString) => {
                   class="w-full px-3 py-3 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base"
                 />
               </div>
-              
+
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">Connection String</label>
                 <input
@@ -482,6 +555,43 @@ const formatDate = (dateString) => {
                   type="password"
                   class="w-full px-3 py-3 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base"
                 />
+              </div>
+
+              <!-- Color Selection -->
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Color</label>
+                <div class="grid grid-cols-8 gap-2">
+                  <button
+                    v-for="color in availableColors"
+                    :key="color.value"
+                    @click="editConnectionColor = color.value"
+                    type="button"
+                    :class="[
+                      'w-10 h-10 rounded-lg transition-all',
+                      color.bg,
+                      color.hover,
+                      editConnectionColor === color.value ? 'ring-2 ring-offset-2 ring-gray-400 scale-110' : ''
+                    ]"
+                    :title="color.name"
+                  ></button>
+                </div>
+              </div>
+
+              <!-- Emoji Selection -->
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Symbol</label>
+                <div class="grid grid-cols-6 gap-2">
+                  <button
+                    v-for="emoji in availableEmojis"
+                    :key="emoji"
+                    @click="editConnectionEmoji = emoji"
+                    type="button"
+                    :class="[
+                      'w-10 h-10 rounded-lg text-xl transition-all bg-gray-50 hover:bg-gray-100',
+                      editConnectionEmoji === emoji ? 'ring-2 ring-offset-2 ring-gray-400 scale-110 bg-gray-100' : ''
+                    ]"
+                  >{{ emoji }}</button>
+                </div>
               </div>
               
               <div v-if="formError" class="bg-red-50 border border-red-200 rounded-lg p-3">
