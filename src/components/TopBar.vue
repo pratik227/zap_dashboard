@@ -300,32 +300,21 @@ const handleRefresh = () => {
         
         <!-- Enhanced Profile Dropdown -->
         <div class="relative" ref="profileDropdownRef">
-          <!-- Profile Trigger Button -->
-          <button 
+          <!-- Profile Trigger Button - Avatar Only -->
+          <button
             @click="toggleProfileDropdown"
-            class="flex items-center space-x-2 sm:space-x-3 p-2 rounded-lg hover:bg-orange-50 transition-all duration-200 group touch-target"
+            class="relative p-0.5 rounded-full hover:bg-orange-50 transition-all duration-200 group touch-target"
+            :title="getUserName"
           >
             <div class="relative">
-              <img 
+              <img
                 :src="getUserAvatar"
                 :alt="getUserName"
-                class="w-8 h-8 sm:w-9 sm:h-9 rounded-full border-2 border-orange-200 group-hover:border-orange-300 transition-all duration-200"
+                class="w-9 h-9 rounded-full border-2 border-orange-200 group-hover:border-orange-400 transition-all duration-200"
                 @error="$event.target.src = 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'"
               />
               <!-- Online indicator -->
-              <div class="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-400 rounded-full border-2 border-white"></div>
-            </div>
-            
-            <!-- Profile Info - Hidden on mobile -->
-            <div class="hidden sm:block text-left">
-              <div class="flex items-center space-x-1">
-                <span class="text-sm font-medium text-gray-800 group-hover:text-orange-600 transition-colors duration-200">{{ getUserName }}</span>
-                <IconChevronDown :class="[
-                  'w-3 h-3 text-gray-400 group-hover:text-orange-500 transition-all duration-200',
-                  showProfileDropdown ? 'rotate-180' : ''
-                ]" />
-              </div>
-              <div class="text-xs text-gray-500 truncate max-w-[100px]">{{ getUserIdentifier }}</div>
+              <div class="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-400 rounded-full border-2 border-white shadow-sm"></div>
             </div>
           </button>
           
@@ -333,20 +322,23 @@ const handleRefresh = () => {
           <transition name="dropdown">
             <div 
               v-if="showProfileDropdown"
-              class="absolute right-0 top-full mt-2 w-64 bg-white rounded-xl shadow-lg border border-gray-200 py-2 z-50"
+              class="absolute right-0 top-full mt-2 w-72 bg-white rounded-xl shadow-xl border border-gray-200 py-2 z-50"
             >
               <!-- Profile Header -->
-              <div class="px-4 py-3 border-b border-gray-100">
-                <div class="flex items-center space-x-3">
-                  <img 
-                    :src="getUserAvatar"
-                    :alt="getUserName"
-                    class="w-10 h-10 rounded-full border-2 border-orange-200"
-                    @error="$event.target.src = 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'"
-                  />
-                  <div class="flex-1 min-w-0">
-                    <div class="font-medium text-gray-900 truncate">{{ getUserName }}</div>
-                    <div class="text-sm text-gray-500 truncate">{{ getUserIdentifier }}</div>
+              <div class="px-4 py-4 border-b border-gray-100 bg-gradient-to-br from-orange-50 to-amber-50">
+                <div class="flex items-start gap-3">
+                  <div class="relative flex-shrink-0">
+                    <img
+                      :src="getUserAvatar"
+                      :alt="getUserName"
+                      class="w-12 h-12 rounded-full border-2 border-orange-300 shadow-sm"
+                      @error="$event.target.src = 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'"
+                    />
+                    <div class="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-green-400 rounded-full border-2 border-white shadow-sm"></div>
+                  </div>
+                  <div class="flex-1 min-w-0 pt-0.5">
+                    <div class="font-semibold text-gray-900 truncate text-base">{{ getUserName }}</div>
+                    <div class="text-sm text-gray-600 truncate mt-0.5">{{ getUserIdentifier }}</div>
                   </div>
                 </div>
               </div>
