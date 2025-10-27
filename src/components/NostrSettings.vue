@@ -254,7 +254,7 @@ const toggleRelaySection = () => {
       <!-- Profile Card -->
       <div class="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
         <!-- Compact Header with Banner Support -->
-        <div class="h-24 sm:h-28 bg-gradient-to-br from-orange-400 via-orange-500 to-orange-600 relative overflow-hidden">
+        <div class="h-32 sm:h-40 bg-gradient-to-br from-orange-400 via-orange-500 to-orange-600 relative overflow-hidden">
           <img
             v-if="getUserBanner()"
             :src="getUserBanner()"
