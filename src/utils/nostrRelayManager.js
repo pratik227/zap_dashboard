@@ -411,6 +411,10 @@ class NostrRelayManager {
       }
       if (options.onclose) options.onclose(reason)
     }
+
+    // Debug log the filters being sent
+    console.log('📡 Subscribing to relays with filters:', JSON.stringify(validFilters))
+
     // Subscribe
     const sub = this.pool.subscribeMany(relayUrls, validFilters, {
       ...wrappedOptions,

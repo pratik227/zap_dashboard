@@ -71,6 +71,10 @@ export const fetchProfile = async (pubkey, { ttl = 24 * 60 * 60 * 1000 } = {}) =
 
 // Internal single-profile fetch via subscription (uses nostrRelayManager)
 const _fetchProfileFromRelays = async (pubkey) => {
+  if (!pubkey || typeof pubkey !== 'string' || pubkey.length !== 64) {
+    throw new Error(`Invalid pubkey for profile fetch: ${pubkey}`)
+  }
+
   return new Promise((resolve, reject) => {
     const timeout = setTimeout(() => reject(new Error('Profile fetch timeout')), 15000)
 
@@ -111,7 +115,10 @@ const _fetchProfileFromRelays = async (pubkey) => {
 
 // Batch fetch profiles for many pubkeys. Updates profileCache as results arrive.
 export const batchFetchProfiles = async (pubkeys = [], { batchSize = 50, timeoutMs = 10000 } = {}) => {
-  const missing = pubkeys.filter(pk => pk && !profileCache.has(pk))
+  // Filter out invalid pubkeys
+  const validPubkeys = pubkeys.filter(pk => pk && typeof pk === 'string' && pk.length === 64)
+  const missing = validPubkeys.filter(pk => !profileCache.has(pk))
+
   if (missing.length === 0) return
 
   // Split into batches to avoid overly long author lists
