@@ -125,8 +125,7 @@ const addConnection = (name, nwcUrl) => {
     isDefault: connections.value.length === 0, // First connection is default
     createdAt: new Date().toISOString(),
     lastUsed: null,
-    color: 'orange',
-    emoji: '⚡'
+    color: 'orange'
   }
   
   connections.value.push(newConnection)
