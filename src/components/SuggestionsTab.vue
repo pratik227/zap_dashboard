@@ -21,6 +21,7 @@ import { useNostrAuth } from '../composables/useNostrAuth.js'
 import { useAudience } from '../composables/useAudience.js'
 import { nostrRelayManager } from '../utils/nostrRelayManager.js'
 import * as nip19 from 'nostr-tools/nip19'
+import { generateAvatar } from '../utils/avatarGenerator.js'
 
 const emit = defineEmits(['follow-user', 'profile-click'])
 
@@ -180,24 +181,6 @@ const handleProfileClick = (pubkey) => {
   emit('profile-click', pubkey)
 }
 
-// Generate fallback avatar
-const generateFallbackAvatar = (pubkey) => {
-  const avatars = [
-    'https://images.pexels.com/photos/1040881/pexels-photo-1040881.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
-    'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
-    'https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
-    'https://images.pexels.com/photos/1181690/pexels-photo-1181690.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
-    'https://images.pexels.com/photos/1043471/pexels-photo-1043471.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
-    'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'
-  ]
-  
-  const hash = pubkey.split('').reduce((a, b) => {
-    a = ((a << 5) - a) + b.charCodeAt(0)
-    return a & a
-  }, 0)
-  
-  return avatars[Math.abs(hash) % avatars.length]
-}
 
 // Get mutual connection names for display
 const getMutualConnectionNames = (suggestion) => {
@@ -362,10 +345,10 @@ watch(following, (newFollowing) => {
             >
               <div class="w-14 h-14 rounded-xl overflow-hidden border-2 border-orange-200 group-hover:border-orange-300 transition-colors">
                 <img
-                  :src="suggestion.profile?.picture || generateFallbackAvatar(suggestion.pubkey)"
+                  :src="suggestion.profile?.picture || generateAvatar(suggestion.pubkey)"
                   :alt="suggestion.profile?.name || 'User'"
                   class="w-full h-full object-cover"
-                  @error="$event.target.src = generateFallbackAvatar(suggestion.pubkey)"
+                  @error="$event.target.src = generateAvatar(suggestion.pubkey)"
                 />
               </div>
               <!-- Mutual connection indicator -->

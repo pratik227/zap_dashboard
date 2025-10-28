@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted, watch, onUnmounted, computed, inject } from 'vue'
 import * as nip19 from 'nostr-tools/nip19'
+import { generateAvatar } from '../utils/avatarGenerator.js'
 import {
   IconX, 
   IconBolt, 
@@ -184,7 +185,7 @@ const fetchAuthorProfile = async (pubkey) => {
         eventAuthor.value = {
           pubkey,
           name: profile.name || profile.display_name || `user:${pubkey.substring(0, 8)}`,
-          picture: profile.picture || generateFallbackAvatar(pubkey),
+          picture: profile.picture || generateAvatar(pubkey),
           nip05: profile.nip05 || null,
           about: profile.about || null
         }
@@ -193,14 +194,14 @@ const fetchAuthorProfile = async (pubkey) => {
         eventAuthor.value = {
           pubkey,
           name: `user:${pubkey.substring(0, 8)}`,
-          picture: generateFallbackAvatar(pubkey)
+          picture: generateAvatar(pubkey)
         }
       }
     } else {
       eventAuthor.value = {
         pubkey,
         name: `user:${pubkey.substring(0, 8)}`,
-        picture: generateFallbackAvatar(pubkey)
+        picture: generateAvatar(pubkey)
       }
     }
   } catch (err) {
@@ -208,29 +209,11 @@ const fetchAuthorProfile = async (pubkey) => {
     eventAuthor.value = {
       pubkey,
       name: `user:${pubkey.substring(0, 8)}`,
-      picture: generateFallbackAvatar(pubkey)
+      picture: generateAvatar(pubkey)
     }
   }
 }
 
-// Generate fallback avatar
-const generateFallbackAvatar = (pubkey) => {
-  const avatars = [
-    'https://images.pexels.com/photos/1040881/pexels-photo-1040881.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
-    'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
-    'https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
-    'https://images.pexels.com/photos/1181690/pexels-photo-1181690.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
-    'https://images.pexels.com/photos/1043471/pexels-photo-1043471.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
-    'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'
-  ]
-  
-  const hash = pubkey.split('').reduce((a, b) => {
-    a = ((a << 5) - a) + b.charCodeAt(0)
-    return a & a
-  }, 0)
-  
-  return avatars[Math.abs(hash) % avatars.length]
-}
 
 // Copy to clipboard with feedback
 const copyToClipboard = async (text, type) => {
@@ -655,7 +638,7 @@ const formatZapperPubkey = (pubkey) => {
                     :src="specificZap.sender?.picture || specificZap.sender?.avatar" 
                     :alt="getSenderName(specificZap.sender)"
                     class="w-14 h-14 rounded-2xl border-2 border-orange-200/50 object-cover shadow-lg"
-                    @error="$event.target.src = generateFallbackAvatar(specificZap.zapperPubkey)"
+                    @error="$event.target.src = generateAvatar(specificZap.zapperPubkey)"
                   />
                   <div class="flex-1">
                     <div class="font-semibold text-gray-900 text-lg">{{ getSenderName(specificZap.sender) }}</div>
@@ -808,7 +791,7 @@ const formatZapperPubkey = (pubkey) => {
                             :src="zap.sender?.avatar || zap.sender?.picture"
                             :alt="zap.sender?.name || 'User'"
                             class="w-14 h-14 rounded-2xl object-cover border-2 border-gray-200/50 shadow-md"
-                            @error="$event.target.src = generateFallbackAvatar(zap.zapperPubkey)"
+                            @error="$event.target.src = generateAvatar(zap.zapperPubkey)"
                           />
                           <div class="flex-1 min-w-0">
                             <div class="flex items-center justify-between mb-2">

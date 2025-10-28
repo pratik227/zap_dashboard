@@ -16,6 +16,7 @@ import {
   IconLoader,
   IconDots
 } from '@iconify-prerendered/vue-tabler'
+import { generateAvatar } from '../utils/avatarGenerator.js'
 
 const props = defineProps({
   list: {
@@ -64,25 +65,9 @@ const memberAvatars = computed(() => {
   // Show first 3 members with avatars
   return props.list.members.slice(0, 3).map(pubkey => ({
     pubkey,
-    avatar: generateFallbackAvatar(pubkey)
+    avatar: generateAvatar(pubkey)
   }))
 })
-
-// Generate fallback avatar
-const generateFallbackAvatar = (pubkey) => {
-  const avatars = [
-    'https://images.pexels.com/photos/1040881/pexels-photo-1040881.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
-    'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
-    'https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'
-  ]
-  
-  const hash = pubkey.split('').reduce((a, b) => {
-    a = ((a << 5) - a) + b.charCodeAt(0)
-    return a & a
-  }, 0)
-  
-  return avatars[Math.abs(hash) % avatars.length]
-}
 </script>
 
 <template>

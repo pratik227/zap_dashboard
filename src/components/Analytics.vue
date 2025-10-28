@@ -3,7 +3,7 @@ import { computed, inject, ref, onMounted } from 'vue'
 import { IconClock, IconBook, IconChartLine, IconRefresh, IconUsers, IconTrendingUp, IconAlertCircle, IconBolt } from '@iconify-prerendered/vue-tabler'
 import { filterZapsByTimeRange } from '../utils/timeFilter.js'
 import UserProfileModal from './UserProfileModal.vue'
-import { generateFallbackAvatar } from '../composables/useContentZaps.js'
+import { generateAvatar } from '../composables/useContentZaps.js'
 
 // Lazy load ECharts to prevent issues
 // Lazy load ECharts to prevent issues
@@ -670,10 +670,10 @@ const summaryStats = computed(() => {
               <!-- Avatar -->
               <div class="w-8 h-8 rounded-full overflow-hidden border border-orange-200 mr-2 flex-shrink-0">
                 <img 
-                  :src="supporter.profile?.picture || generateFallbackAvatar(supporter.pubkey)" 
+                  :src="supporter.profile?.picture || generateAvatar(supporter.pubkey)" 
                   :alt="supporter.profile?.name || 'Supporter'"
                   class="w-full h-full object-cover"
-                  @error="$event.target.src = generateFallbackAvatar(supporter.pubkey)"
+                  @error="$event.target.src = generateAvatar(supporter.pubkey)"
                 />
               </div>
               

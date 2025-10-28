@@ -3,10 +3,10 @@
     <div v-if="data.type === 'profile'" class="inline-flex items-center space-x-2 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-lg px-3 py-2 transition-colors cursor-pointer" @click="openInClient">
       <div class="w-6 h-6 rounded-full overflow-hidden border border-purple-300">
         <img 
-          :src="profileData?.picture || generateFallbackAvatar(data.pubkey)" 
+          :src="profileData?.picture || generateAvatar(data.pubkey)" 
           :alt="profileData?.name || formatPubkey(data.pubkey)"
           class="w-full h-full object-cover"
-          @error="$event.target.src = generateFallbackAvatar(data.pubkey)"
+          @error="$event.target.src = generateAvatar(data.pubkey)"
         />
       </div>
       <div class="flex flex-col">
@@ -78,7 +78,7 @@ const props = defineProps({
   }
 })
 
-const { getClientUrl, formatPubkey, generateFallbackAvatar } = useNostrContent()
+const { getClientUrl, formatPubkey, generateAvatar } = useNostrContent()
 
 const profileData = ref(null)
 const showTooltip = ref(false)

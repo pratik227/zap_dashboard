@@ -27,7 +27,7 @@ import { useContentZaps } from '../composables/useContentZaps.js'
 import { useNostrAuth } from '../composables/useNostrAuth.js'
 import { useNostrLongForm } from '../composables/useNostrLongForm.js'
 import { useEngagementMetrics } from '../composables/useEngagementMetrics.js'
-import { generateFallbackAvatar } from '../composables/useContentZaps.js'
+import { generateAvatar } from '../composables/useContentZaps.js'
 import ContentStats from '../components/ContentStats.vue'
 import ContentList from '../components/ContentList.vue'
 import ContentForm from '../components/ContentForm.vue'
@@ -836,7 +836,7 @@ onUnmounted(() => {
                     :src="zap.sender?.avatar || zap.sender?.picture"
                     :alt="zap.sender?.name || 'User'"
                     class="w-6 h-6 rounded-full object-cover"
-                    @error="$event.target.src = generateFallbackAvatar(zap.zapperPubkey)"
+                    @error="$event.target.src = generateAvatar(zap.zapperPubkey)"
                   />
                   <div class="flex-1 min-w-0">
                     <div class="text-xs font-medium text-gray-900 truncate">

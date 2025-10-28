@@ -146,7 +146,7 @@
                           :src="zap.sender?.picture || zap.sender?.avatar" 
                           :alt="zap.sender?.name || 'Supporter'"
                           class="w-full h-full object-cover"
-                          @error="$event.target.src = generateFallbackAvatar(zap.zapperPubkey)"
+                          @error="$event.target.src = generateAvatar(zap.zapperPubkey)"
                         />
                       </div>
                       <div class="absolute -top-1 -right-1 w-6 h-6 bg-yellow-400 rounded-full flex items-center justify-center shadow-lg">
@@ -165,10 +165,10 @@
                     >
                       <div class="w-16 h-16 rounded-full overflow-hidden border-2 border-orange-200 shadow-md mx-auto">
                         <img 
-                          :src="zap.sender?.picture || zap.sender?.avatar || generateFallbackAvatar(zap.zapperPubkey)" 
+                          :src="zap.sender?.picture || zap.sender?.avatar || generateAvatar(zap.zapperPubkey)" 
                           :alt="zap.sender?.name || 'Supporter'"
                           class="w-full h-full object-cover"
-                          @error="$event.target.src = generateFallbackAvatar(zap.zapperPubkey)"
+                          @error="$event.target.src = generateAvatar(zap.zapperPubkey)"
                         />
                       </div>
                       <div class="text-center mt-2">
@@ -418,6 +418,7 @@ import { nostrRelayManager } from '../utils/nostrRelayManager.js'
 import { makeZapRequest } from 'nostr-tools/nip57'
 import { payInvoice } from '../utils/nwcClient.js'
 import { bech32 } from '@scure/base'
+import { generateAvatar } from '../utils/avatarGenerator.js'
 
 const props = defineProps({
   campaign: {
@@ -788,21 +789,6 @@ const formatZapAmount = (amount) => {
   return amount.toString()
 }
 
-// Generate fallback avatar
-const generateFallbackAvatar = (pubkey) => {
-  const avatars = [
-    'https://images.pexels.com/photos/1040881/pexels-photo-1040881.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
-    'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
-    'https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'
-  ]
-  
-  const hash = pubkey.split('').reduce((a, b) => {
-    a = ((a << 5) - a) + b.charCodeAt(0)
-    return a & a
-  }, 0)
-  
-  return avatars[Math.abs(hash) % avatars.length]
-}
 
 // Close modal
 const closeModal = () => {

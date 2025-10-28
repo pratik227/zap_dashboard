@@ -4,7 +4,7 @@ import { IconClock, IconBook, IconChartLine, IconRefresh, IconUsers, IconTrendin
 import { filterZapsByTimeRange } from '../utils/timeFilter.js'
 import * as nip19 from 'nostr-tools/nip19'
 import UserProfileModal from '../components/UserProfileModal.vue'
-import { generateFallbackAvatar } from '../composables/useContentZaps.js'
+import { generateAvatar } from '../composables/useContentZaps.js'
 import EngagementAnalytics from '../components/EngagementAnalytics.vue'
 import { IconExternalLink, IconHeart, IconRepeat, IconBookmark } from '@iconify-prerendered/vue-tabler'
 
@@ -744,10 +744,10 @@ const formatEngagementNumber = (num) => {
               <!-- Avatar -->
               <div class="w-8 h-8 rounded-full overflow-hidden border-2 border-orange-200 flex-shrink-0">
                 <img 
-                  :src="topSupporters[0].profile?.picture || generateFallbackAvatar(topSupporters[0].pubkey)" 
+                  :src="topSupporters[0].profile?.picture || generateAvatar(topSupporters[0].pubkey)" 
                   :alt="topSupporters[0].profile?.name || 'Supporter'"
                   class="w-full h-full object-cover"
-                  @error="$event.target.src = generateFallbackAvatar(topSupporters[0].pubkey)"
+                  @error="$event.target.src = generateAvatar(topSupporters[0].pubkey)"
                 />
               </div>
               

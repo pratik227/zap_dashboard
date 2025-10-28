@@ -22,6 +22,7 @@ import * as nip19 from 'nostr-tools/nip19'
 import BadgeList from './BadgeList.vue'
 import BadgeDetailModal from './BadgeDetailModal.vue'
 import UserProfileModal from './UserProfileModal.vue'
+import { generateAvatar } from '../utils/avatarGenerator.js'
 
 const props = defineProps({
   show: {
@@ -60,7 +61,7 @@ const displayName = computed(() => {
 })
 
 const avatar = computed(() => {
-  return props.profile?.picture || generateFallbackAvatar(props.pubkey)
+  return props.profile?.picture || generateAvatar(props.pubkey)
 })
 
 const banner = computed(() => {
@@ -95,21 +96,6 @@ const truncatedDescription = computed(() => {
   return showFullDescription.value ? description : description.substring(0, maxLength) + '...'
 })
 
-// Generate fallback avatar
-const generateFallbackAvatar = (pubkey) => {
-  const avatars = [
-    'https://images.pexels.com/photos/1040881/pexels-photo-1040881.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
-    'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
-    'https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'
-  ]
-  
-  const hash = pubkey.split('').reduce((a, b) => {
-    a = ((a << 5) - a) + b.charCodeAt(0)
-    return a & a
-  }, 0)
-  
-  return avatars[Math.abs(hash) % avatars.length]
-}
 
 // Copy to clipboard with enhanced feedback
 const copyToClipboard = async (text, type) => {
@@ -218,7 +204,7 @@ onUnmounted(() => {
                   :src="avatar"
                   :alt="displayName"
                   class="w-full h-full object-cover"
-                  @error="$event.target.src = generateFallbackAvatar(pubkey)"
+                  @error="$event.target.src = generateAvatar(pubkey)"
                 />
               </div>
             </div>

@@ -281,7 +281,7 @@ export function useNostrContent() {
    * @param {string} pubkey - Public key for generating avatar
    * @returns {string} Avatar URL
    */
-  const generateFallbackAvatar = (pubkey) => {
+  const generateAvatar = (pubkey) => {
     if (!pubkey) return 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'
     
     // Use a deterministic avatar service based on pubkey
@@ -296,7 +296,7 @@ export function useNostrContent() {
     parseContent,
     getClientUrl,
     formatPubkey,
-    generateFallbackAvatar,
+    generateAvatar,
     // Regex patterns for external use
     NOSTR_URI_REGEX,
     IMAGE_REGEX,

@@ -63,7 +63,7 @@ const createZapData = (zapEvent) => {
       sender: {
         pubkey: zapperPubkey,
         name: `User ${zapperPubkey.substring(0, 8)}`,
-        avatar: generateFallbackAvatar(zapperPubkey)
+        avatar: generateAvatar(zapperPubkey)
       },
       timestamp: new Date(timestamp).toISOString(),
       message,
@@ -78,7 +78,7 @@ const createZapData = (zapEvent) => {
         zapData.sender = {
           pubkey: zapperPubkey,
           name: profile.name || `user:${zapperPubkey.substring(0, 8)}`,
-          avatar: profile.picture || generateFallbackAvatar(zapperPubkey),
+          avatar: profile.picture || generateAvatar(zapperPubkey),
           nip05: profile.nip05
         }
       }
@@ -211,7 +211,7 @@ const fetchZapperProfile = async (pubkey) => {
     // Return a fallback profile
     return {
       name: `user:${pubkey.substring(0, 8)}`,
-      picture: generateFallbackAvatar(pubkey),
+      picture: generateAvatar(pubkey),
       nip05: null
     }
   } finally {
@@ -243,7 +243,7 @@ const _fetchProfileFromNostr = async (pubkey) => {
             
             const profile = {
               name: profileData.name || profileData.display_name || `user:${pubkey.substring(0, 8)}`,
-              picture: profileData.picture || profileData.avatar || generateFallbackAvatar(pubkey),
+              picture: profileData.picture || profileData.avatar || generateAvatar(pubkey),
               nip05: profileData.nip05 || null
             }
             
@@ -264,7 +264,7 @@ const _fetchProfileFromNostr = async (pubkey) => {
             profileSub.close()
             resolve({
               name: `user:${pubkey.substring(0, 8)}`,
-              picture: generateFallbackAvatar(pubkey),
+              picture: generateAvatar(pubkey),
               nip05: null
             })
           }, 2000) // Wait 2 seconds for potential profile events
@@ -281,7 +281,7 @@ const _fetchProfileFromNostr = async (pubkey) => {
 }
 
 // Generate a consistent fallback avatar based on pubkey
-export const generateFallbackAvatar = (pubkey) => {
+export const generateAvatar = (pubkey) => {
   if (!pubkey) return 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'
   
   // Use a deterministic approach to generate avatar based on pubkey

@@ -23,6 +23,7 @@ import {
 } from '@iconify-prerendered/vue-tabler'
 import NotificationDropdown from './NotificationDropdown.vue'
 import { useNostrAuth } from '../composables/useNostrAuth.js'
+import { generateAvatar } from '../utils/avatarGenerator.js'
 
 const zapData = inject('zapData')
 const isRefreshingData = inject('isRefreshingData')
@@ -125,8 +126,8 @@ const getUserAvatar = computed(() => {
   if (isAuthenticated.value && userProfile.value?.picture) {
     return userProfile.value.picture
   }
-  // Fallback to default avatar
-  return 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'
+  // Fallback to generated avatar
+  return generateAvatar(currentUser.value?.pubkey)
 })
 
 // Get user name with Nostr profile fallback

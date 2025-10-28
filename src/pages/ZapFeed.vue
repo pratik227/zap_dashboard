@@ -1,5 +1,6 @@
 <script setup>
 import { computed, inject, ref } from 'vue'
+import { generateAvatar } from '../utils/avatarGenerator.js'
 import { 
   IconBolt, 
   IconFileText, 
@@ -244,64 +245,35 @@ const extractTextFromArray = (noteArray) => {
   }
 }
 
-// Generate fallback avatar
-const generateFallbackAvatar = (pubkey) => {
-  const avatars = [
-    'https://images.pexels.com/photos/1040881/pexels-photo-1040881.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
-    'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
-    'https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
-    'https://images.pexels.com/photos/1181690/pexels-photo-1181690.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
-    'https://images.pexels.com/photos/1043471/pexels-photo-1043471.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
-    'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'
-  ]
-  
-  const hash = pubkey.split('').reduce((a, b) => {
-    a = ((a << 5) - a) + b.charCodeAt(0)
-    return a & a
-  }, 0)
-  
-  return avatars[Math.abs(hash) % avatars.length]
-}
 
 // Inject profile store from parent
 const profileStore = inject('profileStore', ref(new Map()))
 
 // Dynamic avatar generation with profile integration
-const generateAvatar = (sender, index) => {
+const getSenderAvatar = (sender, index) => {
   const pubkey = sender?.pubkey || sender?.zapperPubkey
-  
+
   if (pubkey && profileStore.value.has(pubkey)) {
     const profile = profileStore.value.get(pubkey)
     if (profile?.picture) {
       return profile.picture
     }
   }
-  
+
   if (sender?.picture) {
     return sender.picture
   }
-  
+
   if (sender?.avatar) {
     return sender.avatar
   }
-  
+
   if (pubkey) {
-    return generateFallbackAvatar(pubkey)
+    return generateAvatar(pubkey)
   }
-  
-  const avatars = [
-    'https://images.pexels.com/photos/1040881/pexels-photo-1040881.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
-    'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
-    'https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'
-  ]
-  
-  const identifier = sender?.name || `user-${index}`
-  const hash = identifier.split('').reduce((a, b) => {
-    a = ((a << 5) - a) + b.charCodeAt(0)
-    return a & a
-  }, 0)
-  
-  return avatars[Math.abs(hash) % avatars.length]
+
+  // Final fallback
+  return generateAvatar(`fallback-${index}`)
 }
 
 // Get sender name with profile integration
@@ -556,7 +528,7 @@ const formatAmount = (amount) => {
               <!-- Avatar -->
               <div class="w-11 h-11 rounded-2xl overflow-hidden border border-gray-200/60 flex-shrink-0 shadow-sm">
                 <img
-                  :src="generateAvatar(zap.sender, index)"
+                  :src="getSenderAvatar(zap.sender, index)"
                   :alt="getSenderName(zap.sender)"
                   class="w-full h-full object-cover"
                 />
@@ -617,7 +589,7 @@ const formatAmount = (amount) => {
               <!-- Avatar -->
               <div class="w-9 h-9 rounded-xl overflow-hidden border border-gray-200/60 flex-shrink-0 shadow-sm">
                 <img
-                  :src="generateAvatar(zap.sender, index)"
+                  :src="getSenderAvatar(zap.sender, index)"
                   :alt="getSenderName(zap.sender)"
                   class="w-full h-full object-cover"
                 />

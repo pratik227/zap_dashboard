@@ -43,7 +43,7 @@ const createConversation = (pubkey, profile = null) => {
     pubkey,
     profile: profile || {
       name: `User ${pubkey.substring(0, 8)}`,
-      picture: generateFallbackAvatar(pubkey),
+      picture: generateAvatar(pubkey),
       nip05: null,
       about: null
     },
@@ -57,7 +57,7 @@ const createConversation = (pubkey, profile = null) => {
 }
 
 // Generate a consistent fallback avatar based on pubkey
-const generateFallbackAvatar = (pubkey) => {
+const generateAvatar = (pubkey) => {
   // Use a deterministic approach to generate avatar based on pubkey
   const avatars = [
     'https://images.pexels.com/photos/1040881/pexels-photo-1040881.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
@@ -84,7 +84,7 @@ const fetchUserProfile = async (pubkey) => {
   const profile = await fetchProfile(pubkey, { ttl: 3600000 })
   // Fallback avatar if missing
   if (profile && !profile.picture) {
-    profile.picture = generateFallbackAvatar(pubkey)
+    profile.picture = generateAvatar(pubkey)
   }
   return profile
 }

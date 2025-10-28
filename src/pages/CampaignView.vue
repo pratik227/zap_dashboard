@@ -201,7 +201,7 @@
                         :src="getSenderAvatar(zap)" 
                         :alt="zap.sender?.name || 'Supporter'"
                         class="w-full h-full object-cover"
-                        @error="$event.target.src = generateFallbackAvatar(zap.zapperPubkey)"
+                        @error="$event.target.src = generateAvatar(zap.zapperPubkey)"
                       />
                       <div class="absolute -top-1 -right-1 w-5 h-5 bg-yellow-400 rounded-full flex items-center justify-center shadow-sm">
                         <IconBolt class="w-3 h-3 text-yellow-800" />
@@ -225,7 +225,7 @@
                         :src="getSenderAvatar(zap)" 
                         :alt="zap.sender?.name || 'Supporter'"
                         class="w-full h-full object-cover"
-                        @error="$event.target.src = generateFallbackAvatar(zap.zapperPubkey)"
+                        @error="$event.target.src = generateAvatar(zap.zapperPubkey)"
                       />
                     </div>
                     <div class="mt-2">
@@ -295,7 +295,7 @@
                     :src="campaignAuthor.picture" 
                     :alt="campaignAuthor.name"
                     class="w-5 h-5 rounded-full object-cover"
-                    @error="$event.target.src = generateFallbackAvatar(campaignAuthor.pubkey)"
+                    @error="$event.target.src = generateAvatar(campaignAuthor.pubkey)"
                   />
                   <span class="text-sm font-medium text-gray-900">{{ campaignAuthor.name }}</span>
                 </div>
@@ -585,6 +585,7 @@
 
 <script setup>
 import { ref, computed, onMounted, watch, inject } from 'vue'
+import { generateAvatar } from '../utils/avatarGenerator.js'
 import { 
   IconTarget, 
   IconBolt, 
@@ -715,7 +716,7 @@ const fetchAuthorProfile = async (pubkey) => {
         campaignAuthor.value = {
           pubkey,
           name: profile.name || profile.display_name || `user:${pubkey.substring(0, 8)}`,
-          picture: profile.picture || generateFallbackAvatar(pubkey),
+          picture: profile.picture || generateAvatar(pubkey),
           nip05: profile.nip05 || null,
           about: profile.about || null,
           lud16: profile.lud16 || null
@@ -725,14 +726,14 @@ const fetchAuthorProfile = async (pubkey) => {
         campaignAuthor.value = {
           pubkey,
           name: `user:${pubkey.substring(0, 8)}`,
-          picture: generateFallbackAvatar(pubkey)
+          picture: generateAvatar(pubkey)
         }
       }
     } else {
       campaignAuthor.value = {
         pubkey,
         name: `user:${pubkey.substring(0, 8)}`,
-        picture: generateFallbackAvatar(pubkey)
+        picture: generateAvatar(pubkey)
       }
     }
   } catch (err) {
@@ -740,30 +741,11 @@ const fetchAuthorProfile = async (pubkey) => {
     campaignAuthor.value = {
       pubkey,
       name: `user:${pubkey.substring(0, 8)}`,
-      picture: generateFallbackAvatar(pubkey)
+      picture: generateAvatar(pubkey)
     }
   }
 }
 
-// Generate fallback avatar
-const generateFallbackAvatar = (pubkey) => {
-  const avatars = [
-    'https://images.pexels.com/photos/1040881/pexels-photo-1040881.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
-    'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
-    'https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
-    'https://images.pexels.com/photos/1181690/pexels-photo-1181690.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
-    'https://images.pexels.com/photos/1043471/pexels-photo-1043471.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
-    'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'
-  ]
-  
-  // Create a hash from the pubkey to consistently select an avatar
-  const hash = pubkey.split('').reduce((a, b) => {
-    a = ((a << 5) - a) + b.charCodeAt(0)
-    return a & a
-  }, 0)
-  
-  return avatars[Math.abs(hash) % avatars.length]
-}
 
 // Calculate progress
 const progress = computed(() => {
@@ -1210,7 +1192,7 @@ const getSenderAvatar = (zap) => {
   }
   
   // Generate fallback avatar based on pubkey
-  return generateFallbackAvatar(zap.zapperPubkey)
+  return generateAvatar(zap.zapperPubkey)
 }
 
 // Copy to clipboard

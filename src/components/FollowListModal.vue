@@ -18,6 +18,7 @@ import {
 } from '@iconify-prerendered/vue-tabler'
 import { useAudience } from '../composables/useAudience.js'
 import { useFollowLists } from '../composables/useFollowLists.js'
+import { generateAvatar } from '../utils/avatarGenerator.js'
 
 const props = defineProps({
   show: {
@@ -33,7 +34,7 @@ const props = defineProps({
 const emit = defineEmits(['close', 'save'])
 
 const { following, getProfile, fetchProfile } = useAudience()
-const { generateFallbackAvatar } = useFollowLists()
+const { } = useFollowLists()
 
 // Form state
 const form = ref({
@@ -111,7 +112,7 @@ const getMemberDisplayName = (pubkey) => {
 
 const getMemberAvatar = (pubkey) => {
   const profile = getProfile(pubkey)
-  return profile?.picture || generateFallbackAvatar(pubkey)
+  return profile?.picture || generateAvatar(pubkey)
 }
 
 // Add member to list
@@ -316,7 +317,7 @@ const saveList = async () => {
                     class="flex items-center space-x-2 bg-orange-100 text-orange-800 px-3 py-2 rounded-full text-sm"
                   >
                     <img
-                      :src="member.profile?.picture || generateFallbackAvatar(member.pubkey)"
+                      :src="member.profile?.picture || generateAvatar(member.pubkey)"
                       :alt="member.profile?.name || 'User'"
                       class="w-4 h-4 rounded-full"
                     />
@@ -352,7 +353,7 @@ const saveList = async () => {
                   >
                     <div class="flex items-center space-x-3">
                       <img
-                        :src="getProfile(pubkey)?.picture || generateFallbackAvatar(pubkey)"
+                        :src="getProfile(pubkey)?.picture || generateAvatar(pubkey)"
                         :alt="getProfile(pubkey)?.name || 'User'"
                         class="w-8 h-8 rounded-full"
                       />

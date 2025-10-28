@@ -3,7 +3,7 @@ import { ref, provide, watch, onMounted, nextTick,computed, onUnmounted } from '
 import { IconAlertTriangle, IconX } from '@iconify-prerendered/vue-tabler'
 import Sidebar from './components/Sidebar.vue'
 import { IconTarget } from '@iconify-prerendered/vue-tabler'
-import { useContentZaps, generateFallbackAvatar } from './composables/useContentZaps.js'
+import { useContentZaps, generateAvatar } from './composables/useContentZaps.js'
 import TopBar from './components/TopBar.vue'
 import Dashboard from './pages/Dashboard.vue'
 import { useNostrLongForm } from './composables/useNostrLongForm.js'
@@ -74,7 +74,7 @@ const fetchAuthorProfile = async (pubkey, forceRefresh = false) => {
       const profileData = {
         pubkey,
         name: profile?.name || profile?.display_name || `user:${pubkey.substring(0, 8)}`,
-        picture: profile?.picture || generateFallbackAvatar(pubkey),
+        picture: profile?.picture || generateAvatar(pubkey),
         nip05: profile?.nip05 || null,
         about: profile?.about || null
       }
@@ -88,7 +88,7 @@ const fetchAuthorProfile = async (pubkey, forceRefresh = false) => {
       const fallbackProfile = {
         pubkey,
         name: `user:${pubkey.substring(0, 8)}`,
-        picture: generateFallbackAvatar(pubkey),
+        picture: generateAvatar(pubkey),
         nip05: null,
         about: null
       }
@@ -211,7 +211,7 @@ const combinedZapData = computed(() => {
             name: zap.sender?.name || `User ${zap.zapperPubkey.substring(0, 8)}`,
             pubkey: zap.zapperPubkey,
             nip05: zap.sender?.nip05 || null,
-            avatar: zap.sender?.picture || generateFallbackAvatar(zap.zapperPubkey),
+            avatar: zap.sender?.picture || generateAvatar(zap.zapperPubkey),
             // Add profile fetching capability
             fetchProfile: () => fetchAuthorProfile(zap.zapperPubkey)
           },

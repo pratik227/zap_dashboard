@@ -5,6 +5,7 @@ import { nostrRelayManager } from '../utils/nostrRelayManager.js'
 import { finalizeEvent, verifyEvent } from 'nostr-tools/pure'
 import * as nip19 from 'nostr-tools/nip19'
 import { fetchProfile, batchFetchProfiles, profileCache } from '../utils/profileFetcher.js'
+import { generateAvatar } from '../utils/avatarGenerator.js'
 
 // Global state
 const following = ref([]) // Array of pubkeys
@@ -31,26 +32,6 @@ const FOLLOWING_STORAGE_KEY = 'audience_following'
 const FOLLOWERS_STORAGE_KEY = 'audience_followers'
 const PROFILES_STORAGE_KEY = 'audience_profiles'
 
-// Generate fallback avatar
-const generateFallbackAvatar = (pubkey) => {
-  if (!pubkey) return 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'
-  
-  const avatars = [
-    'https://images.pexels.com/photos/1040881/pexels-photo-1040881.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
-    'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
-    'https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
-    'https://images.pexels.com/photos/1181690/pexels-photo-1181690.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
-    'https://images.pexels.com/photos/1043471/pexels-photo-1043471.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
-    'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'
-  ]
-  
-  const hash = pubkey.split('').reduce((a, b) => {
-    a = ((a << 5) - a) + b.charCodeAt(0)
-    return a & a
-  }, 0)
-  
-  return avatars[Math.abs(hash) % avatars.length]
-}
 
 // Load data from localStorage
 const loadFromStorage = () => {
@@ -504,7 +485,7 @@ export function useAudience() {
     following, followers, profiles, isLoading, error, syncStatus,
     followUser, unfollowUser, searchProfiles, searchLists, refreshFollowing, refreshFollowers,
     getProfile, isFollowing, getMutualFollows, getFollowersCount, getFollowingCount,
-    fetchProfile: fetchProfileSynced, generateFallbackAvatar,
+    fetchProfile: fetchProfileSynced, generateAvatar,
     ...followLists
   }
 }

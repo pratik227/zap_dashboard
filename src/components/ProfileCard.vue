@@ -17,6 +17,7 @@ import {
 import * as nip19 from 'nostr-tools/nip19'
 import BadgeList from './BadgeList.vue'
 import { useBadges } from '../composables/useBadges.js'
+import { generateAvatar } from '../utils/avatarGenerator.js'
 
 // Get badge update trigger for reactivity
 const { badgeUpdateTrigger } = useBadges()
@@ -62,7 +63,7 @@ const displayName = computed(() => {
 })
 
 const avatar = computed(() => {
-  return props.profile?.picture || generateFallbackAvatar(props.pubkey)
+  return props.profile?.picture || generateAvatar(props.pubkey)
 })
 
 const shortHandle = computed(() => {
@@ -84,22 +85,6 @@ const hasVerification = computed(() => {
 const hasLightning = computed(() => {
   return !!props.profile?.lud16
 })
-
-// Generate fallback avatar
-const generateFallbackAvatar = (pubkey) => {
-  const avatars = [
-    'https://images.pexels.com/photos/1040881/pexels-photo-1040881.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
-    'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
-    'https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'
-  ]
-  
-  const hash = pubkey.split('').reduce((a, b) => {
-    a = ((a << 5) - a) + b.charCodeAt(0)
-    return a & a
-  }, 0)
-  
-  return avatars[Math.abs(hash) % avatars.length]
-}
 
 // Handle follow/unfollow
 const handleFollowToggle = () => {
@@ -180,7 +165,7 @@ const handleBadgeClick = (badge) => {
             :src="avatar"
             :alt="displayName"
             class="w-full h-full object-cover"
-            @error="$event.target.src = generateFallbackAvatar(pubkey)"
+            @error="$event.target.src = generateAvatar(pubkey)"
           />
         </div>
         <!-- Online status dot (optional) -->
