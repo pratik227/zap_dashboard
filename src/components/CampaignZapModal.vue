@@ -417,7 +417,7 @@ import { useNotifications } from '../composables/useNotifications.js'
 import { nostrRelayManager } from '../utils/nostrRelayManager.js'
 import { makeZapRequest } from 'nostr-tools/nip57'
 import { payInvoice } from '../utils/nwcClient.js'
-import { bech32 } from 'bech32'
+import { bech32 } from '@scure/base'
 
 const props = defineProps({
   campaign: {
