@@ -150,6 +150,21 @@
               <div class="text-xs text-gray-400 mt-1">Be the first to support this campaign</div>
             </div>
           </div>
+
+          <!-- ZapTracker Branding -->
+          <div class="mt-8 pb-8 text-center">
+            <a
+              href="/"
+              class="inline-flex items-center space-x-3 text-orange-600 hover:text-orange-700 font-semibold text-base bg-white/60 hover:bg-white/80 backdrop-blur-sm px-5 py-3 rounded-xl transition-all duration-200 border border-orange-200/50 hover:border-orange-300 shadow-sm hover:shadow-md"
+            >
+              <img
+                src="/new_logo3.png"
+                alt="ZapTracker"
+                class="w-6 h-6 object-contain"
+              />
+              <span>Powered by ZapTracker</span>
+            </a>
+          </div>
         </div>
 
         <!-- Right Column: Payment Section (Desktop) -->
@@ -398,31 +413,10 @@
               </div>
             </div>
 
-            <!-- ZapTracker Branding -->
-            <div class="mt-4 text-center">
-              <a
-                href="/"
-                class="inline-flex items-center space-x-2 text-orange-600 hover:text-orange-700 font-medium text-xs bg-white/60 hover:bg-white/80 backdrop-blur-sm px-3 py-1.5 rounded-lg transition-colors border border-orange-200/50"
-              >
-                <img 
-                  src="/new_logo3.png"
-                  alt="ZapTracker" 
-                  class="w-3 h-3 object-contain"
-                />
-                <span>Powered by ZapTracker</span>
-              </a>
-            </div>
           </div>
         </div>
       </div>
 
-      <!-- ZapTracker Watermark -->
-      <div class="mt-12 pb-8 text-center">
-        <div class="flex items-center justify-center space-x-2 text-sm text-gray-400">
-          <span>Powered by</span>
-          <span class="font-semibold text-gray-500">ZapTracker</span>
-        </div>
-      </div>
 
       <!-- Mobile Floating Action Button -->
       <div class="lg:hidden fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-white via-white to-transparent pointer-events-none z-40">
