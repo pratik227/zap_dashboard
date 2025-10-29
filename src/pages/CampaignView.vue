@@ -272,63 +272,54 @@
         <!-- Right Column: Payment Section (Desktop) -->
         <div class="hidden lg:block lg:col-span-1">
           <div class="sticky top-6">
-            <!-- Payment Card -->
-            <div class="bg-white/98 backdrop-blur-md rounded-3xl border border-gray-100 shadow-2xl shadow-orange-500/10 overflow-hidden">
-              <!-- Payment Header -->
-              <div class="relative bg-gradient-to-br from-orange-500 via-orange-600 to-amber-600 text-white p-6 lg:p-7 overflow-hidden">
-                <div class="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-3xl"></div>
-                <div class="relative z-10">
-                  <div class="flex items-center space-x-2.5 mb-2">
-                    <div class="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
-                      <IconBolt class="w-5 h-5" />
-                    </div>
-                    <h3 class="text-xl font-bold">Support Campaign</h3>
-                  </div>
-                  <p class="text-orange-50 text-sm">Every sat counts towards the goal</p>
-                </div>
-              </div>
-
+            <!-- Payment Card - Apple/Twitter Aesthetic -->
+            <div class="bg-white rounded-2xl border border-gray-200/60 shadow-sm overflow-hidden">
               <!-- Payment Content -->
-              <div class="p-6 lg:p-7">
+              <div class="p-6">
                 <!-- Amount Selection (Step 1) -->
-                <div v-if="currentStep === 'amount'" class="space-y-5">
+                <div v-if="currentStep === 'amount'" class="space-y-6">
+                  <!-- Header -->
+                  <div>
+                    <h3 class="text-xl font-semibold text-gray-900">Support this campaign</h3>
+                    <p class="text-sm text-gray-500 mt-1">Choose an amount or enter your own</p>
+                  </div>
+
                   <!-- Quick Amount Selection -->
                   <div>
-                    <label class="block text-sm font-bold text-gray-900 mb-3">Choose Amount</label>
-                    <div class="grid grid-cols-2 gap-3">
+                    <div class="grid grid-cols-2 gap-2.5">
                       <button
                         v-for="amount in predefinedAmounts"
                         :key="amount.value"
                         @click="selectAmount(amount.value)"
                         :class="[
-                          'p-4 rounded-xl border-2 text-center transition-all duration-200 hover:scale-105',
+                          'p-3.5 rounded-xl border transition-all duration-200 text-center',
                           !isCustomAmount && zapAmount === amount.value
-                            ? 'border-orange-500 bg-gradient-to-br from-orange-50 to-amber-50 shadow-lg ring-2 ring-orange-200'
-                            : 'border-gray-200 hover:border-orange-300 bg-white hover:shadow-md'
+                            ? 'border-orange-500 bg-orange-50 text-orange-900'
+                            : 'border-gray-200 hover:border-gray-300 bg-white hover:bg-gray-50 text-gray-900'
                         ]"
                       >
-                        <div class="font-bold text-gray-900 text-base">{{ amount.label }}</div>
+                        <div class="font-semibold text-base">{{ amount.label }}</div>
                         <div class="text-xs text-gray-500 mt-0.5">{{ amount.description }}</div>
                       </button>
                     </div>
                   </div>
 
                   <!-- Custom Amount with Apple-style Slider -->
-                  <div class="space-y-4">
+                  <div class="space-y-3">
                     <!-- Toggle Section -->
-                    <div class="flex items-center justify-between">
-                      <label class="text-sm font-semibold text-gray-700">Custom amount</label>
+                    <div class="flex items-center justify-between py-0.5">
+                      <label class="text-sm font-medium text-gray-700">Custom amount</label>
                       <button
                         @click="toggleCustomAmount"
                         :class="[
-                          'relative inline-flex h-7 w-12 items-center rounded-full transition-colors duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2',
-                          isCustomAmount ? 'bg-orange-500' : 'bg-gray-300'
+                          'relative inline-flex h-[30px] w-[50px] items-center rounded-full transition-colors duration-200 ease-out focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2',
+                          isCustomAmount ? 'bg-orange-500' : 'bg-gray-200'
                         ]"
                       >
                         <span
                           :class="[
-                            'inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transition-transform duration-300 ease-in-out',
-                            isCustomAmount ? 'translate-x-6' : 'translate-x-1'
+                            'inline-block h-[26px] w-[26px] transform rounded-full bg-white shadow-sm transition-transform duration-200 ease-out',
+                            isCustomAmount ? 'translate-x-[22px]' : 'translate-x-[2px]'
                           ]"
                         />
                       </button>
@@ -338,6 +329,7 @@
                     <div v-if="isCustomAmount" class="space-y-3">
                       <div class="relative">
                         <input
+                          ref="customAmountInput"
                           v-model.number="customAmount"
                           type="number"
                           min="1"
@@ -353,12 +345,12 @@
 
                   <!-- Message -->
                   <div>
-                    <label class="block text-sm font-bold text-gray-900 mb-3">Message (optional)</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Message (optional)</label>
                     <textarea
                       v-model="zapComment"
                       rows="3"
-                      placeholder="Add an encouraging message..."
-                      class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-orange-500 focus:ring-0 transition-colors resize-none text-sm"
+                      placeholder="Add a message..."
+                      class="w-full px-3.5 py-3 border border-gray-300 rounded-xl focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-all resize-none text-sm text-gray-900 placeholder-gray-400"
                     ></textarea>
                   </div>
 
@@ -367,12 +359,12 @@
                     @click="generateInvoice"
                     :disabled="!canProceed || isGeneratingInvoice"
                     :class="[
-                      'w-full px-6 py-4 rounded-xl font-bold text-base transition-all duration-300 flex items-center justify-center space-x-2.5 shadow-lg relative overflow-hidden',
+                      'w-full px-6 py-3.5 rounded-xl font-semibold text-[15px] transition-all duration-200 flex items-center justify-center space-x-2 relative overflow-hidden',
                       isGeneratingInvoice
-                        ? 'bg-gradient-to-r from-orange-400 to-amber-500 cursor-not-allowed'
+                        ? 'bg-orange-400 cursor-not-allowed text-white'
                         : !canProceed
-                        ? 'bg-gray-300 cursor-not-allowed opacity-50'
-                        : 'bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 hover:from-orange-600 hover:to-amber-700 hover:shadow-2xl transform hover:scale-[1.02] active:scale-[0.98] cursor-pointer'
+                        ? 'bg-gray-200 cursor-not-allowed text-gray-400'
+                        : 'bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white cursor-pointer'
                     ]"
                   >
                     <!-- Loading Animation Overlay -->
@@ -383,65 +375,64 @@
                     ></div>
 
                     <!-- Button Content -->
-                    <div class="relative z-10 flex items-center space-x-2.5 text-white">
+                    <div class="relative z-10 flex items-center space-x-2">
                       <div v-if="isGeneratingInvoice" class="flex items-center space-x-2">
-                        <svg class="w-5 h-5 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <svg class="w-4 h-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                           <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                           <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                         </svg>
-                        <span>Creating Invoice...</span>
+                        <span>Creating invoice...</span>
                       </div>
-                      <div v-else class="flex items-center space-x-2.5">
-                        <IconBolt class="w-5 h-5" />
-                        <span>Support with {{ effectiveAmount.toLocaleString() }} sats</span>
+                      <div v-else class="flex items-center space-x-2">
+                        <span>Continue with {{ effectiveAmount.toLocaleString() }} sats</span>
                       </div>
                     </div>
                   </button>
                 </div>
 
                 <!-- Payment Options (Step 2) -->
-                <div v-else-if="currentStep === 'payment' && invoice" class="space-y-4">
+                <div v-else-if="currentStep === 'payment' && invoice" class="space-y-5">
                   <!-- Amount Summary -->
-                  <div class="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-lg p-3">
+                  <div class="bg-orange-50 border border-orange-100 rounded-xl p-4">
                     <div class="flex items-center justify-between">
-                      <span class="text-sm font-medium text-orange-800">Supporting with:</span>
-                      <span class="text-lg font-bold text-orange-600">{{ effectiveAmount.toLocaleString() }} sats</span>
+                      <span class="text-sm font-medium text-gray-700">Amount</span>
+                      <span class="text-lg font-semibold text-gray-900">{{ effectiveAmount.toLocaleString() }} sats</span>
                     </div>
-                    <div v-if="zapComment" class="mt-2 pt-2 border-t border-orange-200">
-                      <p class="text-xs text-orange-700 italic">"{{ zapComment }}"</p>
+                    <div v-if="zapComment" class="mt-2.5 pt-2.5 border-t border-orange-200">
+                      <p class="text-sm text-gray-600">"{{ zapComment }}"</p>
                     </div>
                   </div>
 
                   <!-- QR Code -->
                   <div class="text-center">
-                    <div class="bg-white p-4 rounded-lg border-2 border-gray-200 inline-block shadow-sm">
+                    <div class="bg-white p-4 rounded-xl border border-gray-200 inline-block">
                       <div v-if="!invoice" class="w-[200px] h-[200px] flex items-center justify-center">
                         <IconLoader class="w-8 h-8 animate-spin text-orange-500" />
                       </div>
                       <QRCodeVue3
                         v-else
                         :value="`lightning:${invoice}`"
-                        :size="180"
+                        :size="200"
                         color="#000000"
                         background-color="#ffffff"
                         error-correction-level="M"
                       />
                     </div>
-                    <p class="text-sm text-gray-600 mt-3">Scan with any Lightning wallet</p>
+                    <p class="text-sm text-gray-500 mt-3">Scan with your Lightning wallet</p>
                   </div>
                   
                   <!-- Payment Buttons -->
-                  <div class="space-y-2">
+                  <div class="space-y-2.5">
                     <!-- Pay with ZapTracker Wallet -->
                     <button
                       v-if="isWalletConnected"
                       @click="payWithInternalNWC"
                       :disabled="isProcessingPayment"
                       :class="[
-                        'w-full px-4 py-3 rounded-lg font-semibold transition-all duration-300 flex items-center justify-center space-x-2 shadow-md relative overflow-hidden',
+                        'w-full px-4 py-3.5 rounded-xl font-semibold text-[15px] transition-all duration-200 flex items-center justify-center space-x-2 relative overflow-hidden',
                         isProcessingPayment
-                          ? 'bg-gradient-to-r from-green-400 to-emerald-400 cursor-not-allowed'
-                          : 'bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 hover:shadow-lg transform hover:scale-[1.01] active:scale-[0.99] cursor-pointer'
+                          ? 'bg-green-400 cursor-not-allowed text-white'
+                          : 'bg-green-500 hover:bg-green-600 active:bg-green-700 text-white cursor-pointer'
                       ]"
                     >
                       <!-- Loading Animation Overlay -->
@@ -452,39 +443,39 @@
                       ></div>
 
                       <!-- Button Content -->
-                      <div class="relative z-10 flex items-center space-x-2 text-white">
+                      <div class="relative z-10 flex items-center space-x-2">
                         <div v-if="isProcessingPayment" class="flex items-center space-x-2">
-                          <svg class="w-5 h-5 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <svg class="w-4 h-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                           </svg>
-                          <span>Processing Payment...</span>
+                          <span>Processing payment...</span>
                         </div>
                         <div v-else class="flex items-center space-x-2">
-                          <IconWallet class="w-5 h-5" />
+                          <IconWallet class="w-4 h-4" />
                           <span>Pay with ZapTracker Wallet</span>
                         </div>
                       </div>
                     </button>
-                    
+
                     <!-- Open in External Wallet -->
                     <button
                       @click="openExternalWallet"
-                      class="w-full bg-blue-500 hover:bg-blue-600 text-white px-4 py-3 rounded-lg font-semibold transition-all duration-200 flex items-center justify-center space-x-2 shadow-md hover:shadow-lg transform hover:scale-[1.01] active:scale-[0.99]"
+                      class="w-full bg-gray-100 hover:bg-gray-200 active:bg-gray-300 text-gray-900 px-4 py-3.5 rounded-xl font-semibold text-[15px] transition-all duration-200 flex items-center justify-center space-x-2"
                     >
-                      <IconExternalLink class="w-5 h-5" />
-                      <span>Open in Wallet</span>
+                      <IconExternalLink class="w-4 h-4" />
+                      <span>Open in wallet</span>
                     </button>
                   </div>
                   
                   <!-- Back Button -->
-                  <div class="text-center pt-3 border-t border-gray-200">
-                    <button 
-                      @click="resetToAmountSelection" 
-                      class="text-gray-600 hover:text-gray-800 text-sm font-medium flex items-center space-x-1 mx-auto"
+                  <div class="text-center pt-2">
+                    <button
+                      @click="resetToAmountSelection"
+                      class="text-gray-500 hover:text-gray-700 text-sm font-medium flex items-center space-x-1 mx-auto transition-colors"
                     >
                       <IconArrowLeft class="w-4 h-4" />
-                      <span>Change Amount</span>
+                      <span>Change amount</span>
                     </button>
                   </div>
                 </div>
@@ -803,7 +794,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch, inject } from 'vue'
+import { ref, computed, onMounted, watch, inject, nextTick } from 'vue'
 import { generateAvatar } from '../utils/avatarGenerator.js'
 import { 
   IconTarget, 
@@ -1148,11 +1139,22 @@ const selectAmount = (amount) => {
   customAmount.value = null
 }
 
+// Reference for custom amount input
+const customAmountInput = ref(null)
+
 // Toggle custom amount
 const toggleCustomAmount = () => {
   isCustomAmount.value = !isCustomAmount.value
   if (isCustomAmount.value && !customAmount.value) {
     customAmount.value = zapAmount.value
+  }
+  // Auto-focus the input when toggled on
+  if (isCustomAmount.value) {
+    nextTick(() => {
+      if (customAmountInput.value) {
+        customAmountInput.value.focus()
+      }
+    })
   }
 }
 
