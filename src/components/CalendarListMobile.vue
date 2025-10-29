@@ -66,16 +66,16 @@ const handleClose = () => {
     <transition name="slide-up">
       <div
         v-if="show"
-        class="fixed inset-0 z-[9999] sm:hidden"
+        class="fixed inset-0 z-[9998]"
         @click.self="handleClose"
       >
         <!-- Backdrop -->
         <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="handleClose"></div>
 
-        <!-- Bottom Sheet -->
-        <div class="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-2xl max-h-[85vh] flex flex-col">
-          <!-- Drag Handle -->
-          <div class="flex justify-center pt-3 pb-2">
+        <!-- Bottom Sheet on Mobile, Dropdown Panel on Desktop -->
+        <div class="absolute sm:top-20 sm:left-6 sm:w-96 bottom-0 sm:bottom-auto left-0 right-0 sm:right-auto bg-white sm:rounded-xl rounded-t-3xl shadow-2xl max-h-[85vh] sm:max-h-[calc(100vh-8rem)] flex flex-col">
+          <!-- Drag Handle (Mobile Only) -->
+          <div class="flex sm:hidden justify-center pt-3 pb-2">
             <div class="w-12 h-1.5 bg-gray-300 rounded-full"></div>
           </div>
 

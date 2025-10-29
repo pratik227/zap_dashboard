@@ -31,6 +31,7 @@ const defaultCalendarId = ref(null)
 
 // Track if initialization has already been set up
 let isWatchInitialized = false
+let hasFetchedCalendars = false
 
 export function useNostrCalendarList() {
   const { currentUser, isAuthenticated } = useNostrAuth()
@@ -493,7 +494,9 @@ export function useNostrCalendarList() {
       if (authenticated) {
         loadFromLocalStorage()
 
-        if (calendarLists.value.length === 0) {
+        if (!hasFetchedCalendars) {
+          hasFetchedCalendars = true
+
           if (currentSubscription) {
             currentSubscription.close()
             currentSubscription = null
@@ -515,6 +518,7 @@ export function useNostrCalendarList() {
           initializeCalendarLists()
         }
       } else {
+        hasFetchedCalendars = false
         if (currentSubscription) {
           currentSubscription.close()
           currentSubscription = null

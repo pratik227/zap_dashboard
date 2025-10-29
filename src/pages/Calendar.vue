@@ -32,7 +32,6 @@ import { useNostrAuth } from '../composables/useNostrAuth.js'
 import { useNostrCalendar } from '../composables/useNostrCalendar.js'
 import { useNostrCalendarList } from '../composables/useNostrCalendarList.js'
 import { formatDate, formatTime, isToday, isSameDay } from '../utils/dateUtils.js'
-import CalendarListSidebar from '../components/CalendarListSidebar.vue'
 import CalendarListMobile from '../components/CalendarListMobile.vue'
 import CalendarListModal from '../components/CalendarListModal.vue'
 
@@ -559,29 +558,24 @@ onMounted(() => {
     </div>
 
     <!-- Authenticated Content -->
-    <div v-else class="flex gap-0 h-[calc(100vh-120px)] -mx-6 -mb-6">
-      <!-- Desktop Sidebar -->
-      <div class="hidden lg:block w-64 flex-shrink-0">
-        <CalendarListSidebar
-          @create-calendar="openCreateCalendarModal"
-          @edit-calendar="openEditCalendarModal"
-        />
-      </div>
-
+    <div v-else class="flex flex-col min-h-[calc(100vh-180px)] -mx-6 -mb-6">
       <!-- Main Content Area -->
       <div class="flex-1 flex flex-col overflow-hidden">
         <!-- Calendar Header -->
         <div class="flex-shrink-0 bg-white/90 backdrop-blur-sm border-b border-gray-200/50 px-6 py-4">
           <div class="flex items-center justify-between gap-4">
-            <!-- Mobile calendar list button -->
+            <!-- Calendar list button (unified for mobile and desktop) -->
             <button
               @click="toggleMobileCalendars"
-              class="lg:hidden btn-secondary"
+              class="btn-secondary relative"
             >
               <IconCalendar class="w-4 h-4" />
               Calendars
               <span v-if="calendarLists.length > 0" class="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full ml-1">
                 {{ calendarLists.length }}
+              </span>
+              <span v-if="selectedCalendars.size > 0" class="text-xs text-orange-600 ml-1">
+                ({{ selectedCalendars.size }} selected)
               </span>
             </button>
 
@@ -657,10 +651,22 @@ onMounted(() => {
 
           <!-- FullCalendar Component -->
           <div class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm overflow-hidden">
-            <div v-if="isLoading" class="p-6">
-              <div class="flex items-center justify-center space-x-2">
-                <IconLoader class="w-5 h-5 animate-spin text-orange-600" />
-                <span class="text-gray-600">Loading events...</span>
+            <div v-if="isLoading" class="p-6 space-y-4 animate-pulse">
+              <!-- Calendar header skeleton -->
+              <div class="flex items-center justify-between mb-4">
+                <div class="h-8 bg-gray-200 rounded w-32"></div>
+                <div class="flex gap-2">
+                  <div class="h-8 bg-gray-200 rounded w-24"></div>
+                  <div class="h-8 bg-gray-200 rounded w-24"></div>
+                </div>
+              </div>
+
+              <!-- Calendar grid skeleton -->
+              <div class="grid grid-cols-7 gap-2">
+                <!-- Week day headers -->
+                <div v-for="i in 7" :key="'header-' + i" class="h-8 bg-gray-100 rounded"></div>
+                <!-- Calendar dates -->
+                <div v-for="i in 35" :key="'date-' + i" class="h-20 bg-gray-50 rounded border border-gray-100"></div>
               </div>
             </div>
 
