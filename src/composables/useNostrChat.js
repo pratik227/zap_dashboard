@@ -8,6 +8,7 @@ import { finalizeEvent, verifyEvent } from 'nostr-tools/pure'
 import { payInvoice, makeInvoice } from '../utils/nwcClient.js'
 import * as nip19 from 'nostr-tools/nip19'
 import { fetchProfile } from '../utils/profileFetcher.js'
+import { generateAvatar } from '../utils/avatarGenerator.js'
 
 // Global state for chat
 const conversations = ref(new Map()) // Map<pubkey, conversation>

@@ -5,6 +5,7 @@ import { nostrRelayManager } from '../utils/nostrRelayManager.js'
 import { finalizeEvent, verifyEvent } from 'nostr-tools/pure'
 import { useNotifications } from './useNotifications.js'
 import { extractAmountFromBolt11 } from '../utils/invoiceUtils.js'
+import { generateAvatar } from '../utils/avatarGenerator.js'
 
 // Global state for campaigns
 const userCampaigns = ref([])

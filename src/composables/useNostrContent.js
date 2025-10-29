@@ -1,5 +1,6 @@
 import { ref, computed } from 'vue'
 import * as nip19 from 'nostr-tools/nip19'
+import { generateAvatar } from '../utils/avatarGenerator.js'
 
 export function useNostrContent() {
   // Regular expressions for different content types

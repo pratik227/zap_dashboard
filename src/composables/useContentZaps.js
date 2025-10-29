@@ -3,6 +3,7 @@ import { nostrRelayManager } from '../utils/nostrRelayManager.js'
 import { useNostrAuth } from './useNostrAuth.js'
 import { getPaymentHashFromInvoice } from '../utils/invoiceUtils.js'
 import * as nip19 from 'nostr-tools/nip19'
+import { generateAvatar } from '../utils/avatarGenerator.js'
 
 // Global state for content zaps
 const contentZaps = reactive(new Map()) // Map<eventId, zap[]>
