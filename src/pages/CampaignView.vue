@@ -85,7 +85,7 @@
               <!-- Progress Stats -->
               <div class="flex items-baseline justify-between mb-3">
                 <div>
-                  <div class="text-2xl sm:text-3xl font-semibold text-gray-900">{{ formatCurrency(progress.current) }} sats</div>
+                  <div class="text-2xl sm:text-3xl font-semibold text-gray-900">{{ formatCurrency(progress.current) }}</div>
                   <div class="text-sm text-gray-500 mt-0.5">raised of {{ formatCurrency(campaign.goalAmount) }} goal</div>
                 </div>
                 <div class="text-right">
@@ -194,14 +194,15 @@
                       <label class="text-sm font-medium text-gray-700">Custom amount</label>
                       <button
                         @click="toggleCustomAmount"
+                        type="button"
                         :class="[
-                          'relative inline-flex h-[30px] w-[50px] items-center rounded-full transition-colors duration-200 ease-out focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2',
+                          'relative inline-flex h-[24px] w-[44px] items-center rounded-full transition-colors duration-200 ease-out focus:outline-none shrink-0',
                           isCustomAmount ? 'bg-orange-500' : 'bg-gray-200'
                         ]"
                       >
                         <span
                           :class="[
-                            'inline-block h-[26px] w-[26px] transform rounded-full bg-white shadow-sm transition-transform duration-200 ease-out',
+                            'inline-block h-[20px] w-[20px] transform rounded-full bg-white shadow transition-transform duration-200 ease-out',
                             isCustomAmount ? 'translate-x-[22px]' : 'translate-x-[2px]'
                           ]"
                         />
@@ -500,14 +501,15 @@
                 <label class="text-sm font-medium text-gray-700">Custom amount</label>
                 <button
                   @click="toggleCustomAmount"
+                  type="button"
                   :class="[
-                    'relative inline-flex h-[30px] w-[50px] items-center rounded-full transition-colors duration-200 ease-out focus:outline-none',
+                    'relative inline-flex h-[24px] w-[44px] items-center rounded-full transition-colors duration-200 ease-out focus:outline-none shrink-0',
                     isCustomAmount ? 'bg-orange-500' : 'bg-gray-200'
                   ]"
                 >
                   <span
                     :class="[
-                      'inline-block h-[26px] w-[26px] transform rounded-full bg-white shadow-sm transition-transform duration-200 ease-out',
+                      'inline-block h-[20px] w-[20px] transform rounded-full bg-white shadow transition-transform duration-200 ease-out',
                       isCustomAmount ? 'translate-x-[22px]' : 'translate-x-[2px]'
                     ]"
                   />
