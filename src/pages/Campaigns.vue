@@ -319,17 +319,29 @@ watch(isAuthenticated, async (isAuth) => {
 
         <!-- Controls -->
         <div class="bg-white border border-gray-200 rounded-xl p-4 space-y-3">
-          <div class="relative">
-            <input
-              v-model="searchQuery"
-              type="text"
-              placeholder="Search campaigns..."
-              class="w-full pl-10 pr-10 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-orange-400 transition-all"
-            />
-            <IconSearch class="absolute left-3 top-3.5 w-4 h-4 text-gray-400" />
-            <button v-if="searchQuery" @click="searchQuery = ''" class="absolute right-3 top-3.5 text-gray-400">
-              <IconX class="w-4 h-4" />
-            </button>
+          <div class="flex items-center gap-2">
+            <div class="relative flex-1">
+              <input
+                v-model="searchQuery"
+                type="text"
+                placeholder="Search campaigns..."
+                class="w-full pl-10 pr-10 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-orange-400 transition-all"
+              />
+              <IconSearch class="absolute left-3 top-3.5 w-4 h-4 text-gray-400" />
+              <button v-if="searchQuery" @click="searchQuery = ''" class="absolute right-3 top-3.5 text-gray-400">
+                <IconX class="w-4 h-4" />
+              </button>
+            </div>
+
+            <div class="relative flex-shrink-0">
+              <select v-model="sortOption" class="appearance-none pl-3 pr-8 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm transition-all text-gray-600 min-w-[100px]">
+                <option value="newest">Newest</option>
+                <option value="oldest">Oldest</option>
+                <option value="progress">Progress</option>
+                <option value="goal">Goal</option>
+              </select>
+              <IconChevronDown class="absolute right-2.5 top-3.5 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+            </div>
           </div>
 
           <button
@@ -339,35 +351,6 @@ watch(isAuthenticated, async (isAuth) => {
             <IconPlus class="w-4 h-4" />
             New Campaign
           </button>
-
-          <div class="flex items-center justify-between pt-1">
-            <div class="flex bg-gray-50 border border-gray-200 rounded-lg p-0.5">
-              <button
-                @click="activeView = 'grid'"
-                :class="['px-2.5 py-1.5 rounded text-xs font-medium transition-all flex items-center gap-1', activeView === 'grid' ? 'bg-white text-orange-600 shadow-sm' : 'text-gray-500']"
-              >
-                <IconGrid class="w-3 h-3" />
-                Grid
-              </button>
-              <button
-                @click="activeView = 'list'"
-                :class="['px-2.5 py-1.5 rounded text-xs font-medium transition-all flex items-center gap-1', activeView === 'list' ? 'bg-white text-orange-600 shadow-sm' : 'text-gray-500']"
-              >
-                <IconList class="w-3 h-3" />
-                List
-              </button>
-            </div>
-
-            <div class="relative">
-              <select v-model="sortOption" class="appearance-none pl-2.5 pr-6 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs transition-all text-gray-600">
-                <option value="newest">Newest</option>
-                <option value="oldest">Oldest</option>
-                <option value="progress">Progress</option>
-                <option value="goal">Goal</option>
-              </select>
-              <IconChevronDown class="absolute right-2 top-2 w-2.5 h-2.5 text-gray-400 pointer-events-none" />
-            </div>
-          </div>
         </div>
       </div>
 
@@ -417,52 +400,57 @@ watch(isAuthenticated, async (isAuth) => {
           </div>
 
           <!-- Controls Bar -->
-          <div class="px-6 py-4 bg-gray-50">
+          <div class="px-6 py-4">
             <div class="flex items-center justify-between">
-              <div class="relative flex-1 max-w-xs">
+              <div class="relative flex-1 max-w-md">
                 <input
                   v-model="searchQuery"
                   type="text"
                   placeholder="Search campaigns..."
-                  class="w-full pl-9 pr-9 py-2 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-orange-400 transition-all text-sm"
+                  class="w-full pl-9 pr-9 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-orange-400 transition-all text-sm"
                 />
-                <IconSearch class="absolute left-3 top-2.5 w-3.5 h-3.5 text-gray-400" />
-                <button v-if="searchQuery" @click="searchQuery = ''" class="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600">
+                <IconSearch class="absolute left-3 top-3 w-3.5 h-3.5 text-gray-400" />
+                <button v-if="searchQuery" @click="searchQuery = ''" class="absolute right-3 top-3 text-gray-400 hover:text-gray-600">
                   <IconX class="w-3.5 h-3.5" />
                 </button>
               </div>
 
               <div class="flex items-center gap-2">
-                <div class="flex bg-white border border-gray-200 rounded-lg p-0.5">
-                  <button
-                    @click="activeView = 'grid'"
-                    :class="['px-2.5 py-1.5 rounded text-xs font-medium transition-all flex items-center gap-1', activeView === 'grid' ? 'bg-orange-500 text-white' : 'text-gray-500 hover:text-gray-700']"
-                  >
-                    <IconGrid class="w-3.5 h-3.5" />
-                    Grid
-                  </button>
-                  <button
-                    @click="activeView = 'list'"
-                    :class="['px-2.5 py-1.5 rounded text-xs font-medium transition-all flex items-center gap-1', activeView === 'list' ? 'bg-orange-500 text-white' : 'text-gray-500 hover:text-gray-700']"
-                  >
-                    <IconList class="w-3.5 h-3.5" />
-                    List
-                  </button>
-                </div>
-
                 <div class="relative">
-                  <select v-model="sortOption" class="appearance-none pl-3 pr-7 py-1.5 bg-white border border-gray-200 rounded-lg text-xs transition-all text-gray-600 min-w-[110px]">
-                    <option value="newest">Newest</option>
-                    <option value="oldest">Oldest</option>
-                    <option value="progress">Progress</option>
-                    <option value="goal">Goal</option>
+                  <select v-model="sortOption" class="appearance-none pl-3 pr-8 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm transition-all text-gray-600 min-w-[130px]">
+                    <option value="newest">Newest First</option>
+                    <option value="oldest">Oldest First</option>
+                    <option value="progress">By Progress</option>
+                    <option value="goal">By Goal</option>
                   </select>
-                  <IconChevronDown class="absolute right-2 top-2 w-3 h-3 text-gray-400 pointer-events-none" />
+                  <IconChevronDown class="absolute right-2.5 top-3.5 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
                 </div>
               </div>
             </div>
           </div>
         </div>
+      </div>
+
+    </div>
+
+    <!-- Campaigns Header with View Controls -->
+    <div v-if="isAuthenticated && filteredCampaigns.length > 0" class="flex items-center justify-between mb-4">
+      <h2 class="text-lg font-semibold text-gray-900">Your Campaigns</h2>
+      <div class="flex bg-white border border-gray-200 rounded-lg p-0.5">
+        <button
+          @click="activeView = 'grid'"
+          :class="['px-3 py-1.5 rounded text-sm font-medium transition-all flex items-center gap-1.5', activeView === 'grid' ? 'bg-orange-500 text-white' : 'text-gray-500 hover:text-gray-700']"
+        >
+          <IconGrid class="w-4 h-4" />
+          Grid
+        </button>
+        <button
+          @click="activeView = 'list'"
+          :class="['px-3 py-1.5 rounded text-sm font-medium transition-all flex items-center gap-1.5', activeView === 'list' ? 'bg-orange-500 text-white' : 'text-gray-500 hover:text-gray-700']"
+        >
+          <IconList class="w-4 h-4" />
+          List
+        </button>
       </div>
     </div>
 
