@@ -118,44 +118,44 @@ const fullCalendarEvents = computed(() => {
     const calendar = event.calendar_id ? getCalendar(event.calendar_id) : null
     const baseColor = calendar?.color || (event.type === 'time-based' ? 'blue' : 'green')
 
-    // Modern soft pastel color system - elegant and easy to consume
+    // Vibrant post-it color system - bold and eye-catching
     const getEventColors = (colorName) => {
       const colorMap = {
-        // Soft Blues - calming, professional
-        'blue': { bg: '#C7E2FF', text: '#1E4A6B' },
-        'lightblue': { bg: '#D4E7FF', text: '#2B5A8F' },
-        'skyblue': { bg: '#E0F2FE', text: '#075985' },
+        // Bold Blues - confident, strong
+        'blue': { bg: '#60A5FA', text: '#1E3A8A' },
+        'lightblue': { bg: '#38BDF8', text: '#0C4A6E' },
+        'skyblue': { bg: '#7DD3FC', text: '#075985' },
 
-        // Soft Purples - creative, elegant
-        'purple': { bg: '#E9D5FF', text: '#6B21A8' },
-        'lavender': { bg: '#EDE9FE', text: '#5B21B6' },
-        'indigo': { bg: '#E0E7FF', text: '#3730A3' },
+        // Bold Purples - creative, vibrant
+        'purple': { bg: '#C084FC', text: '#4C1D95' },
+        'lavender': { bg: '#A78BFA', text: '#5B21B6' },
+        'indigo': { bg: '#818CF8', text: '#312E81' },
 
-        // Soft Greens - fresh, positive
-        'green': { bg: '#D1FAE5', text: '#065F46' },
-        'sage': { bg: '#DCFCE7', text: '#166534' },
-        'mint': { bg: '#CCFBF1', text: '#115E59' },
+        // Bold Greens - fresh, energetic
+        'green': { bg: '#4ADE80', text: '#14532D' },
+        'sage': { bg: '#86EFAC', text: '#166534' },
+        'mint': { bg: '#5EEAD4', text: '#134E4A' },
 
-        // Soft Yellows/Golds - warm, friendly
-        'yellow': { bg: '#FEF3C7', text: '#92400E' },
-        'amber': { bg: '#FDE68A', text: '#78350F' },
+        // Bold Yellows/Golds - warm, attention-grabbing
+        'yellow': { bg: '#FDE047', text: '#713F12' },
+        'amber': { bg: '#FBBF24', text: '#78350F' },
 
-        // Soft Reds/Pinks - important, urgent
-        'red': { bg: '#FECACA', text: '#991B1B' },
-        'pink': { bg: '#FCE7F3', text: '#9D174D' },
-        'rose': { bg: '#FFE4E6', text: '#881337' },
+        // Bold Reds/Pinks - urgent, important
+        'red': { bg: '#F87171', text: '#7F1D1D' },
+        'pink': { bg: '#F472B6', text: '#831843' },
+        'rose': { bg: '#FB7185', text: '#881337' },
 
-        // Soft Oranges - energetic
-        'orange': { bg: '#FFEDD5', text: '#9A3412' },
-        'coral': { bg: '#FED7AA', text: '#C2410C' },
+        // Bold Oranges - energetic, fun
+        'orange': { bg: '#FB923C', text: '#7C2D12' },
+        'coral': { bg: '#FDBA74', text: '#9A3412' },
 
-        // Soft Teals - balanced
-        'teal': { bg: '#CCFBF1', text: '#134E4A' },
-        'cyan': { bg: '#CFFAFE', text: '#155E75' },
+        // Bold Teals - modern, fresh
+        'teal': { bg: '#2DD4BF', text: '#134E4A' },
+        'cyan': { bg: '#22D3EE', text: '#164E63' },
 
-        // Neutral - versatile
-        'gray': { bg: '#F3F4F6', text: '#374151' },
-        'slate': { bg: '#F1F5F9', text: '#334155' }
+        // Neutral - professional
+        'gray': { bg: '#94A3B8', text: '#1E293B' },
+        'slate': { bg: '#CBD5E1', text: '#0F172A' }
       }
 
       return colorMap[colorName] || colorMap['blue']
@@ -170,7 +170,7 @@ const fullCalendarEvents = computed(() => {
       end: end,
       allDay: event.type === 'date-based',
       backgroundColor: colors.bg,
-      borderColor: colors.text,
+      borderColor: colors.bg,
       textColor: colors.text,
       classNames: [
         'fc-event-custom',
@@ -1156,62 +1156,59 @@ onMounted(() => {
   overflow: hidden;
 }
 
-/* Events - Minimal Clean Style */
+/* Events - Vibrant Post-it Style */
 .fc-google-theme .fc-event {
-  border: 1px solid !important;
-  border-radius: 4px;
+  border: none !important;
+  border-radius: 6px;
   cursor: pointer;
-  transition: all 0.15s ease;
-  box-shadow: none;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.1),
+    0 1px 2px rgba(0, 0, 0, 0.06);
   overflow: hidden;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', sans-serif;
-  background: rgba(255, 255, 255, 0.9) !important;
+  position: relative;
 }
 
 .fc-google-theme .fc-event:hover {
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-  z-index: 10;
+  transform: translateY(-2px) scale(1.02);
+  box-shadow:
+    0 8px 16px rgba(0, 0, 0, 0.15),
+    0 3px 6px rgba(0, 0, 0, 0.1);
+  z-index: 20;
 }
 
 /* Day Grid Events (Month View) */
 .fc-google-theme .fc-daygrid-event {
-  margin: 1px 2px;
+  margin: 2px 3px;
   padding: 0;
-  min-height: 22px;
-  border-radius: 4px;
+  min-height: 28px;
+  border-radius: 6px;
 }
 
 .fc-google-theme .fc-daygrid-block-event {
-  padding: 2px 6px;
+  padding: 5px 10px;
   border-left: none !important;
 }
 
 .fc-google-theme .fc-daygrid-block-event .fc-event-main {
   display: flex;
   align-items: center;
-  gap: 6px;
-  line-height: 1.3;
-}
-
-.fc-google-theme .fc-daygrid-block-event .fc-event-main::before {
-  content: '';
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: currentColor;
-  flex-shrink: 0;
+  gap: 4px;
+  line-height: 1.4;
 }
 
 .fc-google-theme .fc-daygrid-block-event .fc-event-time {
-  font-weight: 400;
+  font-weight: 600;
   font-size: 11px;
   white-space: nowrap;
+  opacity: 0.9;
 }
 
 .fc-google-theme .fc-daygrid-block-event .fc-event-title {
-  font-weight: 400;
-  font-size: 12px;
-  line-height: 1.3;
+  font-weight: 600;
+  font-size: 13px;
+  line-height: 1.4;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1220,29 +1217,28 @@ onMounted(() => {
 
 /* All-day events styling */
 .fc-google-theme .fc-daygrid-event.fc-event-start.fc-event-end {
-  border-radius: 4px;
+  border-radius: 6px;
 }
 
 .fc-google-theme .fc-daygrid-event.fc-event-start:not(.fc-event-end) {
   border-top-right-radius: 0;
   border-bottom-right-radius: 0;
   margin-right: 0;
-  border-right: none;
 }
 
 .fc-google-theme .fc-daygrid-event:not(.fc-event-start):not(.fc-event-end) {
   border-radius: 0;
   margin-left: 0;
   margin-right: 0;
-  border-left: none;
-  border-right: none;
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.08),
+    0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
 .fc-google-theme .fc-daygrid-event.fc-event-end:not(.fc-event-start) {
   border-top-left-radius: 0;
   border-bottom-left-radius: 0;
   margin-left: 0;
-  border-left: none;
 }
 
 .fc-google-theme .fc-event-main {
@@ -1251,13 +1247,13 @@ onMounted(() => {
 }
 
 .fc-google-theme .fc-event-title {
-  font-weight: 400;
+  font-weight: 600;
   color: inherit;
   padding: 0;
 }
 
 .fc-google-theme .fc-event-time {
-  font-weight: 400;
+  font-weight: 600;
   color: inherit;
   padding: 0;
 }
@@ -1348,33 +1344,38 @@ onMounted(() => {
 }
 
 .fc-google-theme .fc-timegrid-event {
-  border: 1px solid !important;
-  border-radius: 4px;
-  padding: 4px 8px;
-  box-shadow: none;
-  background: rgba(255, 255, 255, 0.95) !important;
+  border: none !important;
+  border-radius: 7px;
+  padding: 8px 12px;
+  box-shadow:
+    0 3px 6px rgba(0, 0, 0, 0.12),
+    0 2px 4px rgba(0, 0, 0, 0.08);
 }
 
 .fc-google-theme .fc-timegrid-event .fc-event-main {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 3px;
 }
 
 .fc-google-theme .fc-timegrid-event .fc-event-time {
-  font-weight: 400;
-  font-size: 11px;
+  font-weight: 700;
+  font-size: 12px;
+  opacity: 0.95;
 }
 
 .fc-google-theme .fc-timegrid-event .fc-event-title {
-  font-weight: 400;
-  font-size: 12px;
-  line-height: 1.3;
+  font-weight: 600;
+  font-size: 13px;
+  line-height: 1.4;
 }
 
 .fc-google-theme .fc-timegrid-event:hover {
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  transform: translateX(-3px) scale(1.03);
+  box-shadow:
+    0 8px 16px rgba(0, 0, 0, 0.18),
+    0 4px 8px rgba(0, 0, 0, 0.12);
 }
 
 .fc-google-theme .fc-timegrid-event-harness {
@@ -1511,12 +1512,15 @@ onMounted(() => {
   .fc-google-theme .fc-daygrid-event {
     margin: 2px 2px;
     padding: 0;
-    min-height: 22px;
-    border-radius: 4px;
+    min-height: 26px;
+    border-radius: 5px;
+    box-shadow:
+      0 2px 4px rgba(0, 0, 0, 0.1),
+      0 1px 2px rgba(0, 0, 0, 0.06);
   }
 
   .fc-google-theme .fc-daygrid-block-event {
-    padding: 3px 6px;
+    padding: 4px 8px;
   }
 
   .fc-google-theme .fc-daygrid-block-event .fc-event-time {
@@ -1524,8 +1528,8 @@ onMounted(() => {
   }
 
   .fc-google-theme .fc-daygrid-block-event .fc-event-title {
-    font-size: 11px;
-    font-weight: 500;
+    font-size: 12px;
+    font-weight: 600;
   }
 
   .fc-google-theme .fc-col-header-cell {
@@ -1543,8 +1547,21 @@ onMounted(() => {
   }
 
   .fc-google-theme .fc-timegrid-event {
-    padding: 5px 8px;
-    border-radius: 5px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    box-shadow:
+      0 2px 4px rgba(0, 0, 0, 0.1),
+      0 1px 2px rgba(0, 0, 0, 0.06);
+  }
+
+  .fc-google-theme .fc-timegrid-event .fc-event-time {
+    font-weight: 700;
+    font-size: 11px;
+  }
+
+  .fc-google-theme .fc-timegrid-event .fc-event-title {
+    font-weight: 600;
+    font-size: 12px;
   }
 
   .calendar-wrapper {
