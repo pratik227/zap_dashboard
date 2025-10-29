@@ -70,10 +70,10 @@ const handleClose = () => {
         @click.self="handleClose"
       >
         <!-- Backdrop -->
-        <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="handleClose"></div>
+        <div class="calendar-modal-backdrop absolute inset-0 bg-black/50 backdrop-blur-sm" @click="handleClose"></div>
 
         <!-- Bottom Sheet on Mobile, Dropdown Panel on Desktop -->
-        <div class="absolute sm:top-20 sm:left-6 sm:w-[420px] bottom-0 sm:bottom-auto left-0 right-0 sm:right-auto bg-white sm:rounded-2xl rounded-t-3xl shadow-2xl sm:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] sm:border sm:border-gray-200/50 max-h-[85vh] sm:max-h-[calc(100vh-10rem)] flex flex-col overflow-hidden">
+        <div class="calendar-modal-panel absolute sm:top-20 sm:left-6 sm:w-[420px] bottom-0 sm:bottom-auto left-0 right-0 sm:right-auto bg-white sm:rounded-2xl rounded-t-3xl shadow-2xl sm:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] sm:border sm:border-gray-200/50 max-h-[85vh] sm:max-h-[calc(100vh-10rem)] flex flex-col overflow-hidden">
           <!-- Drag Handle (Mobile Only) -->
           <div class="flex sm:hidden justify-center pt-3 pb-2">
             <div class="w-12 h-1.5 bg-gray-300 rounded-full"></div>
@@ -203,13 +203,29 @@ const handleClose = () => {
   transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 
-.slide-up-enter-from .bg-white,
-.slide-up-leave-to .bg-white {
+/* Mobile: Slide up from bottom */
+.slide-up-enter-from .calendar-modal-panel,
+.slide-up-leave-to .calendar-modal-panel {
   transform: translateY(100%);
 }
 
-.slide-up-enter-from .bg-black\/50,
-.slide-up-leave-to .bg-black\/50 {
+/* Desktop: Fade and scale */
+@media (min-width: 640px) {
+  .slide-up-enter-from .calendar-modal-panel,
+  .slide-up-leave-to .calendar-modal-panel {
+    transform: translateY(0) scale(0.95);
+    opacity: 0;
+  }
+
+  .slide-up-enter-active .calendar-modal-panel,
+  .slide-up-leave-active .calendar-modal-panel {
+    transition: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+}
+
+/* Backdrop fade */
+.slide-up-enter-from .calendar-modal-backdrop,
+.slide-up-leave-to .calendar-modal-backdrop {
   opacity: 0;
 }
 
