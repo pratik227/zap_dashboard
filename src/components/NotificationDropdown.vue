@@ -13,6 +13,7 @@ import {
   IconSparkles
 } from '@iconify-prerendered/vue-tabler'
 import { useNotifications } from '../composables/useNotifications.js'
+import { generateAvatar } from '../utils/avatarGenerator.js'
 
 const {
   notifications,
@@ -265,10 +266,10 @@ const getSourceLabel = (notification) => {
                   <!-- Sender Info for Nostr Zaps -->
                   <div v-if="notification.data?.sender && notification.type === NOTIFICATION_TYPES.ZAP_RECEIVED_NOSTR" class="flex items-center gap-2 mt-2 pt-2 border-t border-gray-100">
                     <img
-                      v-if="notification.data.sender.picture || notification.data.sender.avatar"
-                      :src="notification.data.sender.picture || notification.data.sender.avatar"
+                      :src="notification.data.sender.picture || notification.data.sender.avatar || generateAvatar(notification.data.sender.pubkey)"
                       :alt="notification.data.sender.name"
                       class="w-5 h-5 rounded-full"
+                      @error="$event.target.src = generateAvatar(notification.data.sender.pubkey)"
                     />
                     <span class="text-xs text-gray-600">
                       from <span class="font-medium text-gray-900">{{ notification.data.sender.name }}</span>

@@ -44,7 +44,7 @@ export function generateAvatar(pubkey) {
     })
 
     const svg = avatar.toString()
-    const base64 = btoa(svg)
+    const base64 = btoa(unescape(encodeURIComponent(svg)))
     return `data:image/svg+xml;base64,${base64}`
   } catch (error) {
     console.error('Error generating avatar:', error)
@@ -64,7 +64,7 @@ function generateDefaultAvatar() {
     })
 
     const svg = avatar.toString()
-    const base64 = btoa(svg)
+    const base64 = btoa(unescape(encodeURIComponent(svg)))
     return `data:image/svg+xml;base64,${base64}`
   } catch (error) {
     console.error('Error generating default avatar:', error)
