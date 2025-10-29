@@ -1,12 +1,13 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { 
-  IconTarget, 
-  IconX, 
-  IconCalendar, 
-  IconPhoto, 
+import {
+  IconTarget,
+  IconX,
+  IconCalendar,
+  IconPhoto,
   IconCurrencyBitcoin,
   IconAlertCircle,
+  IconAlertTriangle,
   IconCheck,
   IconLoader,
   IconBolt,
