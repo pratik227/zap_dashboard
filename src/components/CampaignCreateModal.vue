@@ -296,39 +296,39 @@ const getEndOfDayTimestamp = (dateString) => {
 </script>
 
 <template>
-  <div class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center z-[9999] p-0 sm:p-4">
-    <!-- Mobile-first modal design -->
-    <div class="bg-white w-full sm:max-w-lg sm:rounded-2xl max-h-[95vh] sm:max-h-[90vh] overflow-hidden shadow-2xl">
-      <!-- Sticky Header with Progress -->
+  <div class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center z-[9999] p-0 sm:p-4">
+    <!-- Mobile Bottom Sheet / Desktop Modal -->
+    <div class="bg-white w-full sm:max-w-xl rounded-t-3xl sm:rounded-2xl max-h-[92vh] sm:max-h-[88vh] overflow-hidden shadow-xl">
+      <!-- Sticky Header -->
       <div class="sticky top-0 bg-white z-10 border-b border-gray-100">
+        <!-- Mobile Handle -->
+        <div class="sm:hidden pt-2 pb-1 flex justify-center">
+          <div class="w-10 h-1 bg-gray-300 rounded-full"></div>
+        </div>
+
         <!-- Header -->
-        <div class="flex items-center justify-between p-4 sm:p-6">
-          <div class="flex items-center space-x-3">
-            <div class="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-orange-400 to-amber-400 rounded-xl flex items-center justify-center text-white shadow-sm">
-              <IconTarget class="w-4 h-4 sm:w-5 sm:h-5" />
-            </div>
-            <div>
-              <h3 class="text-lg sm:text-xl font-bold text-gray-900">
-                {{ isEditing ? 'Edit Campaign' : 'New Campaign' }}
-              </h3>
-              <p class="text-xs sm:text-sm text-gray-500">
-                Step {{ currentStep }} of 3
-              </p>
-            </div>
+        <div class="flex items-center justify-between px-5 py-4">
+          <div>
+            <h3 class="text-xl font-semibold text-gray-900">
+              {{ isEditing ? 'Edit Campaign' : 'New Campaign' }}
+            </h3>
+            <p class="text-sm text-gray-500 mt-0.5">
+              Step {{ currentStep }} of 3
+            </p>
           </div>
           <button
             @click="$emit('close')"
-            class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
+            class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
           >
             <IconX class="w-5 h-5" />
           </button>
         </div>
-        
+
         <!-- Progress Bar -->
-        <div class="px-4 sm:px-6 pb-4">
-          <div class="w-full bg-gray-200 rounded-full h-2">
-            <div 
-              class="bg-gradient-to-r from-orange-400 to-amber-400 h-2 rounded-full transition-all duration-500 ease-out"
+        <div class="px-5 pb-3">
+          <div class="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
+            <div
+              class="bg-orange-500 h-1.5 rounded-full transition-all duration-300 ease-out"
               :style="{ width: `${progressPercentage}%` }"
             ></div>
           </div>
@@ -336,12 +336,12 @@ const getEndOfDayTimestamp = (dateString) => {
       </div>
 
       <!-- Content Area -->
-      <div class="overflow-y-auto max-h-[calc(95vh-140px)] sm:max-h-[calc(90vh-160px)]">
+      <div class="overflow-y-auto max-h-[calc(92vh-140px)] sm:max-h-[calc(88vh-150px)]">
         <!-- Step 1: The Basics -->
-        <div v-if="currentStep === 1" class="p-4 sm:p-6">
-          <div class="text-center mb-6">
-            <h4 class="text-xl sm:text-2xl font-bold text-gray-900 mb-2">What's your goal?</h4>
-            <p class="text-gray-600 text-sm sm:text-base">Give your campaign a clear title and set your funding target</p>
+        <div v-if="currentStep === 1" class="p-5 sm:p-6">
+          <div class="mb-6">
+            <h4 class="text-lg font-semibold text-gray-900 mb-1">What's your goal?</h4>
+            <p class="text-gray-600 text-sm">Give your campaign a clear title and set your funding target</p>
           </div>
           
           <div v-if="isEditing" class="px-6 pt-4">
@@ -358,45 +358,45 @@ const getEndOfDayTimestamp = (dateString) => {
             </div>
           </div>
 
-          <div class="space-y-6">
+          <div class="space-y-5">
             <!-- Title -->
             <div>
-              <label class="block text-sm font-semibold text-gray-900 mb-3">Campaign Title</label>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Campaign Title</label>
               <input
                 v-model="form.title"
                 type="text"
                 placeholder="e.g., Help me attend Bitcoin Conference 2024"
-                class="w-full px-4 py-4 text-base border-2 border-gray-200 rounded-xl focus:border-orange-400 focus:ring-0 transition-colors placeholder-gray-400"
+                class="w-full px-4 py-3 text-base bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-orange-500 focus:ring-2 focus:ring-orange-100 transition-all placeholder-gray-400"
                 maxlength="80"
               />
-              <div class="flex justify-between mt-2">
+              <div class="flex justify-between mt-1.5">
                 <p class="text-xs text-gray-500">Make it clear and compelling</p>
                 <p class="text-xs text-gray-400">{{ form.title.length }}/80</p>
               </div>
             </div>
-            
+
             <!-- Quick Goal Selection -->
             <div>
-              <label class="block text-sm font-semibold text-gray-900 mb-3">Funding Goal</label>
-              
+              <label class="block text-sm font-medium text-gray-700 mb-2">Funding Goal</label>
+
               <!-- Quick Selection Grid -->
-              <div class="grid grid-cols-2 gap-3 mb-4">
+              <div class="grid grid-cols-2 gap-2 mb-3">
                 <button
                   v-for="goal in quickGoals"
                   :key="goal.value"
                   @click="selectQuickGoal(goal.value)"
                   :class="[
-                    'p-3 rounded-lg border-2 text-center transition-all duration-200',
+                    'p-3 rounded-xl border text-center transition-all',
                     form.goalAmount === goal.value
-                      ? 'border-orange-400 bg-orange-50 shadow-md'
+                      ? 'border-orange-500 bg-orange-50 shadow-sm'
                       : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                   ]"
                 >
-                  <div class="font-bold text-gray-900 text-sm">{{ goal.label }}</div>
-                  <div class="text-xs text-gray-500">{{ goal.description }}</div>
+                  <div class="font-semibold text-gray-900 text-sm">{{ goal.label }}</div>
+                  <div class="text-xs text-gray-500 mt-0.5">{{ goal.description }}</div>
                 </button>
               </div>
-              
+
               <!-- Custom Amount -->
               <div class="relative">
                 <input
@@ -404,30 +404,30 @@ const getEndOfDayTimestamp = (dateString) => {
                   type="number"
                   min="1"
                   placeholder="Custom amount"
-                  class="w-full px-4 py-4 pr-16 text-base border-2 border-gray-200 rounded-xl focus:border-orange-400 focus:ring-0 transition-colors"
+                  class="w-full px-4 py-3 pr-16 text-base bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-orange-500 focus:ring-2 focus:ring-orange-100 transition-all"
                 />
                 <div class="absolute inset-y-0 right-0 flex items-center pr-4">
                   <span class="text-sm font-medium text-gray-500">sats</span>
                 </div>
               </div>
-              <p class="text-xs text-gray-500 mt-2">
-                💡 Tip: Start with a realistic goal you can achieve
+              <p class="text-xs text-gray-500 mt-1.5">
+                Start with a realistic goal you can achieve
               </p>
             </div>
           </div>
         </div>
         
         <!-- Step 2: Tell Your Story -->
-        <div v-if="currentStep === 2" class="p-4 sm:p-6 pb-8">
-          <div class="text-center mb-6">
-            <h4 class="text-xl sm:text-2xl font-bold text-gray-900 mb-2">Tell your story</h4>
-            <p class="text-gray-600 text-sm sm:text-base">Help people understand why they should support you</p>
+        <div v-if="currentStep === 2" class="p-5 sm:p-6">
+          <div class="mb-6">
+            <h4 class="text-lg font-semibold text-gray-900 mb-1">Tell your story</h4>
+            <p class="text-gray-600 text-sm">Help people understand why they should support you</p>
           </div>
-          
-          <div class="space-y-6">
+
+          <div class="space-y-5">
             <!-- Summary -->
             <div>
-              <label class="block text-sm font-semibold text-gray-900 mb-3">
+              <label class="block text-sm font-medium text-gray-700 mb-2">
                 Summary
                 <span class="text-red-500 ml-1">*</span>
               </label>
@@ -435,20 +435,20 @@ const getEndOfDayTimestamp = (dateString) => {
                 v-model="form.summary"
                 rows="4"
                 placeholder="Briefly explain what you're raising funds for and why it matters..."
-                class="w-full px-4 py-4 text-base border-2 border-gray-200 rounded-xl focus:border-orange-400 focus:ring-0 transition-colors resize-none placeholder-gray-400"
+                class="w-full px-4 py-3 text-base bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-orange-500 focus:ring-2 focus:ring-orange-100 transition-all resize-none placeholder-gray-400"
                 maxlength="280"
               ></textarea>
-              <div class="flex justify-between mt-2">
+              <div class="flex justify-between mt-1.5">
                 <p class="text-xs text-gray-500">Keep it concise and engaging</p>
                 <p class="text-xs text-gray-400">{{ form.summary.length }}/280</p>
               </div>
             </div>
             
             <!-- Advanced Options Toggle -->
-            <div class="border-t border-gray-100 pt-6">
+            <div class="border-t border-gray-100 pt-5">
               <button
                 @click="showAdvancedOptions = !showAdvancedOptions"
-                class="flex items-center justify-between w-full p-3 text-left bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                class="flex items-center justify-between w-full p-3 text-left bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors"
               >
                 <div class="flex items-center space-x-2">
                   <IconInfoCircle class="w-4 h-4 text-gray-500" />
@@ -459,10 +459,10 @@ const getEndOfDayTimestamp = (dateString) => {
                   showAdvancedOptions ? 'rotate-180' : ''
                 ]" />
               </button>
-              
+
               <!-- Advanced Options Content -->
               <transition name="slide-down">
-                <div v-if="showAdvancedOptions" class="mt-4 space-y-4 pb-4">
+                <div v-if="showAdvancedOptions" class="mt-3 space-y-4">
                   <!-- Detailed Description -->
                   <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">
@@ -473,10 +473,10 @@ const getEndOfDayTimestamp = (dateString) => {
                       v-model="form.descriptionLong"
                       rows="4"
                       placeholder="Provide more details about your campaign, timeline, how funds will be used..."
-                      class="w-full px-3 py-3 text-sm border border-gray-300 rounded-lg focus:border-orange-400 focus:ring-1 focus:ring-orange-200 transition-colors resize-none placeholder-gray-400"
+                      class="w-full px-4 py-3 text-sm bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-orange-500 focus:ring-2 focus:ring-orange-100 transition-all resize-none placeholder-gray-400"
                     ></textarea>
                   </div>
-                  
+
                   <!-- Cover Image -->
                   <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">
@@ -487,22 +487,22 @@ const getEndOfDayTimestamp = (dateString) => {
                       v-model="form.image"
                       type="url"
                       placeholder="https://example.com/image.jpg"
-                      class="w-full px-3 py-3 text-sm border border-gray-300 rounded-lg focus:border-orange-400 focus:ring-1 focus:ring-orange-200 transition-colors"
+                      class="w-full px-4 py-3 text-sm bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-orange-500 focus:ring-2 focus:ring-orange-100 transition-all"
                       @input="updateImagePreview"
                       @blur="updateImagePreview"
                     />
-                    
+
                     <!-- Image Preview -->
-                    <div v-if="imagePreview" class="mt-2 rounded-lg overflow-hidden border border-gray-200 h-24">
-                      <img 
-                        :src="imagePreview" 
-                        alt="Preview" 
+                    <div v-if="imagePreview" class="mt-2 rounded-xl overflow-hidden border border-gray-200 h-20">
+                      <img
+                        :src="imagePreview"
+                        alt="Preview"
                         class="w-full h-full object-cover"
                         @error="imagePreview = null"
                       />
                     </div>
                   </div>
-                  
+
                   <!-- Optional Links -->
                   <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">
@@ -513,11 +513,11 @@ const getEndOfDayTimestamp = (dateString) => {
                       v-model="form.optionalLink"
                       type="url"
                       placeholder="https://yourwebsite.com"
-                      class="w-full px-3 py-3 text-sm border border-gray-300 rounded-lg focus:border-orange-400 focus:ring-1 focus:ring-orange-200 transition-colors"
+                      class="w-full px-4 py-3 text-sm bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-orange-500 focus:ring-2 focus:ring-orange-100 transition-all"
                     />
                     <p class="text-xs text-gray-500 mt-1">Link to your website, social media, or project details</p>
                   </div>
-                  
+
                   <!-- End Date -->
                   <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">
@@ -527,7 +527,7 @@ const getEndOfDayTimestamp = (dateString) => {
                     <input
                       v-model="form.closedAt"
                       type="date"
-                      class="w-full px-3 py-3 text-sm border border-gray-300 rounded-lg focus:border-orange-400 focus:ring-1 focus:ring-orange-200 transition-colors"
+                      class="w-full px-4 py-3 text-sm bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-orange-500 focus:ring-2 focus:ring-orange-100 transition-all"
                     />
                     <p class="text-xs text-gray-500 mt-1">Leave empty for no deadline</p>
                   </div>
@@ -538,61 +538,59 @@ const getEndOfDayTimestamp = (dateString) => {
         </div>
         
         <!-- Step 3: Preview & Publish -->
-        <div v-if="currentStep === 3" class="p-4 sm:p-6">
-          <div class="text-center mb-6">
-            <h4 class="text-xl sm:text-2xl font-bold text-gray-900 mb-2">Ready to launch?</h4>
-            <p class="text-gray-600 text-sm sm:text-base">Review your campaign before publishing</p>
+        <div v-if="currentStep === 3" class="p-5 sm:p-6">
+          <div class="mb-6">
+            <h4 class="text-lg font-semibold text-gray-900 mb-1">Ready to launch?</h4>
+            <p class="text-gray-600 text-sm">Review your campaign before publishing</p>
           </div>
-          
+
           <!-- Campaign Preview Card -->
-          <div class="bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl p-1 mb-6">
-            <div class="bg-white rounded-xl overflow-hidden shadow-sm">
-              <!-- Image Preview -->
-              <div v-if="form.image" class="h-40 w-full overflow-hidden">
-                <img 
-                  :src="form.image" 
-                  :alt="form.title"
-                  class="w-full h-full object-cover"
-                  @error="$event.target.style.display = 'none'"
-                />
-              </div>
-              
-              <!-- Content Preview -->
-              <div class="p-4">
-                <h3 class="text-lg font-bold text-gray-900 mb-2">{{ form.title }}</h3>
-                <p class="text-gray-600 text-sm mb-4">{{ form.summary }}</p>
-                
-                <!-- Goal Display -->
-                <div class="flex items-center justify-between p-3 bg-orange-50 rounded-lg mb-4">
-                  <div class="flex items-center space-x-2">
-                    <IconBolt class="w-5 h-5 text-orange-600" />
-                    <span class="font-semibold text-gray-900">Goal</span>
-                  </div>
-                  <span class="text-lg font-bold text-orange-600">{{ form.goalAmount.toLocaleString() }} sats</span>
+          <div class="bg-white border border-gray-200 rounded-2xl overflow-hidden mb-5">
+            <!-- Image Preview -->
+            <div v-if="form.image" class="h-36 w-full overflow-hidden bg-gray-100">
+              <img
+                :src="form.image"
+                :alt="form.title"
+                class="w-full h-full object-cover"
+                @error="$event.target.style.display = 'none'"
+              />
+            </div>
+
+            <!-- Content Preview -->
+            <div class="p-4">
+              <h3 class="text-base font-semibold text-gray-900 mb-2">{{ form.title }}</h3>
+              <p class="text-gray-600 text-sm mb-4 line-clamp-3">{{ form.summary }}</p>
+
+              <!-- Goal Display -->
+              <div class="flex items-center justify-between p-3 bg-orange-50 rounded-xl mb-3">
+                <div class="flex items-center space-x-2">
+                  <IconBolt class="w-4 h-4 text-orange-600" />
+                  <span class="font-medium text-gray-900 text-sm">Goal</span>
                 </div>
-                
-                <!-- Optional Details -->
-                <div v-if="form.optionalLink || form.closedAt" class="space-y-2 text-sm">
-                  <div v-if="form.optionalLink" class="flex items-center space-x-2 text-blue-600">
-                    <IconLink class="w-4 h-4" />
-                    <span class="truncate">{{ form.optionalLink }}</span>
-                  </div>
-                  <div v-if="form.closedAt" class="flex items-center space-x-2 text-gray-600">
-                    <IconCalendar class="w-4 h-4" />
-                    <span>Ends {{ formatDate(form.closedAt) }}</span>
-                  </div>
+                <span class="text-base font-semibold text-orange-600">{{ form.goalAmount.toLocaleString() }} sats</span>
+              </div>
+
+              <!-- Optional Details -->
+              <div v-if="form.optionalLink || form.closedAt" class="space-y-2 text-sm">
+                <div v-if="form.optionalLink" class="flex items-center space-x-2 text-blue-600">
+                  <IconLink class="w-4 h-4" />
+                  <span class="truncate">{{ form.optionalLink }}</span>
+                </div>
+                <div v-if="form.closedAt" class="flex items-center space-x-2 text-gray-600">
+                  <IconCalendar class="w-4 h-4" />
+                  <span>Ends {{ formatDate(form.closedAt) }}</span>
                 </div>
               </div>
             </div>
           </div>
-          
+
           <!-- Publishing Info -->
-          <div class="bg-blue-50 border border-blue-200 rounded-xl p-4">
+          <div class="bg-blue-50 border border-blue-100 rounded-xl p-4">
             <div class="flex items-start space-x-3">
               <IconBolt class="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
               <div>
-                <h4 class="font-semibold text-blue-900 mb-1">Ready to publish</h4>
-                <p class="text-sm text-blue-800">
+                <h4 class="font-medium text-blue-900 text-sm mb-1">Ready to publish</h4>
+                <p class="text-sm text-blue-700">
                   Your campaign will be published to Nostr and you can start sharing it immediately.
                 </p>
               </div>
@@ -612,43 +610,41 @@ const getEndOfDayTimestamp = (dateString) => {
       </div>
 
       <!-- Error Message -->
-      <div v-if="localError || campaignError" class="px-4 sm:px-6 pb-4">
-        <div class="bg-red-50 border border-red-200 rounded-xl p-4">
+      <div v-if="localError || campaignError" class="px-5 pb-3">
+        <div class="bg-red-50 border border-red-100 rounded-xl p-3">
           <div class="flex items-center space-x-2">
-            <IconAlertCircle class="w-5 h-5 text-red-600" />
+            <IconAlertCircle class="w-4 h-4 text-red-600 flex-shrink-0" />
             <span class="text-sm text-red-600">{{ localError || campaignError }}</span>
           </div>
         </div>
       </div>
 
       <!-- Sticky Footer Actions -->
-      <div v-if="!publishSuccess" class="sticky bottom-0 bg-white border-t border-gray-100 p-4 sm:p-6">
-        <div class="flex items-center justify-between space-x-3">
+      <div v-if="!publishSuccess" class="sticky bottom-0 bg-white border-t border-gray-100 p-4">
+        <div class="flex items-center gap-3">
           <!-- Back Button -->
           <button
             v-if="currentStep > 1"
             @click="prevStep"
             :disabled="isPublishing"
-            class="flex items-center space-x-2 px-4 py-3 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-xl transition-colors disabled:opacity-50"
+            class="flex items-center justify-center w-10 h-12 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-xl transition-colors disabled:opacity-50"
           >
-            <IconArrowLeft class="w-4 h-4" />
-            <span class="font-medium">Back</span>
+            <IconArrowLeft class="w-5 h-5" />
           </button>
           <button
             v-else
             @click="$emit('close')"
-            class="flex items-center space-x-2 px-4 py-3 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-xl transition-colors"
+            class="px-4 h-12 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-xl transition-colors text-sm font-medium"
           >
-            <IconX class="w-4 h-4" />
-            <span class="font-medium">Cancel</span>
+            Cancel
           </button>
-          
+
           <!-- Next/Publish Button -->
           <button
             v-if="currentStep < 3"
             @click="nextStep"
             :disabled="(currentStep === 1 && !isStep1Valid) || (currentStep === 2 && !isStep2Valid)"
-            class="flex-1 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white px-6 py-4 rounded-xl font-semibold transition-all duration-200 flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98]"
+            class="flex-1 bg-orange-500 hover:bg-orange-600 text-white h-12 rounded-xl font-medium transition-all flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <span>{{ currentStep === 1 ? 'Continue' : 'Review' }}</span>
             <IconArrowRight class="w-4 h-4" />
@@ -657,10 +653,10 @@ const getEndOfDayTimestamp = (dateString) => {
             v-else
             @click="publishNewCampaign"
             :disabled="isPublishing || !isFormValid"
-            class="flex-1 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white px-6 py-4 rounded-xl font-semibold transition-all duration-200 flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98]"
+            class="flex-1 bg-green-500 hover:bg-green-600 text-white h-12 rounded-xl font-medium transition-all flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <IconLoader v-if="isPublishing" class="w-5 h-5 animate-spin" />
-            <IconBolt v-else class="w-5 h-5" />
+            <IconBolt v-else class="w-4 h-4" />
             <span>{{ isPublishing ? 'Publishing...' : 'Publish Campaign' }}</span>
           </button>
         </div>
