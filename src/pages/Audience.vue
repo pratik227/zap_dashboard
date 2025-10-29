@@ -22,8 +22,6 @@ import {
   IconBolt,
   IconChevronDown,
   IconChevronRight,
-  IconFilter,
-  IconSortAscending,
   IconUserX,
   IconHeart,
   IconStar,
@@ -91,8 +89,6 @@ const showListModal = ref(false)
 const selectedList = ref(null)
 const showBulkActions = ref(false)
 const selectedUsers = ref(new Set())
-const filterBy = ref('all') // all, mutuals, new, not-followed-back
-const sortBy = ref('recent') // recent, alphabetical, popular
 const showRelayStatus = ref(false)
 const selectedBadge = ref(null)
 const showBadgeModal = ref(false)
@@ -114,7 +110,7 @@ const suggestionsError = ref('')
 
 const filteredFollowing = computed(() => {
   let users = following.value
-  
+
   // Apply search filter
   if (searchQuery.value) {
     const query = searchQuery.value.toLowerCase()
@@ -125,37 +121,7 @@ const filteredFollowing = computed(() => {
              pubkey.toLowerCase().includes(query)
     })
   }
-  
-  // Apply filters
-  switch (filterBy.value) {
-    case 'mutuals':
-      users = users.filter(pubkey => getMutualFollows(pubkey).length > 0)
-      break
-    case 'new':
-      // Users followed in last 7 days (simplified)
-      break
-    case 'not-followed-back':
-      users = users.filter(pubkey => !followers.value.includes(pubkey))
-      break
-  }
-  
-  // Apply sorting
-  switch (sortBy.value) {
-    case 'alphabetical':
-      users.sort((a, b) => {
-        const profileA = getProfile(a)
-        const profileB = getProfile(b)
-        return (profileA?.name || '').localeCompare(profileB?.name || '')
-      })
-      break
-    case 'popular':
-      // Sort by how many lists they appear in (simplified)
-      break
-    default: // recent
-      // Keep original order (most recent first)
-      break
-  }
-  
+
   return users
 })
 
@@ -693,27 +659,6 @@ watch(following, (newFollowing, oldFollowing) => {
                 class="w-full pl-10 pr-4 py-3 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base"
               />
               <IconSearch class="absolute left-3 top-3.5 w-4 h-4 text-gray-400" />
-            </div>
-            
-            <div class="flex space-x-2">
-              <select
-                v-model="filterBy"
-                class="px-3 py-3 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-sm bg-white"
-              >
-                <option value="all">All</option>
-                <option value="mutuals">Mutuals</option>
-                <option value="new">New (7d)</option>
-                <option value="not-followed-back">Not followed back</option>
-              </select>
-              
-              <select
-                v-model="sortBy"
-                class="px-3 py-3 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-sm bg-white"
-              >
-                <option value="recent">Recent</option>
-                <option value="alphabetical">A-Z</option>
-                <option value="popular">Popular</option>
-              </select>
             </div>
           </div>
 
