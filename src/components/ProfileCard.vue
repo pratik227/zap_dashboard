@@ -211,29 +211,23 @@ const handleBadgeClick = (badge) => {
 
       <!-- Actions -->
       <div class="flex items-center space-x-2 flex-shrink-0">
-        <!-- Modern Follow/Unfollow Button -->
+        <!-- Simple Follow/Following Button -->
         <button
+          v-if="!isFollowing"
           @click="handleFollowToggle"
-          :class="[
-            'group relative px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 flex items-center gap-2',
-            isFollowing
-              ? 'bg-white border-2 border-gray-300 text-gray-700 hover:border-red-500 hover:bg-red-50 hover:text-red-600'
-              : 'bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white shadow-sm hover:shadow-md'
-          ]"
+          class="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-medium text-sm transition-colors flex items-center gap-2"
         >
-          <!-- Not Following State -->
-          <template v-if="!isFollowing">
-            <IconUserPlus class="w-4 h-4" />
-            <span class="hidden sm:inline">Follow</span>
-          </template>
+          <IconUserPlus class="w-4 h-4" />
+          <span class="hidden sm:inline">Follow</span>
+        </button>
 
-          <!-- Following State -->
-          <template v-else>
-            <IconUserCheck class="w-4 h-4 group-hover:hidden" />
-            <IconUserX class="w-4 h-4 hidden group-hover:block" />
-            <span class="hidden sm:inline group-hover:hidden">Following</span>
-            <span class="hidden sm:inline group-hover:block">Unfollow</span>
-          </template>
+        <button
+          v-else
+          @click="handleFollowToggle"
+          class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium text-sm transition-colors flex items-center gap-2 border border-gray-300"
+        >
+          <IconCheck class="w-4 h-4" />
+          <span class="hidden sm:inline">Following</span>
         </button>
       </div>
     </div>
