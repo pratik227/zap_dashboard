@@ -376,15 +376,25 @@ onUnmounted(() => {
               <button
                 @click="handleFollowToggle"
                 :class="[
-                  'w-full px-6 py-4 rounded-xl font-semibold text-lg transition-all duration-200 flex items-center justify-center space-x-3 shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98]',
-                  isFollowing 
-                    ? 'bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white' 
+                  'group w-full px-6 py-4 rounded-xl font-semibold text-lg transition-all duration-200 flex items-center justify-center gap-3 shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98]',
+                  isFollowing
+                    ? 'bg-white border-2 border-gray-300 text-gray-700 hover:border-red-500 hover:bg-red-50 hover:text-red-600'
                     : 'bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white'
                 ]"
               >
-                <IconUserX v-if="isFollowing" class="w-5 h-5" />
-                <IconUserPlus v-else class="w-5 h-5" />
-                <span>{{ isFollowing ? 'Unfollow' : 'Follow' }}</span>
+                <!-- Not Following State -->
+                <template v-if="!isFollowing">
+                  <IconUserPlus class="w-5 h-5" />
+                  <span>Follow</span>
+                </template>
+
+                <!-- Following State -->
+                <template v-else>
+                  <IconUserCheck class="w-5 h-5 group-hover:hidden" />
+                  <IconUserX class="w-5 h-5 hidden group-hover:block" />
+                  <span class="group-hover:hidden">Following</span>
+                  <span class="hidden group-hover:block">Unfollow</span>
+                </template>
               </button>
               
               <!-- Secondary Actions -->

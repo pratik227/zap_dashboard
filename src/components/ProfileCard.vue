@@ -211,58 +211,30 @@ const handleBadgeClick = (badge) => {
 
       <!-- Actions -->
       <div class="flex items-center space-x-2 flex-shrink-0">
-        <!-- Primary Follow Button -->
+        <!-- Modern Follow/Unfollow Button -->
         <button
-          v-if="!isFollowing"
           @click="handleFollowToggle"
-          class="btn-primary text-sm"
+          :class="[
+            'group relative px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 flex items-center gap-2',
+            isFollowing
+              ? 'bg-white border-2 border-gray-300 text-gray-700 hover:border-red-500 hover:bg-red-50 hover:text-red-600'
+              : 'bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white shadow-sm hover:shadow-md'
+          ]"
         >
-          <IconUserPlus class="w-4 h-4" />
-          <span class="hidden sm:inline">Follow</span>
+          <!-- Not Following State -->
+          <template v-if="!isFollowing">
+            <IconUserPlus class="w-4 h-4" />
+            <span class="hidden sm:inline">Follow</span>
+          </template>
+
+          <!-- Following State -->
+          <template v-else>
+            <IconUserCheck class="w-4 h-4 group-hover:hidden" />
+            <IconUserX class="w-4 h-4 hidden group-hover:block" />
+            <span class="hidden sm:inline group-hover:hidden">Following</span>
+            <span class="hidden sm:inline group-hover:block">Unfollow</span>
+          </template>
         </button>
-
-        <!-- Following Dropdown -->
-        <div v-else class="relative">
-          <button
-            @click="showDropdown = !showDropdown"
-            class="btn-secondary text-sm flex items-center space-x-1"
-          >
-            <IconUserCheck class="w-4 h-4" />
-            <span class="hidden sm:inline">Following</span>
-            <IconChevronDown class="w-3 h-3" />
-          </button>
-
-          <!-- Dropdown Menu -->
-          <div v-if="showDropdown" class="absolute right-0 top-full mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10">
-            <button
-              @click="$emit('unfollow', pubkey); showDropdown = false"
-              class="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center space-x-2"
-            >
-              <IconUserX class="w-4 h-4" />
-              <span>Unfollow</span>
-            </button>
-            
-            <button
-              @click="copyNpub; showDropdown = false"
-              class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center space-x-2"
-            >
-              <IconCheck v-if="copySuccess" class="w-4 h-4 text-green-600" />
-              <IconCopy v-else class="w-4 h-4" />
-              <span>{{ copySuccess ? 'Copied!' : 'Copy npub' }}</span>
-            </button>
-            
-            <a
-              :href="getProfileUrl('primal')"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center space-x-2"
-              @click="showDropdown = false"
-            >
-              <IconExternalLink class="w-4 h-4" />
-              <span>View on Primal</span>
-            </a>
-          </div>
-        </div>
       </div>
     </div>
   </div>
