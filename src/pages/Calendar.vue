@@ -1792,61 +1792,90 @@ onMounted(() => {
                 </div>
 
                 <!-- Response Options -->
-                <div class="mb-6">
+                <div class="mb-5">
                   <label class="block text-sm font-semibold text-gray-700 mb-3">Your Response</label>
                   <div class="grid grid-cols-3 gap-2">
                     <button
                       @click="rsvpForm.status = 'accepted'"
                       :class="[
-                        'flex flex-col items-center gap-2 py-4 rounded-2xl border-2 transition-all',
+                        'flex flex-col items-center gap-1.5 py-3 rounded-xl border-2 transition-all',
                         rsvpForm.status === 'accepted'
-                          ? 'border-amber-400 bg-amber-50 shadow-md'
+                          ? 'border-amber-400 bg-amber-50 shadow-sm'
                           : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'
                       ]"
                     >
                       <div :class="[
-                        'w-12 h-12 rounded-full flex items-center justify-center',
+                        'w-8 h-8 rounded-full flex items-center justify-center',
                         rsvpForm.status === 'accepted' ? 'bg-amber-400' : 'bg-gray-100'
                       ]">
-                        <IconCheck :class="['w-6 h-6', rsvpForm.status === 'accepted' ? 'text-white' : 'text-gray-400']" />
+                        <IconCheck :class="['w-4 h-4', rsvpForm.status === 'accepted' ? 'text-white' : 'text-gray-400']" />
                       </div>
-                      <span :class="['text-sm font-semibold', rsvpForm.status === 'accepted' ? 'text-amber-700' : 'text-gray-600']">Yes</span>
+                      <span :class="['text-xs font-semibold', rsvpForm.status === 'accepted' ? 'text-amber-700' : 'text-gray-600']">Yes</span>
                     </button>
 
                     <button
                       @click="rsvpForm.status = 'tentative'"
                       :class="[
-                        'flex flex-col items-center gap-2 py-4 rounded-2xl border-2 transition-all',
+                        'flex flex-col items-center gap-1.5 py-3 rounded-xl border-2 transition-all',
                         rsvpForm.status === 'tentative'
-                          ? 'border-blue-400 bg-blue-50 shadow-md'
+                          ? 'border-blue-400 bg-blue-50 shadow-sm'
                           : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'
                       ]"
                     >
                       <div :class="[
-                        'w-12 h-12 rounded-full flex items-center justify-center',
+                        'w-8 h-8 rounded-full flex items-center justify-center',
                         rsvpForm.status === 'tentative' ? 'bg-blue-400' : 'bg-gray-100'
                       ]">
-                        <IconAlertCircle :class="['w-6 h-6', rsvpForm.status === 'tentative' ? 'text-white' : 'text-gray-400']" />
+                        <IconAlertCircle :class="['w-4 h-4', rsvpForm.status === 'tentative' ? 'text-white' : 'text-gray-400']" />
                       </div>
-                      <span :class="['text-sm font-semibold', rsvpForm.status === 'tentative' ? 'text-blue-700' : 'text-gray-600']">Maybe</span>
+                      <span :class="['text-xs font-semibold', rsvpForm.status === 'tentative' ? 'text-blue-700' : 'text-gray-600']">Maybe</span>
                     </button>
 
                     <button
                       @click="rsvpForm.status = 'declined'"
                       :class="[
-                        'flex flex-col items-center gap-2 py-4 rounded-2xl border-2 transition-all',
+                        'flex flex-col items-center gap-1.5 py-3 rounded-xl border-2 transition-all',
                         rsvpForm.status === 'declined'
-                          ? 'border-gray-400 bg-gray-50 shadow-md'
+                          ? 'border-gray-400 bg-gray-50 shadow-sm'
                           : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'
                       ]"
                     >
                       <div :class="[
-                        'w-12 h-12 rounded-full flex items-center justify-center',
+                        'w-8 h-8 rounded-full flex items-center justify-center',
                         rsvpForm.status === 'declined' ? 'bg-gray-400' : 'bg-gray-100'
                       ]">
-                        <IconX :class="['w-6 h-6', rsvpForm.status === 'declined' ? 'text-white' : 'text-gray-400']" />
+                        <IconX :class="['w-4 h-4', rsvpForm.status === 'declined' ? 'text-white' : 'text-gray-400']" />
                       </div>
-                      <span :class="['text-sm font-semibold', rsvpForm.status === 'declined' ? 'text-gray-700' : 'text-gray-600']">No</span>
+                      <span :class="['text-xs font-semibold', rsvpForm.status === 'declined' ? 'text-gray-700' : 'text-gray-600']">No</span>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Availability -->
+                <div v-if="rsvpForm.status !== 'declined'" class="mb-5">
+                  <label class="block text-sm font-semibold text-gray-700 mb-3">Availability</label>
+                  <div class="grid grid-cols-2 gap-2">
+                    <button
+                      @click="rsvpForm.freebusy = 'free'"
+                      :class="[
+                        'py-2.5 px-4 rounded-xl border-2 transition-all text-sm font-medium',
+                        rsvpForm.freebusy === 'free'
+                          ? 'border-green-400 bg-green-50 text-green-700'
+                          : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50'
+                      ]"
+                    >
+                      Free
+                    </button>
+                    <button
+                      @click="rsvpForm.freebusy = 'busy'"
+                      :class="[
+                        'py-2.5 px-4 rounded-xl border-2 transition-all text-sm font-medium',
+                        rsvpForm.freebusy === 'busy'
+                          ? 'border-gray-400 bg-gray-50 text-gray-700'
+                          : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50'
+                      ]"
+                    >
+                      Busy
                     </button>
                   </div>
                 </div>
@@ -1858,7 +1887,7 @@ onMounted(() => {
                     v-model="rsvpForm.note"
                     rows="3"
                     placeholder="Let them know you're excited to attend..."
-                    class="w-full px-4 py-3 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-amber-400 focus:border-amber-400 text-base placeholder:text-gray-400 resize-none"
+                    class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-400 focus:border-amber-400 text-base placeholder:text-gray-400 resize-none"
                   ></textarea>
                 </div>
               </div>
