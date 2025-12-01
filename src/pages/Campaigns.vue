@@ -34,6 +34,7 @@ import CampaignCard from '../components/CampaignCard.vue'
 import CampaignCreateModal from '../components/CampaignCreateModal.vue'
 import CampaignDeleteModal from '../components/CampaignDeleteModal.vue'
 import CampaignShareModal from '../components/CampaignShareModal.vue'
+import SkeletonCard from '../components/SkeletonCard.vue'
 
 // Get changePage function from parent
 const changePage = inject('changePage')
@@ -483,13 +484,9 @@ watch(isAuthenticated, async (isAuth) => {
 
     <!-- Campaigns Dashboard -->
     <div v-if="isAuthenticated">
-      <!-- Loading State -->
-      <div v-if="isLoading && !userCampaigns.length" class="bg-white rounded-xl border border-orange-100 shadow-sm p-8 text-center">
-        <div class="inline-block p-3 bg-orange-100 rounded-full mb-4">
-          <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
-        </div>
-        <h3 class="text-xl font-semibold text-gray-900 mb-2">Loading your campaigns...</h3>
-        <p class="text-gray-600">Please wait while we fetch your campaign data</p>
+      <!-- Loading State with Skeleton Cards -->
+      <div v-if="isLoading && !userCampaigns.length" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <SkeletonCard v-for="i in 3" :key="i" />
       </div>
 
       <!-- Empty State -->

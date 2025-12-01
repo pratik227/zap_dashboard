@@ -20,6 +20,7 @@ import { filterZapsByTimeRange } from '../utils/timeFilter.js'
 import ZapEventModal from '../components/ZapEventModal.vue'
 import { useContentZaps } from '../composables/useContentZaps.js'
 import Filters from '../components/Filters.vue'
+import SkeletonList from '../components/SkeletonList.vue'
 
 const zapData = inject('zapData')
 const combinedZapData = inject('combinedZapData')
@@ -40,6 +41,12 @@ const selectedZapId = ref(null)
 // UI state
 const showFilters = ref(false)
 const viewMode = ref('feed') // 'feed' or 'compact'
+const isInitialLoading = ref(true)
+
+// Simulate initial data load
+setTimeout(() => {
+  isInitialLoading.value = false
+}, 1000)
 
 // Connection status for messaging
 const connectionStatus = computed(() => {
@@ -493,8 +500,11 @@ const formatAmount = (amount) => {
 
     <!-- Main Content with Proper Spacing -->
     <div class="">
+      <!-- Loading State -->
+      <SkeletonList v-if="isInitialLoading" :items="5" />
+
       <!-- Empty State -->
-      <div v-if="filteredZaps.length === 0" class="text-center py-12">
+      <div v-else-if="filteredZaps.length === 0" class="text-center py-12">
         <div class="text-gray-400 mb-4">
           <svg class="w-16 h-16 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
