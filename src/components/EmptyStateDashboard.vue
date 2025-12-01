@@ -293,21 +293,6 @@ const features = [
         </div>
       </div>
     </div>
-
-    <!-- Final CTA -->
-    <div class="bg-gradient-to-r from-orange-500 via-amber-500 to-yellow-500 rounded-2xl p-8 sm:p-12 text-center shadow-2xl">
-      <h2 class="text-2xl sm:text-3xl font-bold text-white mb-4">Ready to Start Tracking?</h2>
-      <p class="text-lg text-orange-50 mb-6 max-w-2xl mx-auto">
-        Join thousands of creators and businesses using ZapTracker to manage their Lightning earnings
-      </p>
-      <button
-        @click="handleConnect"
-        class="px-8 py-4 bg-white text-orange-600 font-semibold rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 inline-flex items-center space-x-2"
-      >
-        <IconBolt class="w-5 h-5" />
-        <span>Connect with Nostr Now</span>
-      </button>
-    </div>
   </div>
 </template>
 
