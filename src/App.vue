@@ -172,7 +172,7 @@ const selectedFilters = ref({
 const currentPage = ref('dashboard')
 const activeSettingsTab = ref('nostr')
 const showConnectionModal = ref(false)
-const showWelcomeModal = ref(true)
+const showWelcomeModal = ref(false)
 const showHelpModal = ref(false)
 const isMobileMenuOpen = ref(false)
 const isRefreshingData = ref(false)
@@ -579,6 +579,13 @@ watch(activeConnection, async (newConnection, oldConnection) => {
 // Enhanced initialization
 onMounted(async () => {
   console.log('🚀 App mounted, initializing ZapTracker...')
+
+  // Check if this is first visit - show HelpModal
+  const hasSeenHelp = localStorage.getItem('zaptracker_welcome_seen')
+  if (!hasSeenHelp && !isAuthenticated.value) {
+    console.log('👋 First visit detected, showing HelpModal...')
+    showHelpModal.value = true
+  }
 
   // Check nostr-login availability
   console.log('🔍 Checking nostr-login availability...')

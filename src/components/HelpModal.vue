@@ -195,23 +195,23 @@ onMounted(() => {
   <Teleport to="body">
     <div class="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-fade-in">
       <!-- Modal Container -->
-      <div class="relative w-full max-w-5xl max-h-[90vh] bg-white rounded-2xl shadow-2xl overflow-hidden animate-scale-in">
+      <div class="relative w-full max-w-5xl max-h-[90vh] bg-white rounded-2xl shadow-2xl flex flex-col animate-scale-in">
         <!-- Close Button -->
         <button
-          @click="emit('close')"
+          @click="handleExplore"
           class="absolute top-4 right-4 z-50 p-2 text-gray-500 hover:text-gray-700 bg-white/90 backdrop-blur-sm rounded-full shadow-lg hover:scale-110 transition-all duration-200"
         >
           <IconX class="w-6 h-6" />
         </button>
 
         <!-- Slides Container -->
-        <div class="relative h-full overflow-y-auto">
+        <div class="relative flex-1 overflow-y-auto">
           <!-- Slide Content -->
           <div
             v-for="(slide, index) in slides"
             :key="slide.id"
             v-show="currentSlide === index"
-            class="min-h-[600px] p-8 sm:p-12 flex flex-col justify-center transition-all duration-500"
+            class="p-8 sm:p-12 transition-all duration-500"
             :class="currentSlide === index ? 'animate-slide-in' : ''"
           >
             <!-- Logo for Hero & Final Slides -->
@@ -235,7 +235,7 @@ onMounted(() => {
             </div>
 
             <!-- FAQ Content -->
-            <div v-if="slide.showFAQ" class="max-w-3xl mx-auto w-full space-y-4">
+            <div v-if="slide.showFAQ" class="max-w-3xl mx-auto w-full space-y-4 pb-8">
               <div
                 v-for="(item, idx) in faqItems"
                 :key="idx"
@@ -252,7 +252,7 @@ onMounted(() => {
             </div>
 
             <!-- Getting Started Content -->
-            <div v-if="slide.showGettingStarted" class="max-w-3xl mx-auto w-full space-y-6">
+            <div v-if="slide.showGettingStarted" class="max-w-3xl mx-auto w-full space-y-6 pb-8">
               <div
                 v-for="step in gettingStartedSteps"
                 :key="step.number"
