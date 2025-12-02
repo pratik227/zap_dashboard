@@ -442,6 +442,7 @@ const getTrendColorClass = (change) => {
   <LightningNetworkDashboard
     v-if="!isAuthenticated"
     @trigger-login="$emit('trigger-login')"
+    @show-help="$emit('show-help')"
   />
 
   <!-- Loading State -->

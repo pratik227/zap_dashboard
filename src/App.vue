@@ -1093,6 +1093,7 @@ const handleChecklistTaskAction = (action) => {
                 @change-page="changePage"
                 @writing-mode-change="handleWritingModeChange"
                 @trigger-login="handleTriggerLogin"
+                @show-help="handleShowHelp"
               />
             </ErrorBoundary>
           </transition>

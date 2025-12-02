@@ -36,7 +36,7 @@ use([
   GridComponent
 ])
 
-const emit = defineEmits(['trigger-login'])
+const emit = defineEmits(['trigger-login', 'show-help'])
 
 const isLoading = ref(true)
 const networkStats = ref(null)
@@ -614,13 +614,22 @@ onMounted(() => {
                 Connect your Nostr account to track your Lightning earnings and analyze your zap data
               </p>
             </div>
-            <button
-              @click="emit('trigger-login')"
-              class="px-8 py-4 bg-white text-orange-600 font-semibold rounded-2xl shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-200 flex items-center space-x-3 whitespace-nowrap"
-            >
-              <IconLogin class="w-6 h-6" />
-              <span>Connect with Nostr</span>
-            </button>
+            <div class="flex flex-col sm:flex-row gap-4">
+              <button
+                @click="emit('trigger-login')"
+                class="px-8 py-4 bg-white text-orange-600 font-semibold rounded-2xl shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-200 flex items-center justify-center space-x-3 whitespace-nowrap"
+              >
+                <IconLogin class="w-6 h-6" />
+                <span>Connect with Nostr</span>
+              </button>
+              <button
+                @click="emit('show-help')"
+                class="px-8 py-4 bg-orange-600 text-white font-semibold rounded-2xl shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-200 flex items-center justify-center space-x-3 whitespace-nowrap border-2 border-white/30"
+              >
+                <IconExternalLink class="w-6 h-6" />
+                <span>How It Works</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -787,6 +796,13 @@ onMounted(() => {
             >
               <IconLogin class="w-6 h-6" />
               <span>Connect with Nostr</span>
+            </button>
+            <button
+              @click="emit('show-help')"
+              class="px-10 py-5 bg-blue-600 text-white font-semibold rounded-2xl shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-200 flex items-center justify-center space-x-3 border-2 border-white/30"
+            >
+              <IconExternalLink class="w-6 h-6" />
+              <span>How It Works</span>
             </button>
           </div>
           <p class="text-white/80 text-sm mt-6">

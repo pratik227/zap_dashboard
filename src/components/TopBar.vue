@@ -252,38 +252,36 @@ const handleLoginClick = () => {
       
       <!-- Right Side Actions -->
       <div class="flex items-center space-x-2 sm:space-x-3">
-        <!-- Pre-Authentication: Show Help Link + Prominent Login CTA -->
-        <div v-if="!isAuthenticated" class="flex items-center space-x-3">
-          <!-- How to Start Button -->
-          <button
-            @click="emit('show-help')"
-            class="hidden sm:flex items-center space-x-2 px-4 py-2 text-sm font-medium text-orange-600 hover:text-orange-700 hover:bg-orange-50 rounded-lg transition-all duration-200"
-          >
-            <IconHelp class="w-4 h-4" />
-            <span>How to Start</span>
-          </button>
+        <!-- How to Start Button - Always Visible -->
+        <button
+          @click="emit('show-help')"
+          class="hidden sm:flex items-center space-x-2 px-4 py-2 text-sm font-medium text-orange-600 hover:text-orange-700 hover:bg-orange-50 rounded-lg transition-all duration-200 border border-orange-200"
+        >
+          <IconHelp class="w-4 h-4" />
+          <span>How to Start</span>
+        </button>
 
-          <!-- Mobile Help Icon -->
-          <button
-            @click="emit('show-help')"
-            class="sm:hidden p-2 text-orange-600 hover:text-orange-700 hover:bg-orange-50 rounded-lg transition-all duration-200 touch-target"
-          >
-            <IconHelp class="w-5 h-5" />
-          </button>
+        <!-- Mobile Help Icon - Always Visible -->
+        <button
+          @click="emit('show-help')"
+          class="sm:hidden p-2 text-orange-600 hover:text-orange-700 hover:bg-orange-50 rounded-lg transition-all duration-200 touch-target border border-orange-200"
+        >
+          <IconHelp class="w-5 h-5" />
+        </button>
 
-          <!-- Prominent Login CTA -->
-          <button
-            @click="handleLoginClick"
-            class="px-4 sm:px-6 py-2 sm:py-2.5 bg-gradient-to-r from-orange-500 via-amber-500 to-yellow-500 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 flex items-center space-x-2 text-sm sm:text-base"
-          >
-            <IconBolt class="w-4 h-4 sm:w-5 sm:h-5" />
-            <span class="hidden sm:inline">Connect with Nostr</span>
-            <span class="sm:hidden">Connect</span>
-          </button>
-        </div>
+        <!-- Pre-Authentication: Prominent Login CTA -->
+        <button
+          v-if="!isAuthenticated"
+          @click="handleLoginClick"
+          class="px-4 sm:px-6 py-2 sm:py-2.5 bg-gradient-to-r from-orange-500 via-amber-500 to-yellow-500 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 flex items-center space-x-2 text-sm sm:text-base"
+        >
+          <IconBolt class="w-4 h-4 sm:w-5 sm:h-5" />
+          <span class="hidden sm:inline">Connect with Nostr</span>
+          <span class="sm:hidden">Connect</span>
+        </button>
 
         <!-- Post-Authentication: Show Notifications + Profile -->
-        <template v-else>
+        <template v-if="isAuthenticated">
         <!-- Search - Hidden on mobile, shown on tablet+ -->
 <!--        <div class="relative hidden md:block">-->
 <!--          <input-->
