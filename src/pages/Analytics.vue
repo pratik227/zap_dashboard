@@ -635,6 +635,7 @@ const formatEngagementNumber = (num) => {
     v-if="analyticsData.length === 0 && !isAuthenticated"
     @connect-nostr="() => document.dispatchEvent(new Event('nlLaunch'))"
     @show-help="$emit('show-help')"
+    @go-to-content="$emit('change-page', 'content')"
   />
 
   <div v-else class="space-y-6">

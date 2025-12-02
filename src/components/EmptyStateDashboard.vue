@@ -69,46 +69,6 @@ const handleShowHelp = () => {
       </div>
     </div>
 
-    <!-- Preview Section -->
-    <div class="max-w-4xl mx-auto bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl border border-gray-200 p-8 mb-8">
-      <div class="flex items-center justify-between mb-6">
-        <h3 class="text-lg font-semibold text-gray-900">Your Dashboard Preview</h3>
-        <span class="text-sm text-gray-500 bg-white px-3 py-1 rounded-full border border-gray-200">Example</span>
-      </div>
-
-      <!-- Mock Stats -->
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div class="bg-white rounded-xl p-4 border border-gray-200">
-          <div class="text-xs text-gray-500 mb-1">Total Zaps</div>
-          <div class="text-2xl font-bold text-gray-400">0</div>
-          <div class="text-xs text-gray-400 mt-1">Connect to track</div>
-        </div>
-        <div class="bg-white rounded-xl p-4 border border-gray-200">
-          <div class="text-xs text-gray-500 mb-1">Total Earned</div>
-          <div class="text-2xl font-bold text-gray-400">0 sats</div>
-          <div class="text-xs text-gray-400 mt-1">Start earning</div>
-        </div>
-        <div class="bg-white rounded-xl p-4 border border-gray-200">
-          <div class="text-xs text-gray-500 mb-1">Supporters</div>
-          <div class="text-2xl font-bold text-gray-400">0</div>
-          <div class="text-xs text-gray-400 mt-1">Build audience</div>
-        </div>
-        <div class="bg-white rounded-xl p-4 border border-gray-200">
-          <div class="text-xs text-gray-500 mb-1">Avg Zap</div>
-          <div class="text-2xl font-bold text-gray-400">0 sats</div>
-          <div class="text-xs text-gray-400 mt-1">Coming soon</div>
-        </div>
-      </div>
-
-      <!-- Mock Chart -->
-      <div class="bg-white rounded-xl p-6 border border-gray-200">
-        <div class="text-sm font-medium text-gray-700 mb-4">7 Day Activity</div>
-        <div class="h-32 flex items-end justify-around space-x-2">
-          <div v-for="i in 7" :key="i" class="flex-1 bg-gray-200 rounded-t opacity-40" :style="{ height: `${20 + Math.random() * 60}%` }"></div>
-        </div>
-      </div>
-    </div>
-
     <!-- CTA Section -->
     <div class="max-w-3xl mx-auto">
       <div class="bg-gradient-to-br from-orange-500 via-amber-500 to-yellow-500 rounded-2xl p-8 text-white text-center shadow-xl">

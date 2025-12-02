@@ -1,12 +1,12 @@
 <script setup>
 import { computed, inject, ref } from 'vue'
 import { generateAvatar } from '../utils/avatarGenerator.js'
-import { 
-  IconBolt, 
-  IconFileText, 
-  IconMessageCircle, 
-  IconRepeat, 
-  IconDeviceMobile, 
+import {
+  IconBolt,
+  IconFileText,
+  IconMessageCircle,
+  IconRepeat,
+  IconDeviceMobile,
   IconUser,
   IconWallet,
   IconAlertCircle,
@@ -14,7 +14,11 @@ import {
   IconFilter,
   IconX,
   IconChevronDown,
-  IconTrash
+  IconTrash,
+  IconInfoCircle,
+  IconUsers,
+  IconHeart,
+  IconBulb
 } from '@iconify-prerendered/vue-tabler'
 import { filterZapsByTimeRange } from '../utils/timeFilter.js'
 import ZapEventModal from '../components/ZapEventModal.vue'
@@ -504,24 +508,160 @@ const formatAmount = (amount) => {
       <SkeletonList v-if="isInitialLoading" :items="5" />
 
       <!-- Empty State -->
-      <div v-else-if="filteredZaps.length === 0" class="text-center py-12">
-        <div class="text-gray-400 mb-4">
-          <svg class="w-16 h-16 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-          </svg>
+      <div v-else-if="filteredZaps.length === 0" class="max-w-3xl mx-auto">
+        <!-- Filtered Results Empty -->
+        <div v-if="hasActiveFilters" class="text-center py-12">
+          <div class="text-gray-400 mb-4">
+            <svg class="w-16 h-16 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
+          <h3 class="text-xl font-semibold text-gray-900 mb-2">No Results Found</h3>
+          <p class="text-gray-600 mb-6">
+            No zaps match your current search or filter criteria
+          </p>
+          <button
+            @click="clearAllFilters"
+            class="px-6 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors font-medium"
+          >
+            Clear All Filters
+          </button>
         </div>
-        <h3 class="text-lg font-semibold text-gray-300 mb-2">No {{ connectionStatus.dataLabel }} found</h3>
-        <p class="text-gray-500 mb-4">
-          <span v-if="hasActiveFilters">Try adjusting your search or filters</span>
-          <span v-else>{{ connectionStatus.emptyMessage }}</span>
-        </p>
-        <button 
-          v-if="hasActiveFilters"
-          @click="clearAllFilters" 
-          class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-        >
-          Clear Filters
-        </button>
+
+        <!-- No Zaps Yet - Comprehensive Guide -->
+        <div v-else class="py-8">
+          <div class="text-center mb-8">
+            <div class="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-purple-400 to-pink-500 rounded-3xl shadow-lg mb-6">
+              <IconBolt class="w-10 h-10 text-white" />
+            </div>
+            <h3 class="text-2xl font-bold text-gray-900 mb-3">No Zaps Received Yet</h3>
+            <p class="text-lg text-gray-600">
+              Your feed is empty because you haven't received any zaps. Let's get you started!
+            </p>
+          </div>
+
+          <!-- Why Empty -->
+          <div class="bg-blue-50 border-2 border-blue-200 rounded-2xl p-6 mb-8">
+            <div class="flex items-start space-x-4">
+              <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                <IconInfoCircle class="w-6 h-6 text-blue-600" />
+              </div>
+              <div>
+                <h4 class="text-lg font-semibold text-gray-900 mb-2">Why is this empty?</h4>
+                <p class="text-gray-700 leading-relaxed">
+                  This feed will show all the zaps (Lightning payments) you receive on your Nostr posts and content.
+                  Once people start zapping your content, you'll see them appear here in real-time.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Action Steps -->
+          <div class="space-y-4 mb-8">
+            <h4 class="text-xl font-bold text-gray-900 text-center mb-6">How to Start Receiving Zaps</h4>
+
+            <div class="bg-white rounded-2xl border-2 border-gray-200 p-6 hover:border-purple-300 transition-all">
+              <div class="flex items-start space-x-4">
+                <div class="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center flex-shrink-0 font-bold text-purple-600">
+                  1
+                </div>
+                <div class="flex-1">
+                  <h5 class="font-semibold text-gray-900 mb-2">Add a Lightning Address to Your Profile</h5>
+                  <p class="text-gray-600 text-sm mb-3">
+                    Get a Lightning address from Alby, Wallet of Satoshi, Zeus, or Strike. Add it to your Nostr profile so people can zap you.
+                  </p>
+                  <div class="flex items-center space-x-2 text-sm text-purple-600">
+                    <IconBolt class="w-4 h-4" />
+                    <span>Required to receive zaps</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-white rounded-2xl border-2 border-gray-200 p-6 hover:border-purple-300 transition-all">
+              <div class="flex items-start space-x-4">
+                <div class="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center flex-shrink-0 font-bold text-purple-600">
+                  2
+                </div>
+                <div class="flex-1">
+                  <h5 class="font-semibold text-gray-900 mb-2">Create Valuable Content</h5>
+                  <p class="text-gray-600 text-sm mb-3">
+                    Post insightful notes, write articles, share helpful information, or create entertaining content. The more value you provide, the more likely people are to support you with zaps.
+                  </p>
+                  <button
+                    @click="$emit('change-page', 'content')"
+                    class="inline-flex items-center space-x-2 text-sm text-purple-600 hover:text-purple-700 font-medium"
+                  >
+                    <IconFileText class="w-4 h-4" />
+                    <span>Create content now →</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-white rounded-2xl border-2 border-gray-200 p-6 hover:border-purple-300 transition-all">
+              <div class="flex items-start space-x-4">
+                <div class="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center flex-shrink-0 font-bold text-purple-600">
+                  3
+                </div>
+                <div class="flex-1">
+                  <h5 class="font-semibold text-gray-900 mb-2">Share on Nostr Network</h5>
+                  <p class="text-gray-600 text-sm mb-3">
+                    Post your content to Nostr using clients like Primal, Damus, Amethyst, or Nostrudel. Use relevant hashtags and engage with your audience.
+                  </p>
+                  <div class="flex items-center space-x-2 text-sm text-purple-600">
+                    <IconUsers class="w-4 h-4" />
+                    <span>Build your audience</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-white rounded-2xl border-2 border-gray-200 p-6 hover:border-purple-300 transition-all">
+              <div class="flex items-start space-x-4">
+                <div class="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center flex-shrink-0 font-bold text-purple-600">
+                  4
+                </div>
+                <div class="flex-1">
+                  <h5 class="font-semibold text-gray-900 mb-2">Engage & Support Others</h5>
+                  <p class="text-gray-600 text-sm mb-3">
+                    Reply to posts, join conversations, and zap content you enjoy. Building genuine connections and supporting others often leads to reciprocal support.
+                  </p>
+                  <div class="flex items-center space-x-2 text-sm text-purple-600">
+                    <IconHeart class="w-4 h-4" />
+                    <span>Community matters</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tips -->
+          <div class="bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-200 rounded-2xl p-6">
+            <h5 class="font-semibold text-gray-900 mb-4 flex items-center space-x-2">
+              <IconBulb class="w-5 h-5 text-amber-500" />
+              <span>Pro Tips</span>
+            </h5>
+            <ul class="space-y-2 text-sm text-gray-700">
+              <li class="flex items-start space-x-2">
+                <span class="text-purple-600 font-bold mt-0.5">•</span>
+                <span>Quality beats quantity - one great post is better than ten mediocre ones</span>
+              </li>
+              <li class="flex items-start space-x-2">
+                <span class="text-purple-600 font-bold mt-0.5">•</span>
+                <span>Be authentic and share your unique perspective</span>
+              </li>
+              <li class="flex items-start space-x-2">
+                <span class="text-purple-600 font-bold mt-0.5">•</span>
+                <span>Consistency helps - regular posting builds an engaged audience</span>
+              </li>
+              <li class="flex items-start space-x-2">
+                <span class="text-purple-600 font-bold mt-0.5">•</span>
+                <span>It takes time - don't get discouraged if zaps don't come immediately</span>
+              </li>
+            </ul>
+          </div>
+        </div>
       </div>
 
       <!-- Feed View -->
