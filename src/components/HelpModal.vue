@@ -100,8 +100,7 @@ const slides = [
   },
   {
     id: 'zapgoals',
-    title: 'Set and Track Zap Goals',
-    image: '/ZapTracker_campaigns.png'
+    title: 'Set and Track Zap Goals'
   },
   {
     id: 'faq',
@@ -316,69 +315,94 @@ const handleViewOnly = () => {
               </div>
             </div>
 
-            <!-- Page 7: Campaigns - Custom Empty State Style -->
+            <!-- Page 7: Campaigns - Empty State Preview Style -->
             <div v-else-if="currentSlideData.id === 'zapgoals'" class="space-y-6">
-              <!-- Screenshot -->
-              <div v-if="currentSlideData.image" class="flex justify-center mb-8">
-                <div class="relative max-w-4xl w-full">
-                  <div class="absolute inset-0 bg-gradient-to-r from-orange-400 to-amber-400 rounded-2xl blur-3xl opacity-20"></div>
-                  <img
-                    :src="currentSlideData.image"
-                    :alt="currentSlideData.title"
-                    class="relative w-full h-auto rounded-2xl shadow-2xl border-4 border-white"
-                  />
+              <div class="text-center mb-6">
+                <div class="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-orange-400 to-red-500 rounded-3xl shadow-lg mb-4">
+                  <IconTarget class="w-10 h-10 text-white" />
                 </div>
-              </div>
-
-              <div class="text-center max-w-3xl mx-auto">
-                <h2 class="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
+                <h2 class="text-3xl sm:text-4xl font-bold text-gray-900 mb-3">
                   {{ currentSlideData.title }}
                 </h2>
-                <p class="text-lg text-gray-600 leading-relaxed mb-8">
+                <p class="text-lg text-gray-600 leading-relaxed max-w-2xl mx-auto">
                   Create fundraising campaigns with customizable goals. Share campaign links, track progress in real-time, and celebrate milestones with your community.
                 </p>
+              </div>
 
-                <!-- Campaign Features -->
-                <div class="grid md:grid-cols-2 gap-4 text-left">
-                  <div class="bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl p-5 border border-orange-200">
-                    <div class="flex items-start space-x-3">
-                      <IconTarget class="w-6 h-6 text-orange-600 flex-shrink-0 mt-1" />
-                      <div>
-                        <h4 class="font-bold text-gray-900 mb-1">Campaign Creation</h4>
-                        <p class="text-sm text-gray-600">Set goals and customize your fundraising page</p>
+              <!-- Campaign Ideas Grid -->
+              <div class="max-w-3xl mx-auto">
+                <h4 class="text-xl font-bold text-gray-900 text-center mb-6">Great Campaign Ideas</h4>
+
+                <div class="grid md:grid-cols-2 gap-4 mb-6">
+                  <div class="bg-white rounded-xl border-2 border-gray-200 p-5 hover:border-orange-300 transition-all">
+                    <div class="flex items-start space-x-3 mb-3">
+                      <div class="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <IconFileText class="w-5 h-5 text-orange-600" />
                       </div>
+                      <h5 class="font-semibold text-gray-900">Content Creation</h5>
                     </div>
+                    <p class="text-sm text-gray-600">
+                      Fund a podcast series, video project, or article collection
+                    </p>
                   </div>
 
-                  <div class="bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl p-5 border border-orange-200">
-                    <div class="flex items-start space-x-3">
-                      <IconBolt class="w-6 h-6 text-orange-600 flex-shrink-0 mt-1" />
-                      <div>
-                        <h4 class="font-bold text-gray-900 mb-1">Real-Time Tracking</h4>
-                        <p class="text-sm text-gray-600">Monitor progress and supporter contributions live</p>
+                  <div class="bg-white rounded-xl border-2 border-gray-200 p-5 hover:border-orange-300 transition-all">
+                    <div class="flex items-start space-x-3 mb-3">
+                      <div class="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <IconBolt class="w-5 h-5 text-orange-600" />
                       </div>
+                      <h5 class="font-semibold text-gray-900">Open Source Project</h5>
                     </div>
+                    <p class="text-sm text-gray-600">
+                      Raise funds to build tools, apps, or contribute to Nostr
+                    </p>
                   </div>
 
-                  <div class="bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl p-5 border border-orange-200">
-                    <div class="flex items-start space-x-3">
-                      <IconChartBar class="w-6 h-6 text-orange-600 flex-shrink-0 mt-1" />
-                      <div>
-                        <h4 class="font-bold text-gray-900 mb-1">Progress Analytics</h4>
-                        <p class="text-sm text-gray-600">Detailed insights on campaign performance</p>
+                  <div class="bg-white rounded-xl border-2 border-gray-200 p-5 hover:border-orange-300 transition-all">
+                    <div class="flex items-start space-x-3 mb-3">
+                      <div class="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <IconCalendar class="w-5 h-5 text-orange-600" />
                       </div>
+                      <h5 class="font-semibold text-gray-900">Event or Meetup</h5>
                     </div>
+                    <p class="text-sm text-gray-600">
+                      Cover costs for Bitcoin or Nostr conferences and workshops
+                    </p>
                   </div>
 
-                  <div class="bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl p-5 border border-orange-200">
-                    <div class="flex items-start space-x-3">
-                      <IconUsers class="w-6 h-6 text-orange-600 flex-shrink-0 mt-1" />
-                      <div>
-                        <h4 class="font-bold text-gray-900 mb-1">Community Engagement</h4>
-                        <p class="text-sm text-gray-600">Share links and engage with your supporters</p>
+                  <div class="bg-white rounded-xl border-2 border-gray-200 p-5 hover:border-orange-300 transition-all">
+                    <div class="flex items-start space-x-3 mb-3">
+                      <div class="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <IconUsers class="w-5 h-5 text-orange-600" />
                       </div>
+                      <h5 class="font-semibold text-gray-900">Community Support</h5>
                     </div>
+                    <p class="text-sm text-gray-600">
+                      Help with education or support causes that matter
+                    </p>
                   </div>
+                </div>
+
+                <!-- Success Tips -->
+                <div class="bg-gradient-to-br from-orange-50 to-amber-50 border-2 border-orange-200 rounded-xl p-5">
+                  <h5 class="font-semibold text-gray-900 mb-3 flex items-center space-x-2">
+                    <IconChartBar class="w-5 h-5 text-orange-600" />
+                    <span>Make Your Campaign Successful</span>
+                  </h5>
+                  <ul class="space-y-2 text-sm text-gray-700">
+                    <li class="flex items-start space-x-2">
+                      <span class="text-orange-600 font-bold mt-0.5">•</span>
+                      <span>Set a specific target amount and explain what funds will be used for</span>
+                    </li>
+                    <li class="flex items-start space-x-2">
+                      <span class="text-orange-600 font-bold mt-0.5">•</span>
+                      <span>Share why this matters and how it will benefit the community</span>
+                    </li>
+                    <li class="flex items-start space-x-2">
+                      <span class="text-orange-600 font-bold mt-0.5">•</span>
+                      <span>Keep supporters informed about progress and milestones</span>
+                    </li>
+                  </ul>
                 </div>
               </div>
             </div>
@@ -478,10 +502,43 @@ const handleViewOnly = () => {
                 </button>
               </div>
 
-              <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 max-w-2xl mx-auto">
-                <p class="text-sm text-gray-700">
-                  <strong>Read-Only Mode:</strong> Explore ZapTracker by entering any public Nostr npub to view their analytics and activity.
-                </p>
+              <div class="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-300 rounded-xl p-6 max-w-2xl mx-auto">
+                <div class="flex items-start space-x-3 mb-4">
+                  <IconEye class="w-6 h-6 text-blue-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <h4 class="font-bold text-gray-900 mb-2">How to Use Read-Only Mode</h4>
+                    <p class="text-sm text-gray-700 mb-3">
+                      Click "Read-Only Mode" above and follow these steps in the login modal:
+                    </p>
+                  </div>
+                </div>
+
+                <div class="space-y-2 ml-9">
+                  <div class="flex items-center space-x-3 text-sm">
+                    <div class="w-6 h-6 bg-blue-200 rounded-full flex items-center justify-center flex-shrink-0">
+                      <span class="text-xs font-bold text-blue-700">1</span>
+                    </div>
+                    <span class="text-gray-700">Click <strong>"Login"</strong></span>
+                  </div>
+                  <div class="flex items-center space-x-3 text-sm">
+                    <div class="w-6 h-6 bg-blue-200 rounded-full flex items-center justify-center flex-shrink-0">
+                      <span class="text-xs font-bold text-blue-700">2</span>
+                    </div>
+                    <span class="text-gray-700">Click <strong>"Read only"</strong></span>
+                  </div>
+                  <div class="flex items-center space-x-3 text-sm">
+                    <div class="w-6 h-6 bg-blue-200 rounded-full flex items-center justify-center flex-shrink-0">
+                      <span class="text-xs font-bold text-blue-700">3</span>
+                    </div>
+                    <span class="text-gray-700">Enter any public <strong>npub</strong> to explore</span>
+                  </div>
+                </div>
+
+                <div class="mt-4 pt-4 border-t border-blue-200">
+                  <p class="text-xs text-gray-600 italic">
+                    Tip: Try a creator's npub to see their earnings, zaps, and analytics!
+                  </p>
+                </div>
               </div>
 
               <div class="mt-6">
