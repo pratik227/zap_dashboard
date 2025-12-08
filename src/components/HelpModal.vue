@@ -14,7 +14,8 @@ import {
   IconUsers,
   IconEye,
   IconLogin,
-  IconInfoCircle
+  IconInfoCircle,
+  IconDashboard
 } from '@iconify-prerendered/vue-tabler'
 
 const props = defineProps({
@@ -50,10 +51,21 @@ const slides = [
     subtitle: 'Get set up in just a few minutes'
   },
   {
+    id: 'dashboard',
+    title: 'Your Command Center',
+    description: 'Get a comprehensive overview of your Lightning Network activity. Track your zaps, earnings, and engagement all in one beautiful dashboard.',
+    image: '/Onboarding-Pictures/dashboard.png',
+    features: [
+      { icon: IconDashboard, text: 'Real-time overview' },
+      { icon: IconBolt, text: 'Earnings at a glance' },
+      { icon: IconChartBar, text: 'Quick insights' }
+    ]
+  },
+  {
     id: 'analytics',
     title: 'Powerful Analytics',
     description: 'Get real-time insights into your zap activity, earnings trends, and supporter engagement. Visualize your growth with beautiful charts and detailed metrics.',
-    image: '/analytics.png',
+    image: '/Onboarding-Pictures/analytics.png',
     features: [
       { icon: IconChartBar, text: 'Real-time zap tracking' },
       { icon: IconBolt, text: 'Earnings analytics' },
@@ -61,32 +73,10 @@ const slides = [
     ]
   },
   {
-    id: 'wallet',
-    title: 'Lightning Wallet Integration',
-    description: 'Connect your Lightning wallet via NWC (Nostr Wallet Connect) for seamless payment tracking and management. Monitor your balance and transactions in real-time.',
-    image: '/wallet.png',
-    features: [
-      { icon: IconWallet, text: 'NWC wallet support' },
-      { icon: IconBolt, text: 'Balance tracking' },
-      { icon: IconTarget, text: 'Transaction history' }
-    ]
-  },
-  {
-    id: 'content',
-    title: 'Long-Form Content & Short Notes',
-    description: 'Publish long-form articles and short notes directly to Nostr. Monetize your content with zaps and track which posts resonate with your audience.',
-    image: '/dashboard.png',
-    features: [
-      { icon: IconFileText, text: 'Long-form articles (NIP-23)' },
-      { icon: IconMessageCircle, text: 'Short notes & tweets' },
-      { icon: IconBolt, text: 'Content monetization' }
-    ]
-  },
-  {
     id: 'zapfeed',
     title: 'Zap Feed & Profile Cards',
     description: 'See every zap in real-time with detailed profile cards. Discover who supports you, track top contributors, and engage with your community effectively.',
-    image: '/zaps.png',
+    image: '/Onboarding-Pictures/zapfeed.png',
     features: [
       { icon: IconBolt, text: 'Live zap feed' },
       { icon: IconUsers, text: 'Supporter profiles' },
@@ -94,10 +84,21 @@ const slides = [
     ]
   },
   {
+    id: 'content',
+    title: 'Long-Form Content & Short Notes',
+    description: 'Publish long-form articles and short notes directly to Nostr. Monetize your content with zaps and track which posts resonate with your audience.',
+    images: ['/Onboarding-Pictures/longform.png', '/Onboarding-Pictures/notes.png'],
+    features: [
+      { icon: IconFileText, text: 'Long-form articles (NIP-23)' },
+      { icon: IconMessageCircle, text: 'Short notes & tweets' },
+      { icon: IconBolt, text: 'Content monetization' }
+    ]
+  },
+  {
     id: 'audience',
     title: 'Stay Connected with Your Audience',
     description: 'Build relationships with your supporters through integrated chat and audience insights. Track follower growth and engagement patterns to optimize your content strategy.',
-    image: '/chat_zap_2.png',
+    images: ['/Onboarding-Pictures/audiance.png', '/Onboarding-Pictures/chat.png'],
     features: [
       { icon: IconUsers, text: 'Audience analytics' },
       { icon: IconMessageCircle, text: 'Integrated chat' },
@@ -106,7 +107,8 @@ const slides = [
   },
   {
     id: 'zapgoals',
-    title: 'Set and Track Zap Goals'
+    title: 'Set and Track Zap Goals',
+    image: '/Onboarding-Pictures/campaigns.png'
   },
   {
     id: 'faq',
@@ -364,13 +366,30 @@ const handleViewOnly = () => {
                 </p>
               </div>
 
-              <!-- Screenshot -->
+              <!-- Single Screenshot -->
               <div v-if="currentSlideData.image" class="flex justify-center my-8">
                 <div class="relative max-w-3xl w-full">
                   <div class="absolute inset-0 bg-gradient-to-r from-orange-400 to-amber-400 rounded-2xl blur-2xl opacity-10"></div>
                   <img
                     :src="currentSlideData.image"
                     :alt="currentSlideData.title"
+                    class="relative w-full h-auto rounded-2xl shadow-lg border border-gray-200"
+                    loading="lazy"
+                  />
+                </div>
+              </div>
+
+              <!-- Dual Screenshots Grid -->
+              <div v-else-if="currentSlideData.images" class="grid grid-cols-1 md:grid-cols-2 gap-4 my-8 max-w-4xl mx-auto">
+                <div
+                  v-for="(image, index) in currentSlideData.images"
+                  :key="index"
+                  class="relative"
+                >
+                  <div class="absolute inset-0 bg-gradient-to-r from-orange-400 to-amber-400 rounded-2xl blur-2xl opacity-10"></div>
+                  <img
+                    :src="image"
+                    :alt="`${currentSlideData.title} ${index + 1}`"
                     class="relative w-full h-auto rounded-2xl shadow-lg border border-gray-200"
                     loading="lazy"
                   />
@@ -404,6 +423,19 @@ const handleViewOnly = () => {
                 <p class="text-base text-gray-600 leading-relaxed max-w-2xl mx-auto">
                   Create fundraising campaigns with customizable goals. Share campaign links, track progress in real-time, and celebrate milestones with your community.
                 </p>
+              </div>
+
+              <!-- Screenshot -->
+              <div v-if="currentSlideData.image" class="flex justify-center my-8">
+                <div class="relative max-w-3xl w-full">
+                  <div class="absolute inset-0 bg-gradient-to-r from-orange-400 to-amber-400 rounded-2xl blur-2xl opacity-10"></div>
+                  <img
+                    :src="currentSlideData.image"
+                    :alt="currentSlideData.title"
+                    class="relative w-full h-auto rounded-2xl shadow-lg border border-gray-200"
+                    loading="lazy"
+                  />
+                </div>
               </div>
 
               <!-- Campaign Ideas Grid -->

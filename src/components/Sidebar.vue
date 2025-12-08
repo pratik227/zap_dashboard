@@ -17,7 +17,8 @@ import {
   IconActivity,
   IconCoins,
   IconSparkles,
-  IconVideo
+  IconVideo,
+  IconMessageCircle
 } from '@iconify-prerendered/vue-tabler'
 
 const currentPage = inject('currentPage')
@@ -29,6 +30,7 @@ const emit = defineEmits(['change-page', 'show-help'])
 const { isAuthenticated } = useNostrAuth()
 const dashboardSubmenuOpen = ref(true)
 const studioSubmenuOpen = ref(false)
+const audienceSubmenuOpen = ref(false)
 
 const totalZaps = computed(() => {
   return combinedZapData.value.filter(zap => zap.eventId).length
@@ -43,12 +45,16 @@ const totalSats = computed(() => {
 const checkAndOpenParentMenu = () => {
   const dashboardPages = ['dashboard', 'lightning-explorer']
   const studioPages = ['content', 'notes', 'campaigns']
+  const audiencePages = ['audience', 'chat-zaps']
 
   if (dashboardPages.includes(currentPage.value)) {
     dashboardSubmenuOpen.value = true
   }
   if (studioPages.includes(currentPage.value)) {
     studioSubmenuOpen.value = true
+  }
+  if (audiencePages.includes(currentPage.value)) {
+    audienceSubmenuOpen.value = true
   }
 }
 
@@ -83,7 +89,18 @@ const menuItems = [
       { id: 'campaigns', label: 'Campaigns', icon: IconTarget }
     ]
   },
-  { id: 'audience', label: 'Audience', icon: IconUsers, requiresAuth: true },
+  {
+    id: 'audience',
+    label: 'Audience',
+    icon: IconUsers,
+    requiresAuth: true,
+    hasSubmenu: true,
+    submenuKey: 'audience',
+    submenuItems: [
+      { id: 'audience', label: 'Your Audience', icon: IconUsers },
+      { id: 'chat-zaps', label: 'Chat', icon: IconMessageCircle }
+    ]
+  },
   { id: 'calendar', label: 'Calendar', icon: IconCalendar, requiresAuth: true },
   { id: 'settings', label: 'Settings', icon: IconSettings, requiresAuth: false }
 ]
@@ -93,12 +110,15 @@ const toggleSubmenu = (submenuKey) => {
     dashboardSubmenuOpen.value = !dashboardSubmenuOpen.value
   } else if (submenuKey === 'studio') {
     studioSubmenuOpen.value = !studioSubmenuOpen.value
+  } else if (submenuKey === 'audience') {
+    audienceSubmenuOpen.value = !audienceSubmenuOpen.value
   }
 }
 
 const isSubmenuOpen = (submenuKey) => {
   if (submenuKey === 'dashboard') return dashboardSubmenuOpen.value
   if (submenuKey === 'studio') return studioSubmenuOpen.value
+  if (submenuKey === 'audience') return audienceSubmenuOpen.value
   return false
 }
 
