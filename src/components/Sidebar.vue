@@ -192,7 +192,7 @@ watch(currentPage, () => {
               v-if="item.hasSubmenu && (isAuthenticated || item.submenuKey === 'dashboard')"
               :is="isSubmenuOpen(item.submenuKey) ? IconChevronDown : IconChevronRight"
               :class="[
-                'w-4 h-4 flex-shrink-0 transition-transform duration-200',
+                'w-4 h-4 flex-shrink-0 ml-2 transition-transform duration-200',
                 (currentPage === item.id || isParentActive(item)) ? 'text-orange-500' : 'text-gray-400'
               ]"
             />
