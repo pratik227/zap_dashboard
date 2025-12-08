@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
-import { lightningNetworkService } from '../../utils/network/lightningNetworkService.js'
+import { lightningNetworkService } from '../../services/lightningNetworkService.js'
 import {
   IconBolt,
   IconNetwork,
