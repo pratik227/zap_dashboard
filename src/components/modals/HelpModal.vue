@@ -424,14 +424,11 @@ const handleViewOnly = () => {
 
             <!-- Page 8: Campaigns - Empty State Preview Style -->
             <div v-else-if="currentSlideData.id === 'zapgoals'" class="space-y-6">
-              <div class="text-center mb-6">
-                <div class="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-orange-500 to-amber-500 rounded-2xl mb-4">
-                  <IconTarget class="w-8 h-8 text-white" />
-                </div>
+              <div class="text-center">
                 <h2 class="text-3xl sm:text-4xl font-semibold text-gray-900 mb-3 tracking-tight">
                   {{ currentSlideData.title }}
                 </h2>
-                <p class="text-base text-gray-600 leading-relaxed max-w-2xl mx-auto">
+                <p class="text-base text-gray-600 max-w-2xl mx-auto leading-relaxed mb-6">
                   Create fundraising campaigns with customizable goals. Share campaign links, track progress in real-time, and celebrate milestones with your community.
                 </p>
               </div>
