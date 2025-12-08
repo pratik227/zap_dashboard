@@ -244,11 +244,11 @@ const handleShowHelp = () => {
           class="flex items-center gap-3 group"
           title="Support on Geyser"
         >
-          <div class="flex-shrink-0 w-5 h-5 opacity-70 group-hover:opacity-100 transition-opacity duration-300">
+          <div class="flex-shrink-0 w-5 h-5 text-gray-600 opacity-70 group-hover:opacity-100 group-hover:text-gray-900 transition-all duration-300">
             <img
-              src="/geyser-logo/logo-brand.svg"
+              src="/geyser-logo/logo-icon-black.svg"
               alt="Geyser"
-              class="w-full h-full object-contain grayscale brightness-0"
+              class="w-full h-full object-contain"
             />
           </div>
           <span class="text-xs text-gray-600 group-hover:text-gray-900 transition-colors duration-300 font-medium">
