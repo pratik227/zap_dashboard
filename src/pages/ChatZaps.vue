@@ -21,11 +21,11 @@ import {
   IconQrcode
 } from '@iconify-prerendered/vue-tabler'
 import QRCodeVue3 from 'qrcode-vue3'
-import { useNostrChat } from '../composables/useNostrChat.js'
-import { useNostrAuth } from '../composables/useNostrAuth.js'
-import { useNostrConnections } from '../composables/useNostrConnections.js'
+import { useNostrChat } from '../composables/social/useNostrChat.js'
+import { useNostrAuth } from '../composables/auth/useNostrAuth.js'
+import { useNostrConnections } from '../composables/core/useNostrConnections.js'
 import * as nip19 from 'nostr-tools/nip19'
-import UserProfileModal from '../components/UserProfileModal.vue'
+import UserProfileModal from '../components/modals/UserProfileModal.vue'
 
 // Authentication
 const { isAuthenticated, currentUser, userProfile, login } = useNostrAuth()
@@ -346,15 +346,28 @@ onUnmounted(() => {
 
         <!-- Connections List - Scrollable -->
         <div class="flex-1 overflow-y-auto min-h-0 max-h-[calc(100%-140px)]">
-          <div v-if="filteredConnections.length === 0" class="p-4 sm:p-6 text-center text-gray-500">
-            <IconMessageCircle class="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-3 text-gray-300" />
-            <p class="text-sm sm:text-base mb-2">No connections found</p>
-            <button
-              @click="showNewConnectionModal = true"
-              class="touch-target text-orange-600 hover:text-orange-700 text-sm font-medium"
-            >
-              Add your first connection
-            </button>
+          <div v-if="filteredConnections.length === 0" class="p-4 sm:p-6">
+            <div class="text-center mb-6">
+              <div class="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-purple-400 to-pink-500 rounded-2xl shadow-lg mb-4">
+                <IconMessageCircle class="w-8 h-8 text-white" />
+              </div>
+              <h4 class="text-lg font-bold text-gray-900 mb-2">Start Messaging</h4>
+              <p class="text-sm text-gray-600 mb-4">
+                Connect with people to send private Lightning zaps with messages
+              </p>
+              <button
+                @click="showNewConnectionModal = true"
+                class="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-6 py-3 rounded-xl font-semibold hover:shadow-lg transform hover:scale-105 transition-all duration-200 inline-flex items-center space-x-2"
+              >
+                <IconPlus class="w-5 h-5" />
+                <span>Add Connection</span>
+              </button>
+            </div>
+            <div class="bg-blue-50 border border-blue-200 rounded-xl p-4">
+              <p class="text-xs text-gray-700 leading-relaxed">
+                <strong>Tip:</strong> ChatZaps let you send Lightning payments with private messages. Add someone's Nostr pubkey or npub to start!
+              </p>
+            </div>
           </div>
 
           <div

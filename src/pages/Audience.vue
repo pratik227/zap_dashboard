@@ -27,22 +27,22 @@ import {
   IconStar,
   IconTarget,
   IconGlobe,
-  IconWifi,
-  IconWifiOff
+  IconInfoCircle,
+  IconBulb
 } from '@iconify-prerendered/vue-tabler'
-import { useNostrAuth } from '../composables/useNostrAuth.js'
-import { useAudience } from '../composables/useAudience.js'
-import { nostrRelayManager } from '../utils/nostrRelayManager.js'
+import { useNostrAuth } from '../composables/auth/useNostrAuth.js'
+import { useAudience } from '../composables/audience/useAudience.js'
+import { nostrRelayManager } from '../utils/network/nostrRelayManager.js'
 import * as nip19 from 'nostr-tools/nip19'
 import { verifyEvent } from 'nostr-tools/pure'
-import ProfileCard from '../components/ProfileCard.vue'
-import ProfileModal from '../components/ProfileModal.vue'
-import FollowListModal from '../components/FollowListModal.vue'
-import FollowListCard from '../components/FollowListCard.vue'
-import AudienceOverview from '../components/AudienceOverview.vue'
-import FollowListManager from '../components/FollowListManager.vue'
-import SuggestionsTab from '../components/SuggestionsTab.vue'
-import BadgeDetailModal from '../components/BadgeDetailModal.vue'
+import ProfileCard from '../components/profile/ProfileCard.vue'
+import ProfileModal from '../components/modals/ProfileModal.vue'
+import FollowListModal from '../components/audience/FollowListModal.vue'
+import FollowListCard from '../components/audience/FollowListCard.vue'
+import AudienceOverview from '../components/audience/AudienceOverview.vue'
+import FollowListManager from '../components/audience/FollowListManager.vue'
+import SuggestionsTab from '../components/shared/SuggestionsTab.vue'
+import BadgeDetailModal from '../components/badges/BadgeDetailModal.vue'
 
 // Authentication
 const { isAuthenticated, currentUser, userProfile, login } = useNostrAuth()
@@ -89,7 +89,6 @@ const showListModal = ref(false)
 const selectedList = ref(null)
 const showBulkActions = ref(false)
 const selectedUsers = ref(new Set())
-const showRelayStatus = ref(false)
 const selectedBadge = ref(null)
 const showBadgeModal = ref(false)
 
@@ -144,7 +143,7 @@ const filteredFollowers = computed(() => {
 
 const filteredSuggestions = computed(() => {
   let suggestions = suggestedUsers.value
-  
+
   // Apply search filter
   if (searchQuery.value) {
     const query = searchQuery.value.toLowerCase()
@@ -154,17 +153,13 @@ const filteredSuggestions = computed(() => {
       suggestion.pubkey.toLowerCase().includes(query)
     )
   }
-  
+
   // Limit results if not showing all
   if (!showAllSuggestions.value) {
     suggestions = suggestions.slice(0, 12)
   }
-  
-  return suggestions
-})
 
-const relayStats = computed(() => {
-  return nostrRelayManager.getConnectionStats()
+  return suggestions
 })
 
 // Generate smart suggestions based on mutual follows
@@ -502,73 +497,6 @@ watch(following, (newFollowing, oldFollowing) => {
 
     <!-- Authenticated Content -->
     <div v-else>
-      <!-- Header with Relay Status -->
-      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-<!--          <h1 class="text-2xl font-bold text-gray-900 mb-2 flex items-center space-x-2">-->
-<!--            <IconUsers class="w-6 h-6 text-orange-600" />-->
-<!--            <span>Audience</span>-->
-<!--          </h1>-->
-<!--          <p class="text-gray-600">-->
-<!--            Manage your Nostr network and create follow lists-->
-<!--          </p>-->
-        </div>
-
-        <!-- Relay Status & Actions -->
-        <div class="flex items-center space-x-3">
-          <!-- Relay Status Pill -->
-          <div class="relative">
-            <button
-              class="mb-4"
-              @click="showRelayStatus = !showRelayStatus"
-              :class="[
-                'flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200',
-                relayStats.connected > 0 
-                  ? 'bg-green-50 text-green-700 border border-green-200 hover:bg-green-100' 
-                  : 'bg-red-50 text-red-700 border border-red-200 hover:bg-red-100'
-              ]"
-            >
-              <IconWifi v-if="relayStats.connected > 0" class="w-4 h-4" />
-              <IconWifiOff v-else class="w-4 h-4" />
-              <span>{{ relayStats.connected }}/{{ relayStats.total }} relays</span>
-              <IconChevronDown :class="['w-3 h-3 transition-transform', showRelayStatus ? 'rotate-180' : '']" />
-            </button>
-            
-            <!-- Relay Status Dropdown -->
-            <div v-if="showRelayStatus" class="absolute right-0 top-full mt-1 w-64 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-10">
-              <div class="px-3 py-2 border-b border-gray-100">
-                <h4 class="font-medium text-gray-900 text-sm">Relay Status</h4>
-              </div>
-              <div class="px-3 py-2 space-y-1">
-                <div class="flex justify-between text-xs">
-                  <span class="text-gray-600">Connected:</span>
-                  <span class="font-medium text-green-600">{{ relayStats.connected }}</span>
-                </div>
-                <div class="flex justify-between text-xs">
-                  <span class="text-gray-600">Write enabled:</span>
-                  <span class="font-medium text-blue-600">{{ relayStats.writeEnabled }}</span>
-                </div>
-                <div class="flex justify-between text-xs">
-                  <span class="text-gray-600">Read enabled:</span>
-                  <span class="font-medium text-purple-600">{{ relayStats.readEnabled }}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Sync Button -->
-          <!-- Sync Button - Commented out for later proper integration -->
-          <!-- <button
-            @click="refreshFollowing"
-            :disabled="isLoading"
-            class="btn-secondary"
-          >
-            <IconRefresh :class="['w-4 h-4', isLoading ? 'animate-spin' : '']" />
-            <span class="hidden sm:inline">Sync</span>
-          </button> -->
-
-        </div>
-      </div>
 
       <!-- Tab Navigation -->
       <div class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm overflow-hidden">
@@ -670,22 +598,111 @@ watch(following, (newFollowing, oldFollowing) => {
             <p class="text-gray-600">Loading people you follow...</p>
           </div>
 
-          <div v-else-if="filteredFollowing.length === 0" class="text-center py-12">
-            <IconUsers class="w-12 h-12 mx-auto text-gray-300 mb-4" />
-            <h3 class="text-lg font-medium text-gray-900 mb-2">
-              {{ searchQuery ? 'No matching users' : 'Not following anyone yet' }}
-            </h3>
-            <p class="text-gray-600 mb-4">
-              {{ searchQuery ? 'Try adjusting your search terms' : 'Discover and follow interesting people on Nostr' }}
-            </p>
-            <button
-              v-if="!searchQuery"
-              @click="activeTab = 'following'"
-              class="btn-primary"
-            >
-              <IconSearch class="w-4 h-4" />
-              Browse Following
-            </button>
+          <div v-else-if="filteredFollowing.length === 0" class="max-w-2xl mx-auto">
+            <!-- Search No Results -->
+            <div v-if="searchQuery" class="text-center py-12">
+              <IconSearch class="w-12 h-12 mx-auto text-gray-300 mb-4" />
+              <h3 class="text-xl font-semibold text-gray-900 mb-2">No Matching Users</h3>
+              <p class="text-gray-600 mb-4">Try adjusting your search terms</p>
+            </div>
+
+            <!-- Not Following Anyone Yet -->
+            <div v-else class="py-8">
+              <div class="text-center mb-8">
+                <div class="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-purple-400 to-indigo-500 rounded-3xl shadow-lg mb-6">
+                  <IconUsers class="w-10 h-10 text-white" />
+                </div>
+                <h3 class="text-2xl font-bold text-gray-900 mb-3">Build Your Network</h3>
+                <p class="text-lg text-gray-600">
+                  You're not following anyone yet. Let's connect you with interesting people!
+                </p>
+              </div>
+
+              <!-- Why Empty -->
+              <div class="bg-blue-50 border-2 border-blue-200 rounded-2xl p-6 mb-8">
+                <div class="flex items-start space-x-4">
+                  <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <IconInfoCircle class="w-6 h-6 text-blue-600" />
+                  </div>
+                  <div>
+                    <h4 class="text-lg font-semibold text-gray-900 mb-2">Growing Your Audience Starts Here</h4>
+                    <p class="text-gray-700 leading-relaxed">
+                      Following people on Nostr helps you discover content, build relationships, and grow your own audience.
+                      When you support others, they're more likely to discover and support you too.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Action Steps -->
+              <div class="space-y-4 mb-8">
+                <h4 class="text-xl font-bold text-gray-900 text-center mb-6">How to Find People to Follow</h4>
+
+                <div class="bg-white rounded-2xl border-2 border-gray-200 p-6 hover:border-purple-300 transition-all">
+                  <div class="flex items-start space-x-4">
+                    <div class="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center flex-shrink-0 font-bold text-purple-600">
+                      1
+                    </div>
+                    <div class="flex-1">
+                      <h5 class="font-semibold text-gray-900 mb-2">Use Nostr Clients to Discover</h5>
+                      <p class="text-gray-600 text-sm mb-3">
+                        Browse Primal, Damus, Amethyst, or Nostrudel to find users posting interesting content. Look for hashtags you care about and follow the creators.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="bg-white rounded-2xl border-2 border-gray-200 p-6 hover:border-purple-300 transition-all">
+                  <div class="flex items-start space-x-4">
+                    <div class="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center flex-shrink-0 font-bold text-purple-600">
+                      2
+                    </div>
+                    <div class="flex-1">
+                      <h5 class="font-semibold text-gray-900 mb-2">Follow People Who Zap You</h5>
+                      <p class="text-gray-600 text-sm mb-3">
+                        Check your ZapFeed to see who's supporting your content. Following your supporters builds community and encourages more engagement.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="bg-white rounded-2xl border-2 border-gray-200 p-6 hover:border-purple-300 transition-all">
+                  <div class="flex items-start space-x-4">
+                    <div class="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center flex-shrink-0 font-bold text-purple-600">
+                      3
+                    </div>
+                    <div class="flex-1">
+                      <h5 class="font-semibold text-gray-900 mb-2">Join Conversations & Communities</h5>
+                      <p class="text-gray-600 text-sm mb-3">
+                        Engage with posts that interest you. Reply, share thoughts, and follow people whose perspectives you value.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Tips -->
+              <div class="bg-gradient-to-br from-purple-50 to-indigo-50 border-2 border-purple-200 rounded-2xl p-6">
+                <h5 class="font-semibold text-gray-900 mb-4 flex items-center space-x-2">
+                  <IconBulb class="w-5 h-5 text-amber-500" />
+                  <span>Networking Tips</span>
+                </h5>
+                <ul class="space-y-2 text-sm text-gray-700">
+                  <li class="flex items-start space-x-2">
+                    <span class="text-purple-600 font-bold mt-0.5">•</span>
+                    <span>Follow people with similar interests first - quality connections matter more than quantity</span>
+                  </li>
+                  <li class="flex items-start space-x-2">
+                    <span class="text-purple-600 font-bold mt-0.5">•</span>
+                    <span>Engage before you expect engagement - support others to build genuine relationships</span>
+                  </li>
+                  <li class="flex items-start space-x-2">
+                    <span class="text-purple-600 font-bold mt-0.5">•</span>
+                    <span>Start small - follow 10-20 people you genuinely want to hear from, then grow naturally</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
           </div>
 
           <div v-else class="space-y-3">

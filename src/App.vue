@@ -1,14 +1,14 @@
 <script setup>
 import { ref, provide, watch, onMounted, nextTick,computed, onUnmounted } from 'vue'
 import { IconAlertTriangle, IconX } from '@iconify-prerendered/vue-tabler'
-import Sidebar from './components/Sidebar.vue'
+import Sidebar from './components/layout/Sidebar.vue'
 import { IconTarget } from '@iconify-prerendered/vue-tabler'
-import { useContentZaps } from './composables/useContentZaps.js'
-import { generateAvatar } from './utils/avatarGenerator.js'
-import TopBar from './components/TopBar.vue'
+import { useContentZaps } from './composables/content/useContentZaps.js'
+import { generateAvatar } from './utils/profile/avatarGenerator.js'
+import TopBar from './components/layout/TopBar.vue'
 import Dashboard from './pages/Dashboard.vue'
-import { useNostrLongForm } from './composables/useNostrLongForm.js'
-import { useNostrAuth } from './composables/useNostrAuth.js'
+import { useNostrLongForm } from './composables/content/useNostrLongForm.js'
+import { useNostrAuth } from './composables/auth/useNostrAuth.js'
 import ZapFeed from './pages/ZapFeed.vue'
 import Analytics from './pages/Analytics.vue'
 import ChatZaps from './pages/ChatZaps.vue'
@@ -24,13 +24,15 @@ import Finances from './pages/Finances.vue'
 import Settings from './pages/Settings.vue'
 import InvoiceShare from './pages/InvoiceShare.vue'
 import Notes from './pages/Notes.vue'
-import NWCConnection from './components/NWCConnection.vue'
-import ErrorBoundary from './components/ErrorBoundary.vue'
-import { useNostrConnections } from './composables/useNostrConnections.js'
-import { useNotifications } from './composables/useNotifications.js'
-import { nostrRelayManager } from './utils/nostrRelayManager.js'
-import { useNostrNotes } from './composables/useNostrNotes.js'
+import NWCConnection from './components/wallet/NWCConnection.vue'
+import ErrorBoundary from './components/shared/ErrorBoundary.vue'
+import { useNostrConnections } from './composables/core/useNostrConnections.js'
+import { useNotifications } from './composables/core/useNotifications.js'
+import { nostrRelayManager } from './utils/network/nostrRelayManager.js'
+import { useNostrNotes } from './composables/content/useNostrNotes.js'
 import Calendar from './pages/Calendar.vue'
+import WelcomeModal from './components/modals/WelcomeModal.vue'
+import HelpModal from './components/modals/HelpModal.vue'
 
 
 // UI state for dismissible banners
@@ -170,6 +172,8 @@ const selectedFilters = ref({
 const currentPage = ref('dashboard')
 const activeSettingsTab = ref('nostr')
 const showConnectionModal = ref(false)
+const showWelcomeModal = ref(false)
+const showHelpModal = ref(false)
 const isMobileMenuOpen = ref(false)
 const isRefreshingData = ref(false)
 const dataLoadingProgress = ref({
@@ -422,6 +426,7 @@ provide('refreshProfile', refreshProfile)
 
 const components = {
   dashboard: Dashboard,
+  'lightning-explorer': Dashboard,
   'zap-feed': ZapFeed,
   analytics: Analytics,
   'chat-zaps': ChatZaps,
@@ -576,6 +581,13 @@ watch(activeConnection, async (newConnection, oldConnection) => {
 onMounted(async () => {
   console.log('🚀 App mounted, initializing ZapTracker...')
 
+  // Check if this is first visit - show HelpModal
+  const hasSeenHelp = localStorage.getItem('zaptracker_welcome_seen')
+  if (!hasSeenHelp && !isAuthenticated.value) {
+    console.log('👋 First visit detected, showing HelpModal...')
+    showHelpModal.value = true
+  }
+
   // Check nostr-login availability
   console.log('🔍 Checking nostr-login availability...')
   const nostrLoginScript = document.querySelector('script[src*="nostr-login"]')
@@ -626,10 +638,13 @@ onMounted(async () => {
   }
 
   // Check if we need to show connection modal (only for non-standalone pages)
-  if (!isWalletConnected.value && !isStandalonePage.value) {
-    console.log('💳 No wallet connected, showing connection modal')
-    showConnectionModal.value = true
-  } else if (isWalletConnected.value) {
+  // COMMENTED OUT: Auto-showing connection modal was too aggressive
+  // Users can still connect via the Wallet page's "Connect Wallet" button or Settings
+  // if (!isWalletConnected.value && !isStandalonePage.value) {
+  //   console.log('💳 No wallet connected, showing connection modal')
+  //   showConnectionModal.value = true
+  // } else if (isWalletConnected.value) {
+  if (isWalletConnected.value) {
     console.log('💳 Wallet already connected, refreshing data...')
     setTimeout(() => {
       refreshZapData(true)
@@ -820,6 +835,54 @@ provide('isPageLoading', isPageLoading)
 const handleWritingModeChange = (writingMode) => {
   isWritingMode.value = writingMode
 }
+
+// Welcome modal handlers
+const handleWelcomeClose = () => {
+  showWelcomeModal.value = false
+}
+
+// Help modal handlers
+const handleShowHelp = () => {
+  showHelpModal.value = true
+}
+
+const handleHelpClose = () => {
+  showHelpModal.value = false
+}
+
+const handleTriggerLogin = () => {
+  console.log('🚀 Triggering nostr-login widget from App...')
+  document.dispatchEvent(new Event('nlLaunch'))
+}
+
+const handleTriggerViewOnly = () => {
+  console.log('👁️ Triggering view-only mode from App...')
+  // Trigger nostr-login widget with readonly option
+  document.dispatchEvent(new Event('nlLaunch'))
+}
+
+// Onboarding checklist handlers
+const handleChecklistTaskAction = (action) => {
+  switch (action) {
+    case 'connect-nostr':
+      // Trigger nostr-login widget
+      console.log('🚀 Triggering nostr-login widget from checklist...')
+      document.dispatchEvent(new Event('nlLaunch'))
+      break
+    case 'setup-profile':
+      changePage('settings', 'nostr')
+      break
+    case 'connect-wallet':
+      changePage('wallet')
+      break
+    case 'create-content':
+      changePage('content')
+      break
+    case 'create-campaign':
+      changePage('campaigns')
+      break
+  }
+}
 </script>
 
 <template>
@@ -851,17 +914,21 @@ const handleWritingModeChange = (writingMode) => {
       'fixed top-0 left-0 h-screen w-64 overflow-y-auto z-50 transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:z-30', isWritingMode ? 'lg:-translate-x-full' : '',
       isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
     ]">
-      <Sidebar @change-page="changePage" />
+      <Sidebar
+        @change-page="changePage"
+        @show-help="handleShowHelp"
+      />
     </div>
     
     <!-- Main Content Area -->
     <div :class="['flex-1 flex flex-col h-screen overflow-hidden', isWritingMode ? 'lg:ml-0' : 'lg:ml-64']">
       <!-- Fixed Top Bar -->
       <header :class="['sticky top-0 z-20 bg-white/80 backdrop-blur-sm border-b border-orange-100/50', isWritingMode ? 'lg:hidden' : '']">
-        <TopBar 
-          @show-connection="showConnectionModal = true" 
+        <TopBar
+          @show-connection="showConnectionModal = true"
           @toggle-mobile-menu="isMobileMenuOpen = !isMobileMenuOpen"
           @change-page="changePage"
+          @show-help="handleShowHelp"
         />
       </header>
       
@@ -1029,19 +1096,40 @@ const handleWritingModeChange = (writingMode) => {
           <!-- Page Content with Transition -->
           <transition name="page-fade" mode="out-in">
             <ErrorBoundary v-if="!pageLoadingError && !isPageLoading">
-              <component 
-                :is="components[currentPage]" 
+              <component
+                :is="components[currentPage]"
                 :key="currentPage"
                 :initial-tab="currentPage === 'settings' ? activeSettingsTab : undefined"
                 @change-page="changePage"
                 @writing-mode-change="handleWritingModeChange"
+                @trigger-login="handleTriggerLogin"
+                @show-help="handleShowHelp"
               />
             </ErrorBoundary>
           </transition>
         </div>
       </main>
     </div>
-    
+
+    <!-- Welcome Modal - Teleported to modal-root -->
+    <Teleport to="#modal-root">
+      <WelcomeModal
+        v-if="showWelcomeModal"
+        @close="handleWelcomeClose"
+      />
+    </Teleport>
+
+    <!-- Help Modal - Teleported to modal-root -->
+    <Teleport to="#modal-root">
+      <HelpModal
+        v-if="showHelpModal"
+        :auto-show="false"
+        @close="handleHelpClose"
+        @trigger-login="handleTriggerLogin"
+        @trigger-view-only="handleTriggerViewOnly"
+      />
+    </Teleport>
+
     <!-- Connection Modal - Teleported to modal-root -->
     <Teleport to="#modal-root">
       <transition name="modal-transition">
@@ -1049,16 +1137,16 @@ const handleWritingModeChange = (writingMode) => {
           <div class="bg-white rounded-xl p-4 sm:p-6 max-w-md w-full transform animate-modal-content max-h-[90vh] overflow-y-auto shadow-2xl">
             <div class="flex justify-between items-center mb-4">
               <h2 class="text-lg sm:text-xl font-bold text-gray-800">Connect Your Wallet</h2>
-              <button 
+              <button
                 @click="showConnectionModal = false"
                 class="text-gray-500 flex items-center justify-center flex items-center hover:text-gray-700 p-1 touch-target hover:bg-gray-100 rounded-full transition-all duration-200 hover:scale-110"
               >
                 <IconX class="w-5 h-5" />
               </button>
-            </div> 
+            </div>
             <NWCConnection @connection-success="handleConnectionSuccess" />
             <div v-if="isWalletConnected" class="mt-4 flex justify-end">
-              <button 
+              <button
                 @click="showConnectionModal = false"
                 class="btn-secondary"
               >

@@ -22,19 +22,19 @@ import {
   IconColumns,
   IconMaximize
 } from '@iconify-prerendered/vue-tabler'
-import { useContent } from '../composables/useContent.js'
-import { useContentZaps } from '../composables/useContentZaps.js'
-import { useNostrAuth } from '../composables/useNostrAuth.js'
-import { useNostrLongForm } from '../composables/useNostrLongForm.js'
-import { useEngagementMetrics } from '../composables/useEngagementMetrics.js'
-import { generateAvatar } from '../utils/avatarGenerator.js'
-import ContentStats from '../components/ContentStats.vue'
-import ContentList from '../components/ContentList.vue'
-import ContentForm from '../components/ContentForm.vue'
-import ContentPerformance from '../components/ContentPerformance.vue'
-import EngagementMetrics from '../components/EngagementMetrics.vue'
-import BlogEditor from '../components/BlogEditor.vue'
-import NoteSuccessModal from '../components/NoteSuccessModal.vue'
+import { useContent } from '../composables/content/useContent.js'
+import { useContentZaps } from '../composables/content/useContentZaps.js'
+import { useNostrAuth } from '../composables/auth/useNostrAuth.js'
+import { useNostrLongForm } from '../composables/content/useNostrLongForm.js'
+import { useEngagementMetrics } from '../composables/analytics/useEngagementMetrics.js'
+import { generateAvatar } from '../utils/profile/avatarGenerator.js'
+import ContentStats from '../components/content/ContentStats.vue'
+import ContentList from '../components/content/ContentList.vue'
+import ContentForm from '../components/content/ContentForm.vue'
+import ContentPerformance from '../components/content/ContentPerformance.vue'
+import EngagementMetrics from '../components/analytics/EngagementMetrics.vue'
+import BlogEditor from '../components/content/BlogEditor.vue'
+import NoteSuccessModal from '../components/modals/NoteSuccessModal.vue'
 
 const { isAuthenticated, currentUser, userProfile, login } = useNostrAuth()
 

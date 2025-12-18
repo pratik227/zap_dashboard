@@ -178,9 +178,9 @@ import {
   IconChevronDown
 } from '@iconify-prerendered/vue-tabler'
 import { SimplePool } from 'nostr-tools/pool'
-import { nwcPaymentHandler } from '../utils/nwcPayment.js'
-import { contentService } from '../utils/contentService.js'
-import { useNostrLongForm } from '../composables/useNostrLongForm.js'
+import { nwcPaymentHandler } from '../utils/wallet/nwcPayment.js'
+import { contentService } from '../utils/content/contentService.js'
+import { useNostrLongForm } from '../composables/content/useNostrLongForm.js'
 
 // Inject currentPage from parent
 const currentPage = inject('currentPage')

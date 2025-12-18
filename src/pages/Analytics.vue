@@ -1,11 +1,14 @@
 <script setup>
 import { computed, inject, ref, onMounted } from 'vue'
 import { IconClock, IconBook, IconChartLine, IconRefresh, IconUsers, IconTrendingUp, IconAlertCircle, IconBolt } from '@iconify-prerendered/vue-tabler'
-import { filterZapsByTimeRange } from '../utils/timeFilter.js'
+
+const emit = defineEmits(['show-help'])
+import { filterZapsByTimeRange } from '../utils/core/timeFilter.js'
 import * as nip19 from 'nostr-tools/nip19'
-import UserProfileModal from '../components/UserProfileModal.vue'
-import { generateAvatar } from '../utils/avatarGenerator.js'
-import EngagementAnalytics from '../components/EngagementAnalytics.vue'
+import UserProfileModal from '../components/modals/UserProfileModal.vue'
+import { generateAvatar } from '../utils/profile/avatarGenerator.js'
+import EngagementAnalytics from '../components/analytics/EngagementAnalytics.vue'
+import EmptyStateAnalytics from '../components/analytics/EmptyStateAnalytics.vue'
 import { IconExternalLink, IconHeart, IconRepeat, IconBookmark } from '@iconify-prerendered/vue-tabler'
 
 // Lazy load ECharts to prevent issues
@@ -627,7 +630,15 @@ const formatEngagementNumber = (num) => {
 </script>
 
 <template>
-  <div class="space-y-6">
+  <!-- Empty State - No Data -->
+  <EmptyStateAnalytics
+    v-if="analyticsData.length === 0 && !isAuthenticated"
+    @connect-nostr="() => document.dispatchEvent(new Event('nlLaunch'))"
+    @show-help="$emit('show-help')"
+    @go-to-content="$emit('change-page', 'content')"
+  />
+
+  <div v-else class="space-y-6">
     <!-- Dynamic Summary Stats -->
     <div class="bg-gradient-to-r from-orange-400 to-amber-400 text-white p-6 rounded-xl shadow-lg">
       <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -786,12 +797,12 @@ const formatEngagementNumber = (num) => {
         {{ connectionStatus.emptyMessage }}
       </div>
     </div>
-  </div>
-  
+
   <!-- User Profile Modal -->
-  <UserProfileModal 
-    :show="showUserModal" 
-    :user-profile-data="selectedUser" 
-    @close="showUserModal = false" 
+  <UserProfileModal
+    :show="showUserModal"
+    :user-profile-data="selectedUser"
+    @close="showUserModal = false"
   />
+  </div>
 </template>
