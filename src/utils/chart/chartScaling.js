@@ -339,6 +339,85 @@ export function generateSplitAxisBreakLine(scalingResult, color = '#e5e7eb') {
 }
 
 /**
+ * Apply split-axis transformation to chart data (minimal styling changes)
+ * @param {Object} baseConfig - Base ECharts configuration
+ * @param {Object} scalingResult - Result from calculateSmartYAxisRange
+ * @returns {Object} - Enhanced ECharts configuration with split-axis data transformation
+ */
+export function applySplitAxisTransformation(baseConfig, scalingResult) {
+  const { yAxisMax, virtualMax, useSplitAxis, splitThreshold, transformValue } = scalingResult
+
+  // If not using split axis, return original config
+  if (!useSplitAxis) {
+    return baseConfig
+  }
+
+  // Transform data if using split axis
+  let transformedData = baseConfig.series[0]?.data || []
+  if (transformedData.length > 0) {
+    transformedData = transformedData.map((point) => {
+      const originalValue = typeof point === 'object' ? point.value : point
+      const transformed = transformValue(originalValue)
+      return {
+        value: transformed,
+        originalValue: originalValue
+      }
+    })
+  }
+
+  // Generate custom intervals for proper y-axis labeling
+  const customIntervals = generateSplitAxisIntervals(scalingResult)
+
+  // Update Y-axis to use virtual max with custom intervals
+  const yAxisConfig = {
+    ...baseConfig.yAxis,
+    type: 'value',
+    min: 0,
+    max: virtualMax,
+    interval: null,
+    splitNumber: customIntervals?.length || 5,
+    axisLabel: {
+      ...baseConfig.yAxis?.axisLabel,
+      show: true,
+      formatter: (value) => {
+        if (!customIntervals) return formatSats(value)
+        const closest = customIntervals.reduce((prev, curr) =>
+          Math.abs(curr.value - value) < Math.abs(prev.value - value) ? curr : prev
+        )
+        return Math.abs(closest.value - value) < virtualMax * 0.01 ? closest.label : ''
+      }
+    },
+    splitLine: baseConfig.yAxis?.splitLine || {
+      lineStyle: { color: '#f3f4f6' }
+    }
+  }
+
+  // Update series with transformed data
+  const seriesConfig = baseConfig.series.map((series, idx) => ({
+    ...series,
+    data: idx === 0 ? transformedData : series.data
+  }))
+
+  // Update tooltip to show original values
+  const tooltipConfig = {
+    ...baseConfig.tooltip,
+    formatter: function(params) {
+      if (!params || !params[0]) return ''
+      const data = params[0]
+      const value = data.data?.originalValue || data.value
+      return `${data.name}: ${Math.round(value).toLocaleString()} sats`
+    }
+  }
+
+  return {
+    ...baseConfig,
+    yAxis: yAxisConfig,
+    series: seriesConfig,
+    tooltip: tooltipConfig
+  }
+}
+
+/**
  * Apply Google Analytics styling to ECharts configuration with split-axis support
  * @param {Object} baseConfig - Base ECharts configuration
  * @param {Object} scalingResult - Result from calculateSmartYAxisRange

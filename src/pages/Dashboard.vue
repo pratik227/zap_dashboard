@@ -10,7 +10,7 @@ import { filterZapsByTimeRange, getTimeRangeDisplayText, getShortTimeRangeText, 
 import EmptyStateDashboard from '../components/shared/EmptyStateDashboard.vue'
 import LoadingStateDashboard from '../components/shared/LoadingStateDashboard.vue'
 import LightningNetworkDashboard from '../components/zaps/LightningNetworkDashboard.vue'
-import { calculateSmartYAxisRange, applyGoogleAnalyticsStyling } from '../utils/chart/chartScaling.js'
+import { calculateSmartYAxisRange, applySplitAxisTransformation } from '../utils/chart/chartScaling.js'
 
 const currentPage = inject('currentPage')
 
@@ -363,8 +363,8 @@ const chartOption = computed(() => {
     }]
   }
 
-  // Apply Google Analytics-style scaling with split-axis support
-  return applyGoogleAnalyticsStyling(baseConfig, scalingResult, '#fb923c')
+  // Apply split-axis transformation while keeping original styling
+  return applySplitAxisTransformation(baseConfig, scalingResult)
 })
 
 // Recent zaps from real data - NOW FILTERED BY TIME RANGE
