@@ -160,7 +160,7 @@ watch(currentPage, () => {
 </script>
 
 <template>
-  <aside class="h-screen w-72 min-w-72 max-w-72 bg-gradient-to-b from-white to-gray-50 border-r border-gray-200 flex flex-col overflow-hidden shadow-xl">
+  <aside class="h-screen w-80 lg:w-72 flex-shrink-0 bg-gradient-to-b from-white to-gray-50 border-r border-gray-200 flex flex-col overflow-hidden shadow-xl">
     <!-- Logo Section -->
     <div class="flex-shrink-0 px-4 py-4 border-b border-gray-100 bg-white/80 backdrop-blur-sm">
       <div class="flex items-center space-x-2.5 min-w-0">

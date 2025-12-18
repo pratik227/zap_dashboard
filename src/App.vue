@@ -911,7 +911,7 @@ const handleChecklistTaskAction = (action) => {
     
     <!-- Sidebar - Mobile Drawer / Desktop Fixed -->
     <div :class="[
-      'fixed top-0 left-0 h-screen w-64 overflow-y-auto z-50 transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:z-30', isWritingMode ? 'lg:-translate-x-full' : '',
+      'fixed top-0 left-0 h-screen w-80 lg:w-72 overflow-y-auto z-50 transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:z-30', isWritingMode ? 'lg:-translate-x-full' : '',
       isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
     ]">
       <Sidebar
@@ -921,7 +921,7 @@ const handleChecklistTaskAction = (action) => {
     </div>
     
     <!-- Main Content Area -->
-    <div :class="['flex-1 flex flex-col h-screen overflow-hidden', isWritingMode ? 'lg:ml-0' : 'lg:ml-64']">
+    <div :class="['flex-1 flex flex-col h-screen overflow-hidden', isWritingMode ? 'lg:ml-0' : 'lg:ml-72']">
       <!-- Fixed Top Bar -->
       <header :class="['sticky top-0 z-20 bg-white/80 backdrop-blur-sm border-b border-orange-100/50', isWritingMode ? 'lg:hidden' : '']">
         <TopBar

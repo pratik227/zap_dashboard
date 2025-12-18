@@ -13,7 +13,12 @@
   * {
     @apply border-orange-100;
   }
-  
+
+  html, body {
+    overflow-x: hidden;
+    max-width: 100vw;
+  }
+
   body {
     @apply bg-gradient-to-br from-orange-25 via-amber-25 to-yellow-25 text-gray-800;
     font-feature-settings: "rlig" 1, "calt" 1;
