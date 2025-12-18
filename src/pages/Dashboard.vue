@@ -2,7 +2,7 @@
 import { computed, inject, ref, onMounted, watch, defineEmits } from 'vue'
 
 const emit = defineEmits(['trigger-login', 'change-page'])
-import { IconBolt, IconCurrencyBitcoin, IconUsers, IconChartLine, IconAlertCircle, IconArrowRight } from '@iconify-prerendered/vue-tabler'
+import { IconBolt, IconCurrencyBitcoin, IconUsers, IconChartLine, IconAlertCircle, IconArrowRight, IconWallet } from '@iconify-prerendered/vue-tabler'
 import { getNWCClient, getBalance, getWalletInfo } from '../utils/wallet/nwcClient.js'
 import { useNostrAuth } from '../composables/auth/useNostrAuth.js'
 import { useBtcPrice } from '../composables/core/useBtcPrice.js'
@@ -657,24 +657,24 @@ const getTrendColorClass = (change) => {
     <button
       v-if="walletBalance > 0"
       @click="emit('change-page', 'wallet')"
-      class="w-full mt-4 p-6 rounded-2xl shadow-2xl border border-gray-700/30 bg-gradient-to-br from-slate-900 via-gray-900 to-slate-950 hover:from-slate-800 hover:via-gray-800 hover:to-slate-900 transition-all duration-300 hover:scale-[1.02] hover:shadow-amber-500/10 hover:border-amber-500/20 group cursor-pointer text-left"
+      class="w-full mt-4 p-6 rounded-2xl shadow-lg border border-gray-700/20 bg-gradient-to-br from-gray-800/80 via-gray-850/80 to-gray-900/80 hover:from-gray-800/90 hover:via-gray-850/90 hover:to-gray-900/90 transition-all duration-300 hover:scale-[1.01] hover:shadow-xl hover:border-gray-600/30 group cursor-pointer text-left backdrop-blur-sm"
     >
       <div class="flex items-center justify-between">
         <div class="flex-1">
           <div class="flex items-center space-x-2 mb-2">
-            <div class="p-2 rounded-lg bg-gradient-to-br from-amber-500/20 to-amber-600/20 border border-amber-500/30 group-hover:from-amber-500/30 group-hover:to-amber-600/30 group-hover:border-amber-500/50 transition-all duration-300">
-              <IconBolt class="w-5 h-5 text-amber-400 group-hover:text-amber-300 transition-colors duration-300" />
+            <div class="p-2 rounded-lg bg-gradient-to-br from-gray-700/40 to-gray-800/40 border border-gray-600/20 group-hover:from-gray-600/50 group-hover:to-gray-700/50 group-hover:border-gray-500/30 transition-all duration-300">
+              <IconWallet class="w-5 h-5 text-gray-300 group-hover:text-gray-100 transition-colors duration-300" />
             </div>
-            <h3 class="text-lg font-semibold text-white group-hover:text-amber-50 transition-colors duration-300">Wallet Balance</h3>
+            <h3 class="text-lg font-semibold text-white group-hover:text-gray-50 transition-colors duration-300">Wallet Balance</h3>
           </div>
           <p class="text-gray-400 text-sm group-hover:text-gray-300 transition-colors duration-300">Available in your connected wallet</p>
         </div>
         <div class="flex items-center space-x-4">
           <div class="text-right">
-            <p class="text-3xl sm:text-4xl font-bold text-white tabular-nums group-hover:text-amber-50 transition-colors duration-300">{{ walletBalance.toLocaleString() }}</p>
-            <p class="text-gray-400 text-sm font-medium group-hover:text-amber-300/80 transition-colors duration-300">sats</p>
+            <p class="text-3xl sm:text-4xl font-bold text-white tabular-nums group-hover:text-gray-50 transition-colors duration-300">{{ walletBalance.toLocaleString() }}</p>
+            <p class="text-gray-400 text-sm font-medium group-hover:text-gray-300 transition-colors duration-300">sats</p>
           </div>
-          <IconArrowRight class="w-6 h-6 text-gray-600 group-hover:text-amber-400 group-hover:translate-x-1 transition-all duration-300" />
+          <IconArrowRight class="w-6 h-6 text-gray-600 group-hover:text-gray-400 group-hover:translate-x-1 transition-all duration-300" />
         </div>
       </div>
     </button>
