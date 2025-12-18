@@ -10,6 +10,7 @@ import { filterZapsByTimeRange, getTimeRangeDisplayText, getShortTimeRangeText, 
 import EmptyStateDashboard from '../components/shared/EmptyStateDashboard.vue'
 import LoadingStateDashboard from '../components/shared/LoadingStateDashboard.vue'
 import LightningNetworkDashboard from '../components/zaps/LightningNetworkDashboard.vue'
+import { calculateSmartYAxisRange, applyGoogleAnalyticsStyling } from '../utils/chart/chartScaling.js'
 
 const currentPage = inject('currentPage')
 
@@ -297,11 +298,12 @@ const chartOption = computed(() => {
     date.setDate(date.getDate() - (29 - i))
     return {
       date: date.getDate(),
+      label: `${date.toLocaleString('default', { month: 'short' })} ${date.getDate()}`,
       fullDate: date.toDateString(),
       value: 0
     }
   })
-  
+
   // Count zaps per day from filtered data
   filteredZaps.forEach(zap => {
     const zapDate = new Date(zap.timestamp).toDateString()
@@ -310,17 +312,17 @@ const chartOption = computed(() => {
       dayData.value += zap.amount
     }
   })
-  
-  return {
+
+  // Calculate smart Y-axis range with split-axis detection
+  const scalingResult = calculateSmartYAxisRange(last30Days)
+
+  // Base chart configuration
+  const baseConfig = {
     tooltip: {
       trigger: 'axis',
       backgroundColor: '#fff',
       borderColor: '#fb923c',
-      textStyle: { color: '#374151' },
-      formatter: function(params) {
-        const data = params[0]
-        return `${data.name}: ${data.value} sats`
-      }
+      textStyle: { color: '#374151' }
     },
     grid: {
       left: '3%',
@@ -360,6 +362,9 @@ const chartOption = computed(() => {
       }
     }]
   }
+
+  // Apply Google Analytics-style scaling with split-axis support
+  return applyGoogleAnalyticsStyling(baseConfig, scalingResult, '#fb923c')
 })
 
 // Recent zaps from real data - NOW FILTERED BY TIME RANGE
