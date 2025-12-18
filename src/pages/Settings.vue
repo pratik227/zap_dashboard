@@ -1,10 +1,10 @@
 <script setup>
 import { ref, onMounted, watch } from 'vue'
 import { IconSettings, IconBolt, IconBell, IconShield, IconUser, IconRefresh, IconTrash } from '@iconify-prerendered/vue-tabler'
-import SettingsConnections from '../components/SettingsConnections.vue'
-import NotificationSettings from '../components/NotificationSettings.vue'
-import NostrSettings from '../components/NostrSettings.vue'
-import AccountReset from '../components/AccountReset.vue'
+import SettingsConnections from '../components/settings/SettingsConnections.vue'
+import NotificationSettings from '../components/settings/NotificationSettings.vue'
+import NostrSettings from '../components/settings/NostrSettings.vue'
+import AccountReset from '../components/settings/AccountReset.vue'
 
 // Define props to receive the initial tab from parent
 const props = defineProps({

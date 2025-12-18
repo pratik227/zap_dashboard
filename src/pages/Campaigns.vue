@@ -24,16 +24,21 @@ import {
   IconEye,
   IconCheck,
   IconGrid,
-  IconChevronDown
+  IconChevronDown,
+  IconInfoCircle,
+  IconFileText,
+  IconCode,
+  IconHeart
 } from '@iconify-prerendered/vue-tabler'
-import { useNostrAuth } from '../composables/useNostrAuth.js'
-import { useCampaigns } from '../composables/useCampaigns.js'
-import { useNotifications } from '../composables/useNotifications.js'
-import { formatDate } from '../utils/dateUtils.js'
-import CampaignCard from '../components/CampaignCard.vue'
-import CampaignCreateModal from '../components/CampaignCreateModal.vue'
-import CampaignDeleteModal from '../components/CampaignDeleteModal.vue'
-import CampaignShareModal from '../components/CampaignShareModal.vue'
+import { useNostrAuth } from '../composables/auth/useNostrAuth.js'
+import { useCampaigns } from '../composables/campaigns/useCampaigns.js'
+import { useNotifications } from '../composables/core/useNotifications.js'
+import { formatDate } from '../utils/core/dateUtils.js'
+import CampaignCard from '../components/campaigns/CampaignCard.vue'
+import CampaignCreateModal from '../components/campaigns/CampaignCreateModal.vue'
+import CampaignDeleteModal from '../components/campaigns/CampaignDeleteModal.vue'
+import CampaignShareModal from '../components/campaigns/CampaignShareModal.vue'
+import SkeletonCard from '../components/shared/SkeletonCard.vue'
 
 // Get changePage function from parent
 const changePage = inject('changePage')
@@ -483,26 +488,139 @@ watch(isAuthenticated, async (isAuth) => {
 
     <!-- Campaigns Dashboard -->
     <div v-if="isAuthenticated">
-      <!-- Loading State -->
-      <div v-if="isLoading && !userCampaigns.length" class="bg-white rounded-xl border border-orange-100 shadow-sm p-8 text-center">
-        <div class="inline-block p-3 bg-orange-100 rounded-full mb-4">
-          <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
-        </div>
-        <h3 class="text-xl font-semibold text-gray-900 mb-2">Loading your campaigns...</h3>
-        <p class="text-gray-600">Please wait while we fetch your campaign data</p>
+      <!-- Loading State with Skeleton Cards -->
+      <div v-if="isLoading && !userCampaigns.length" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <SkeletonCard v-for="i in 3" :key="i" />
       </div>
 
       <!-- Empty State -->
-      <div v-else-if="!userCampaigns.length" class="bg-white rounded-xl border border-orange-100 shadow-sm p-8 text-center">
-        <div class="inline-block p-4 bg-orange-100 rounded-full mb-4">
-          <IconTarget class="w-16 h-16 text-orange-500" />
+      <div v-else-if="!userCampaigns.length" class="max-w-4xl mx-auto py-8 px-4">
+        <div class="text-center mb-8">
+          <div class="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-orange-400 to-red-500 rounded-3xl shadow-lg mb-6">
+            <IconTarget class="w-10 h-10 text-white" />
+          </div>
+          <h3 class="text-2xl font-bold text-gray-900 mb-3">Launch Your First Campaign</h3>
+          <p class="text-lg text-gray-600">
+            Campaigns help you raise sats for projects, goals, or causes through Lightning Network payments!
+          </p>
         </div>
-        <h3 class="text-2xl font-semibold text-gray-900 mb-3">No Campaigns Yet</h3>
-        <p class="text-gray-600 mb-6 max-w-md mx-auto">Create your first funding campaign to start collecting sats for your goals. It only takes a minute to get started!</p>
-        <button @click="openCreateModal" class="btn-primary px-6 py-3 text-base shadow-md hover:shadow-lg transform hover:scale-105 active:scale-95 transition-all duration-200">
-          <IconPlus class="w-5 h-5" />
-          <span>Create First Campaign</span>
-        </button>
+
+        <!-- Why Campaigns -->
+        <div class="bg-blue-50 border-2 border-blue-200 rounded-2xl p-6 mb-8">
+          <div class="flex items-start space-x-4">
+            <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
+              <IconInfoCircle class="w-6 h-6 text-blue-600" />
+            </div>
+            <div>
+              <h4 class="text-lg font-semibold text-gray-900 mb-2">What Are Campaigns?</h4>
+              <p class="text-gray-700 leading-relaxed">
+                Campaigns are fundraising pages where supporters can send you sats toward a specific goal.
+                Perfect for projects, events, content creation, or any initiative that needs community support!
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Campaign Ideas -->
+        <div class="space-y-4 mb-8">
+          <h4 class="text-xl font-bold text-gray-900 text-center mb-6">Great Campaign Ideas</h4>
+
+          <div class="grid md:grid-cols-2 gap-4">
+            <div class="bg-white rounded-2xl border-2 border-gray-200 p-6 hover:border-orange-300 transition-all">
+              <div class="flex items-start space-x-3 mb-3">
+                <div class="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <IconFileText class="w-5 h-5 text-orange-600" />
+                </div>
+                <h5 class="font-semibold text-gray-900">Content Creation</h5>
+              </div>
+              <p class="text-sm text-gray-600">
+                Fund a podcast series, video project, article collection, or creative work
+              </p>
+            </div>
+
+            <div class="bg-white rounded-2xl border-2 border-gray-200 p-6 hover:border-orange-300 transition-all">
+              <div class="flex items-start space-x-3 mb-3">
+                <div class="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <IconCode class="w-5 h-5 text-orange-600" />
+                </div>
+                <h5 class="font-semibold text-gray-900">Open Source Project</h5>
+              </div>
+              <p class="text-sm text-gray-600">
+                Raise funds to build tools, apps, or contribute to the Nostr ecosystem
+              </p>
+            </div>
+
+            <div class="bg-white rounded-2xl border-2 border-gray-200 p-6 hover:border-orange-300 transition-all">
+              <div class="flex items-start space-x-3 mb-3">
+                <div class="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <IconCalendar class="w-5 h-5 text-orange-600" />
+                </div>
+                <h5 class="font-semibold text-gray-900">Event or Meetup</h5>
+              </div>
+              <p class="text-sm text-gray-600">
+                Cover costs for organizing Bitcoin or Nostr events, conferences, or workshops
+              </p>
+            </div>
+
+            <div class="bg-white rounded-2xl border-2 border-gray-200 p-6 hover:border-orange-300 transition-all">
+              <div class="flex items-start space-x-3 mb-3">
+                <div class="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <IconHeart class="w-5 h-5 text-orange-600" />
+                </div>
+                <h5 class="font-semibold text-gray-900">Community Support</h5>
+              </div>
+              <p class="text-sm text-gray-600">
+                Help with personal goals, education, or support causes that matter to your audience
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- What to Include -->
+        <div class="bg-gradient-to-br from-orange-50 to-amber-50 border-2 border-orange-200 rounded-2xl p-6 mb-8">
+          <h5 class="font-semibold text-gray-900 mb-4 flex items-center space-x-2">
+            <IconCheck class="w-5 h-5 text-orange-600" />
+            <span>Make Your Campaign Successful</span>
+          </h5>
+          <ul class="space-y-3 text-sm text-gray-700">
+            <li class="flex items-start space-x-3">
+              <div class="w-6 h-6 bg-orange-200 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                <span class="text-xs font-bold text-orange-700">1</span>
+              </div>
+              <span><strong>Clear goal:</strong> Set a specific target amount and explain exactly what the funds will be used for</span>
+            </li>
+            <li class="flex items-start space-x-3">
+              <div class="w-6 h-6 bg-orange-200 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                <span class="text-xs font-bold text-orange-700">2</span>
+              </div>
+              <span><strong>Compelling story:</strong> Share why this matters and how it will benefit the community</span>
+            </li>
+            <li class="flex items-start space-x-3">
+              <div class="w-6 h-6 bg-orange-200 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                <span class="text-xs font-bold text-orange-700">3</span>
+              </div>
+              <span><strong>Regular updates:</strong> Keep supporters informed about progress and milestones</span>
+            </li>
+            <li class="flex items-start space-x-3">
+              <div class="w-6 h-6 bg-orange-200 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                <span class="text-xs font-bold text-orange-700">4</span>
+              </div>
+              <span><strong>Share widely:</strong> Post about your campaign on Nostr and engage with your community</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- CTA -->
+        <div class="bg-gradient-to-br from-orange-500 to-red-500 rounded-2xl p-8 text-white text-center shadow-xl">
+          <h4 class="text-2xl font-bold mb-3">Ready to Launch Your Campaign?</h4>
+          <p class="text-orange-50 mb-6">
+            Create your campaign in minutes and start raising sats for your project
+          </p>
+          <button @click="openCreateModal" class="bg-white text-orange-600 px-8 py-4 rounded-xl font-semibold hover:shadow-2xl transform hover:scale-105 transition-all duration-200 inline-flex items-center space-x-2">
+            <IconPlus class="w-5 h-5" />
+            <span>Create Your First Campaign</span>
+          </button>
+        </div>
       </div>
 
       <!-- No Results State -->

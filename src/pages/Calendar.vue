@@ -31,11 +31,11 @@ import dayGridPlugin from '@fullcalendar/daygrid'
 import timeGridPlugin from '@fullcalendar/timegrid'
 import interactionPlugin from '@fullcalendar/interaction'
 import listPlugin from '@fullcalendar/list'
-import { useNostrAuth } from '../composables/useNostrAuth.js'
-import { useNostrCalendar } from '../composables/useNostrCalendar.js'
-import { formatDate, formatTime, isToday, isSameDay } from '../utils/dateUtils.js'
-import { generateAvatar } from '../utils/avatarGenerator.js'
-import UserSearchInput from '../components/UserSearchInput.vue'
+import { useNostrAuth } from '../composables/auth/useNostrAuth.js'
+import { useNostrCalendar } from '../composables/content/useNostrCalendar.js'
+import { formatDate, formatTime, isToday, isSameDay } from '../utils/core/dateUtils.js'
+import { generateAvatar } from '../utils/profile/avatarGenerator.js'
+import UserSearchInput from '../components/audience/UserSearchInput.vue'
 
 const { isAuthenticated, currentUser, userProfile, login } = useNostrAuth()
 

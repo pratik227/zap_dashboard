@@ -13,10 +13,10 @@ import {
   IconGlobe
 } from '@iconify-prerendered/vue-tabler'
 import QRCodeVue3 from 'qrcode-vue3'
-import { parseInvoiceBasic, formatInvoiceAmount, validateInvoice, truncateInvoice } from '../utils/invoiceUtils.js'
-import { payInvoice } from '../utils/nwcClient.js'
-import { useNotifications } from '../composables/useNotifications.js'
-import { useNostrConnections } from '../composables/useNostrConnections.js'
+import { parseInvoiceBasic, formatInvoiceAmount, validateInvoice, truncateInvoice } from '../utils/wallet/invoiceUtils.js'
+import { payInvoice } from '../utils/wallet/nwcClient.js'
+import { useNotifications } from '../composables/core/useNotifications.js'
+import { useNostrConnections } from '../composables/core/useNostrConnections.js'
 
 const currentPage = inject('currentPage')
 const emit = defineEmits(['change-page'])

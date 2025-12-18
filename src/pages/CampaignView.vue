@@ -670,12 +670,12 @@
 
 <script setup>
 import { ref, computed, onMounted, watch, inject, nextTick } from 'vue'
-import { generateAvatar } from '../utils/avatarGenerator.js'
-import { 
-  IconTarget, 
-  IconBolt, 
-  IconCalendar, 
-  IconUsers, 
+import { generateAvatar } from '../utils/profile/avatarGenerator.js'
+import {
+  IconTarget,
+  IconBolt,
+  IconCalendar,
+  IconUsers,
   IconShare,
   IconArrowLeft,
   IconLoader,
@@ -691,17 +691,17 @@ import {
   IconShield
 } from '@iconify-prerendered/vue-tabler'
 import QRCodeVue3 from 'qrcode-vue3'
-import { useCampaigns } from '../composables/useCampaigns.js'
-import { useNostrAuth } from '../composables/useNostrAuth.js'
-import { useNostrConnections } from '../composables/useNostrConnections.js'
-import { useNotifications } from '../composables/useNotifications.js'
-import { nostrRelayManager } from '../utils/nostrRelayManager.js'
+import { useCampaigns } from '../composables/campaigns/useCampaigns.js'
+import { useNostrAuth } from '../composables/auth/useNostrAuth.js'
+import { useNostrConnections } from '../composables/core/useNostrConnections.js'
+import { useNotifications } from '../composables/core/useNotifications.js'
+import { nostrRelayManager } from '../utils/network/nostrRelayManager.js'
 import { makeZapRequest } from 'nostr-tools/nip57'
-import { payInvoice } from '../utils/nwcClient.js'
+import { payInvoice } from '../utils/wallet/nwcClient.js'
 import { bech32 } from '@scure/base'
 import * as nip19 from 'nostr-tools/nip19'
-import CampaignShareModal from '../components/CampaignShareModal.vue'
-import UserProfileModal from '../components/UserProfileModal.vue'
+import CampaignShareModal from '../components/campaigns/CampaignShareModal.vue'
+import UserProfileModal from '../components/modals/UserProfileModal.vue'
 
 // Get changePage function from parent
 const changePage = inject('changePage')

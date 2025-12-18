@@ -22,16 +22,16 @@ import {
   IconShare
 } from '@iconify-prerendered/vue-tabler'
 import QRCodeVue3 from 'qrcode-vue3'
-import { useNostrConnections } from '../composables/useNostrConnections.js'
-import { useNotifications } from '../composables/useNotifications.js'
-import { 
-  getBalance, 
-  getWalletInfo, 
-  fetchTransactions, 
-  makeInvoice, 
-  payInvoice, 
-  lookupInvoice 
-} from '../utils/nwcClient.js'
+import { useNostrConnections } from '../composables/core/useNostrConnections.js'
+import { useNotifications } from '../composables/core/useNotifications.js'
+import {
+  getBalance,
+  getWalletInfo,
+  fetchTransactions,
+  makeInvoice,
+  payInvoice,
+  lookupInvoice
+} from '../utils/wallet/nwcClient.js'
 import { QrcodeStream } from 'vue-qrcode-reader'
 const { isWalletConnected, activeConnection } = useNostrConnections()
 const { handleZapSent, handlePaymentSuccess, handlePaymentError, notifications } = useNotifications()

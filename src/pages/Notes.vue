@@ -34,20 +34,22 @@ import {
   IconBookmark,
   IconX,
   IconCheck,
-  IconCopy
+  IconCopy,
+  IconInfoCircle,
+  IconBulb
 } from '@iconify-prerendered/vue-tabler'
-import { useNostrNotes } from '../composables/useNostrNotes.js'
-import { useNostrAuth } from '../composables/useNostrAuth.js'
-import { useContentZaps } from '../composables/useContentZaps.js'
-import { useEngagementMetrics } from '../composables/useEngagementMetrics.js'
-import { useBtcPrice } from '../composables/useBtcPrice.js'
-import { useMentions } from '../composables/useMentions.js'
-import { generateAvatar } from '../utils/avatarGenerator.js'
-import EngagementMetrics from '../components/EngagementMetrics.vue'
-import NoteSuccessModal from '../components/NoteSuccessModal.vue'
-import ContentRenderer from '../components/ContentRenderer.vue'
-import MentionInput from '../components/MentionInput.vue'
-import MentionRenderer from '../components/MentionRenderer.vue'
+import { useNostrNotes } from '../composables/content/useNostrNotes.js'
+import { useNostrAuth } from '../composables/auth/useNostrAuth.js'
+import { useContentZaps } from '../composables/content/useContentZaps.js'
+import { useEngagementMetrics } from '../composables/analytics/useEngagementMetrics.js'
+import { useBtcPrice } from '../composables/core/useBtcPrice.js'
+import { useMentions } from '../composables/content/useMentions.js'
+import { generateAvatar } from '../utils/profile/avatarGenerator.js'
+import EngagementMetrics from '../components/analytics/EngagementMetrics.vue'
+import NoteSuccessModal from '../components/modals/NoteSuccessModal.vue'
+import ContentRenderer from '../components/content/ContentRenderer.vue'
+import MentionInput from '../components/content/MentionInput.vue'
+import MentionRenderer from '../components/content/MentionRenderer.vue'
 
 const { isAuthenticated, currentUser, userProfile, login } = useNostrAuth()
 
@@ -607,14 +609,143 @@ const handleMentionClick = ({ pubkey, profile }) => {
           </div>
 
           <!-- Empty State -->
-          <div v-else-if="notes.length === 0" class="p-8 text-center">
-            <IconFileText class="w-16 h-16 mx-auto text-gray-300 mb-4" />
-            <h3 class="text-xl font-semibold text-gray-900 mb-3">No notes yet</h3>
-            <p class="text-gray-600 mb-6">Create your first note to start sharing your thoughts on Nostr</p>
-            <button @click="startCreating" class="btn-primary">
-              <IconPlus class="w-4 h-4" />
-              Create First Note
-            </button>
+          <div v-else-if="notes.length === 0" class="max-w-3xl mx-auto py-8 px-4">
+            <div class="text-center mb-8">
+              <div class="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-green-400 to-teal-500 rounded-3xl shadow-lg mb-6">
+                <IconFileText class="w-10 h-10 text-white" />
+              </div>
+              <h3 class="text-2xl font-bold text-gray-900 mb-3">Start Sharing Your Thoughts</h3>
+              <p class="text-lg text-gray-600">
+                You haven't created any notes yet. Notes are the heart of Nostr - quick posts that connect you with your audience!
+              </p>
+            </div>
+
+            <!-- Why Notes Matter -->
+            <div class="bg-blue-50 border-2 border-blue-200 rounded-2xl p-6 mb-8">
+              <div class="flex items-start space-x-4">
+                <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <IconInfoCircle class="w-6 h-6 text-blue-600" />
+                </div>
+                <div>
+                  <h4 class="text-lg font-semibold text-gray-900 mb-2">Why Create Notes?</h4>
+                  <p class="text-gray-700 leading-relaxed">
+                    Notes are short-form posts (like tweets) that let you share updates, insights, and thoughts with the Nostr community.
+                    They're perfect for quick engagement and can earn you zaps when people appreciate your content!
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <!-- How to Get Started -->
+            <div class="space-y-4 mb-8">
+              <h4 class="text-xl font-bold text-gray-900 text-center mb-6">What to Post in Your First Notes</h4>
+
+              <div class="bg-white rounded-2xl border-2 border-gray-200 p-6 hover:border-green-300 transition-all">
+                <div class="flex items-start space-x-4">
+                  <div class="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center flex-shrink-0 font-bold text-green-600">
+                    1
+                  </div>
+                  <div class="flex-1">
+                    <h5 class="font-semibold text-gray-900 mb-2">Introduce Yourself</h5>
+                    <p class="text-gray-600 text-sm mb-2">
+                      Share who you are, what you're interested in, and why you joined Nostr. Use #introductions hashtag to help people discover you.
+                    </p>
+                    <div class="bg-gray-50 rounded-lg p-3 text-sm text-gray-700 italic border-l-4 border-green-400">
+                      Example: "Hey Nostr! I'm [name], passionate about [topic]. Excited to connect with this community. #introductions"
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="bg-white rounded-2xl border-2 border-gray-200 p-6 hover:border-green-300 transition-all">
+                <div class="flex items-start space-x-4">
+                  <div class="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center flex-shrink-0 font-bold text-green-600">
+                    2
+                  </div>
+                  <div class="flex-1">
+                    <h5 class="font-semibold text-gray-900 mb-2">Share Valuable Insights</h5>
+                    <p class="text-gray-600 text-sm mb-2">
+                      Post tips, lessons learned, or interesting observations from your experience. Educational content often gets zapped!
+                    </p>
+                    <div class="bg-gray-50 rounded-lg p-3 text-sm text-gray-700 italic border-l-4 border-green-400">
+                      Example: "Today I learned [interesting fact]. Here's why it matters..."
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="bg-white rounded-2xl border-2 border-gray-200 p-6 hover:border-green-300 transition-all">
+                <div class="flex items-start space-x-4">
+                  <div class="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center flex-shrink-0 font-bold text-green-600">
+                    3
+                  </div>
+                  <div class="flex-1">
+                    <h5 class="font-semibold text-gray-900 mb-2">Ask Questions & Start Discussions</h5>
+                    <p class="text-gray-600 text-sm mb-2">
+                      Engage the community with thoughtful questions. People love sharing their opinions and expertise!
+                    </p>
+                    <div class="bg-gray-50 rounded-lg p-3 text-sm text-gray-700 italic border-l-4 border-green-400">
+                      Example: "What's your favorite thing about Nostr? I'm curious to hear different perspectives."
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="bg-white rounded-2xl border-2 border-gray-200 p-6 hover:border-green-300 transition-all">
+                <div class="flex items-start space-x-4">
+                  <div class="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center flex-shrink-0 font-bold text-green-600">
+                    4
+                  </div>
+                  <div class="flex-1">
+                    <h5 class="font-semibold text-gray-900 mb-2">Share Updates & Progress</h5>
+                    <p class="text-gray-600 text-sm mb-2">
+                      Document your journey, projects, or daily wins. People enjoy following along and supporting creators they connect with.
+                    </p>
+                    <div class="bg-gray-50 rounded-lg p-3 text-sm text-gray-700 italic border-l-4 border-green-400">
+                      Example: "Made great progress on [project] today. Here's what I accomplished..."
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Create Button -->
+            <div class="bg-gradient-to-br from-green-500 to-teal-500 rounded-2xl p-8 text-white text-center shadow-xl mb-8">
+              <h4 class="text-2xl font-bold mb-3">Ready to Create Your First Note?</h4>
+              <p class="text-green-50 mb-6">
+                Click below to start writing and share your voice with the Nostr community
+              </p>
+              <button @click="startCreating" class="bg-white text-green-600 px-8 py-4 rounded-xl font-semibold hover:shadow-2xl transform hover:scale-105 transition-all duration-200 inline-flex items-center space-x-2">
+                <IconPlus class="w-5 h-5" />
+                <span>Create Your First Note</span>
+              </button>
+            </div>
+
+            <!-- Pro Tips -->
+            <div class="bg-gradient-to-br from-green-50 to-teal-50 border-2 border-green-200 rounded-2xl p-6">
+              <h5 class="font-semibold text-gray-900 mb-4 flex items-center space-x-2">
+                <IconBulb class="w-5 h-5 text-amber-500" />
+                <span>Pro Tips for Great Notes</span>
+              </h5>
+              <ul class="space-y-2 text-sm text-gray-700">
+                <li class="flex items-start space-x-2">
+                  <span class="text-green-600 font-bold mt-0.5">•</span>
+                  <span>Keep it concise - aim for 1-3 short paragraphs for best engagement</span>
+                </li>
+                <li class="flex items-start space-x-2">
+                  <span class="text-green-600 font-bold mt-0.5">•</span>
+                  <span>Use relevant hashtags to help people discover your content</span>
+                </li>
+                <li class="flex items-start space-x-2">
+                  <span class="text-green-600 font-bold mt-0.5">•</span>
+                  <span>Be authentic - genuine posts resonate more than promotional ones</span>
+                </li>
+                <li class="flex items-start space-x-2">
+                  <span class="text-green-600 font-bold mt-0.5">•</span>
+                  <span>Post consistently but don't spam - quality matters more than quantity</span>
+                </li>
+              </ul>
+            </div>
           </div>
 
           <!-- Notes List -->

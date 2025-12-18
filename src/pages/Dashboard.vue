@@ -1,10 +1,17 @@
 <script setup>
-import { computed, inject, ref, onMounted, watch } from 'vue'
-import { IconBolt, IconCurrencyBitcoin, IconUsers, IconChartLine, IconAlertCircle } from '@iconify-prerendered/vue-tabler'
-import { getNWCClient, getBalance, getWalletInfo } from '../utils/nwcClient.js'
-import { useNostrAuth } from '../composables/useNostrAuth.js'
-import { useBtcPrice } from '../composables/useBtcPrice.js'
-import { filterZapsByTimeRange, getTimeRangeDisplayText, getShortTimeRangeText, getPeriodComparison } from '../utils/timeFilter.js'
+import { computed, inject, ref, onMounted, watch, defineEmits } from 'vue'
+
+const emit = defineEmits(['trigger-login', 'change-page'])
+import { IconBolt, IconCurrencyBitcoin, IconUsers, IconChartLine, IconAlertCircle, IconArrowRight } from '@iconify-prerendered/vue-tabler'
+import { getNWCClient, getBalance, getWalletInfo } from '../utils/wallet/nwcClient.js'
+import { useNostrAuth } from '../composables/auth/useNostrAuth.js'
+import { useBtcPrice } from '../composables/core/useBtcPrice.js'
+import { filterZapsByTimeRange, getTimeRangeDisplayText, getShortTimeRangeText, getPeriodComparison } from '../utils/core/timeFilter.js'
+import EmptyStateDashboard from '../components/shared/EmptyStateDashboard.vue'
+import LoadingStateDashboard from '../components/shared/LoadingStateDashboard.vue'
+import LightningNetworkDashboard from '../components/zaps/LightningNetworkDashboard.vue'
+
+const currentPage = inject('currentPage')
 
 // Lazy load ECharts to prevent issues
 const VChart = ref(null)
@@ -80,7 +87,7 @@ const connectionStatus = computed(() => {
     return {
       type: 'nostr-only',
       title: 'Nostr Connected',
-      description: 'Connect your NWC wallet to see payment data too',
+      description: 'Connect your Lightning wallet via NWC to view payment history in the Wallet tab',
       dataTypes: 'Nostr zaps only'
     }
   } else if (hasNWC) {
@@ -433,7 +440,19 @@ const getTrendColorClass = (change) => {
 </script>
 
 <template>
-  <div class="space-y-4 sm:space-y-6">
+  <!-- Lightning Network Explorer - Accessible when logged in or not -->
+  <LightningNetworkDashboard
+    v-if="currentPage === 'lightning-explorer' || !isAuthenticated"
+    @trigger-login="$emit('trigger-login')"
+    @show-help="$emit('show-help')"
+    :hideAuthPrompts="isAuthenticated"
+  />
+
+  <!-- Loading State (User Dashboard Only) -->
+  <LoadingStateDashboard v-else-if="isLoading" />
+
+  <!-- Dashboard with Data -->
+  <div v-else class="space-y-4 sm:space-y-6">
     <!-- Welcome Banner -->
     <div class="bg-gradient-to-r from-orange-400 via-amber-400 to-yellow-400 text-white p-4 sm:p-6 rounded-xl shadow-lg">
       <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -449,8 +468,16 @@ const getTrendColorClass = (change) => {
                 ({{ connectionStatus.dataTypes }} • last 30 days vs previous 30 days)
               </span>
             </span>
-            <span v-else>
-              {{ connectionStatus.description }}
+            <span v-else class="flex items-center gap-3 flex-wrap">
+              <span>{{ connectionStatus.description }}</span>
+              <button
+                v-if="connectionStatus.type === 'nostr-only'"
+                @click="emit('change-page', 'wallet')"
+                class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white text-xs font-medium rounded-lg border border-white/30 hover:border-white/50 transition-all duration-200"
+              >
+                <span>View Wallet</span>
+                <IconArrowRight class="w-3.5 h-3.5" />
+              </button>
             </span>
           </p>
         </div>
