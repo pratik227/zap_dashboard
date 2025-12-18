@@ -56,7 +56,7 @@ class NostrRelayManager {
   // Initialize the relay manager
   async initialize(userRelays = []) {
     if (this.isInitialized) {
-      console.log('Relay manager already initialized')
+      console.log('Relay manager already initialized, use updateRelays() to add new relays')
       return
     }
 
@@ -83,6 +83,49 @@ class NostrRelayManager {
       
     } catch (error) {
       console.error('❌ Failed to initialize Nostr Relay Manager:', error)
+      throw error
+    }
+  }
+
+  // Update relays after initialization (add new relays from user's NIP-65 list)
+  async updateRelays(newRelays = []) {
+    if (!this.isInitialized) {
+      console.log('Relay manager not initialized, calling initialize instead')
+      return this.initialize(newRelays)
+    }
+
+    if (!newRelays || newRelays.length === 0) {
+      console.log('No new relays to add')
+      return
+    }
+
+    console.log(`Updating relay manager with ${newRelays.length} relays...`)
+    
+    try {
+      // Filter out relays we're already connected to
+      const existingUrls = new Set(Array.from(this.relayConnections.keys()))
+      const relaysToAdd = newRelays.filter(relay => !existingUrls.has(relay.url))
+      
+      if (relaysToAdd.length === 0) {
+        console.log('All relays already connected')
+        return
+      }
+      
+      console.log(`Adding ${relaysToAdd.length} new relays:`, relaysToAdd.map(r => r.url))
+      
+      // Connect to new relays
+      await this.connectToRelays(relaysToAdd)
+      
+      console.log('Relay manager updated successfully')
+      
+      // Emit update event
+      this.emitEvent('relaysUpdated', { 
+        addedRelays: relaysToAdd.length,
+        connectedRelays: this.getConnectedRelays().length
+      })
+      
+    } catch (error) {
+      console.error('Failed to update relays:', error)
       throw error
     }
   }

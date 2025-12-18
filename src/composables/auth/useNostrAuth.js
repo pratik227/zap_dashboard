@@ -316,6 +316,102 @@ const removeRelay = (url) => {
   return true
 }
 
+// Fetch user's NIP-65 relay list (kind 10002) from Nostr
+const fetchUserRelayList = async (pubkey) => {
+  if (!pubkey) return null
+
+  try {
+    console.log('Fetching NIP-65 relay list for user:', pubkey.substring(0, 16) + '...')
+    
+    // Query for kind 10002 (NIP-65 relay list) from the user
+    const relayListEvent = await nostrRelayManager.getEvent({
+      kinds: [10002],
+      authors: [pubkey],
+      limit: 1
+    })
+
+    if (!relayListEvent) {
+      console.log('No NIP-65 relay list found for user')
+      return null
+    }
+
+    console.log('Found NIP-65 relay list event:', relayListEvent.id.substring(0, 16) + '...')
+
+    // Parse relay list from tags
+    // Format: ["r", "wss://relay.example.com", "read"] or ["r", "wss://relay.example.com", "write"] or ["r", "wss://relay.example.com"]
+    const relays = []
+    for (const tag of relayListEvent.tags) {
+      if (tag[0] === 'r' && tag[1]) {
+        const url = tag[1]
+        const marker = tag[2] // "read", "write", or undefined (both)
+        
+        relays.push({
+          url,
+          read: !marker || marker === 'read',
+          write: !marker || marker === 'write',
+          status: 'disconnected'
+        })
+      }
+    }
+
+    console.log(`Parsed ${relays.length} relays from NIP-65 list:`, relays.map(r => r.url))
+    return relays
+  } catch (error) {
+    console.error('Failed to fetch NIP-65 relay list:', error)
+    return null
+  }
+}
+
+// Update relay manager with user's relays
+const updateRelaysFromNip65 = async (pubkey) => {
+  const nip65Relays = await fetchUserRelayList(pubkey)
+  
+  if (nip65Relays && nip65Relays.length > 0) {
+    console.log('Updating relay manager with user\'s NIP-65 relays...')
+    
+    // Merge NIP-65 relays with existing relays (NIP-65 takes priority)
+    const existingUrls = new Set(userRelays.value.map(r => r.url))
+    const newRelays = []
+    
+    for (const relay of nip65Relays) {
+      if (!existingUrls.has(relay.url)) {
+        newRelays.push(relay)
+      } else {
+        // Update existing relay with NIP-65 settings
+        const existingIndex = userRelays.value.findIndex(r => r.url === relay.url)
+        if (existingIndex !== -1) {
+          userRelays.value[existingIndex] = {
+            ...userRelays.value[existingIndex],
+            read: relay.read,
+            write: relay.write
+          }
+        }
+      }
+    }
+    
+    // Add new relays from NIP-65
+    if (newRelays.length > 0) {
+      userRelays.value = [...userRelays.value, ...newRelays]
+      console.log(`Added ${newRelays.length} new relays from NIP-65 list`)
+    }
+    
+    // Save updated relays
+    saveRelaysToStorage(userRelays.value)
+    
+    // Update relay manager with new relays (don't re-initialize, just add new ones)
+    try {
+      await nostrRelayManager.updateRelays(nip65Relays)
+      console.log('Relay manager updated with user relays')
+    } catch (error) {
+      console.warn('Failed to update relay manager:', error)
+    }
+    
+    return true
+  }
+  
+  return false
+}
+
 // Start listening for user events using relay manager
 const startUserEventListener = (pubkey) => {
   if (!pubkey) return
@@ -592,6 +688,63 @@ const logout = () => {
   }
 }
 
+// Helper function to restore session from window.nostr
+const restoreSessionFromWindowNostr = async () => {
+  if (!window.nostr || !window.nostr.getPublicKey) {
+    return false
+  }
+
+  try {
+    console.log('🔑 Attempting to restore session from window.nostr...')
+    const pubkey = await window.nostr.getPublicKey()
+    console.log('Got pubkey from nostr:', pubkey.substring(0, 16) + '...')
+
+    // Check if this user is already stored
+    const existingUser = localStorage.getItem(NOSTR_USER_KEY)
+    if (existingUser) {
+      try {
+        const userData = JSON.parse(existingUser)
+        if (userData.pubkey === pubkey) {
+          console.log('♻️ Restoring user from stored data:', userData.npub)
+          currentUser.value = userData
+
+          // Fetch and update user's NIP-65 relay list
+          console.log('Fetching user\'s NIP-65 relay list...')
+          await updateRelaysFromNip65(pubkey)
+
+          // Start listening for user events
+          startUserEventListener(pubkey)
+
+          console.log('Session restored successfully!')
+          return true
+        } else {
+          console.log('Different user detected, fetching new profile...')
+        }
+      } catch (error) {
+        console.warn('Failed to parse existing user data:', error)
+      }
+    }
+
+    // Fetch and store profile for new/different user
+    console.log('Fetching user profile...')
+    const userData = await fetchAndStoreProfile(pubkey)
+    console.log('Profile fetched successfully:', userData.npub)
+
+    // Fetch and update user's NIP-65 relay list
+    console.log('Fetching user\'s NIP-65 relay list...')
+    await updateRelaysFromNip65(pubkey)
+
+    // Start listening for user events
+    startUserEventListener(pubkey)
+
+    console.log('Session restored successfully!')
+    return true
+  } catch (error) {
+    console.warn('Failed to restore session from window.nostr:', error)
+    return false
+  }
+}
+
 // Initialize auth and relays
 const initAuthAndRelays = async () => {
   console.log('Initializing Nostr auth and relays...')
@@ -621,8 +774,79 @@ const initAuthAndRelays = async () => {
     // Sync initial statuses
     syncRelayStatuses()
     
-    // If user exists, start listening for their events
-    if (hasUser && currentUser.value) {
+    // Set up global nlAuth event listener to handle widget logins
+    const handleGlobalAuth = async (event) => {
+      try {
+        const eventType = event.detail?.type || event.detail
+        console.log('Global nlAuth event received:', {
+          type: event.type,
+          detail: event.detail,
+          eventType,
+          hasWindowNostr: !!window.nostr
+        })
+
+        // Handle logout
+        if (eventType === 'logout') {
+          console.log('Logout event received, clearing user...')
+          currentUser.value = null
+          return
+        }
+
+        // Handle login/signup
+        if (eventType === 'login' || eventType === 'signup' || !eventType) {
+          await restoreSessionFromWindowNostr()
+        }
+      } catch (error) {
+        console.error('Global auth error:', error)
+        authError.value = error.message
+      }
+    }
+
+    // Add global event listener for nostr-login widget
+    console.log('Adding global nlAuth event listener...')
+    document.addEventListener('nlAuth', handleGlobalAuth)
+    
+    // Check if window.nostr is already available (nostr-login restored session before our listener)
+    if (window.nostr && window.nostr.getPublicKey) {
+      console.log(' window.nostr already available, attempting session restore...')
+      await restoreSessionFromWindowNostr()
+    } else {
+      // Wait for nostr-login to initialize and potentially restore session
+      console.log(' window.nostr not ready, waiting for nostr-login to initialize...')
+      
+      // Poll for window.nostr availability (nostr-login may take time to restore)
+      const waitForWindowNostr = () => {
+        return new Promise((resolve) => {
+          let attempts = 0
+          const maxAttempts = 30 // 3 seconds max
+          const checkInterval = setInterval(() => {
+            attempts++
+            if (window.nostr && window.nostr.getPublicKey) {
+              clearInterval(checkInterval)
+              console.log('window.nostr became available after', attempts * 100, 'ms')
+              resolve(true)
+            } else if (attempts >= maxAttempts) {
+              clearInterval(checkInterval)
+              console.log(' window.nostr not available after waiting')
+              resolve(false)
+            }
+          }, 100)
+        })
+      }
+      
+      const nostrAvailable = await waitForWindowNostr()
+      if (nostrAvailable) {
+        console.log(' Attempting session restore after window.nostr became available...')
+        await restoreSessionFromWindowNostr()
+      } else if (hasUser) {
+        // Clear stored user since we can't verify the session
+        console.log(' Clearing stored user - session cannot be verified without window.nostr')
+        currentUser.value = null
+      }
+    }
+    
+    // If user exists and session was restored, start listening for their events
+    if (currentUser.value) {
       setTimeout(() => {
         startUserEventListener(currentUser.value.pubkey)
       }, 2000)
@@ -703,6 +927,8 @@ export function useNostrAuth() {
     validateRelayUrl,
     initAuthAndRelays,
     startUserEventListener,
+    fetchUserRelayList,
+    updateRelaysFromNip65,
     
     // Utilities
     syncRelayStatuses
