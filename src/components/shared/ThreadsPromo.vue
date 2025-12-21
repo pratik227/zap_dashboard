@@ -19,11 +19,11 @@ const storageKey = computed(() => {
 })
 
 const showDismissButton = computed(() => {
-  return props.variant !== 'menu'
+  return props.variant === 'notes'
 })
 
 onMounted(() => {
-  if (props.variant !== 'menu') {
+  if (props.variant === 'notes') {
     const dismissed = localStorage.getItem(storageKey.value)
     isDismissed.value = dismissed === 'true'
   }
