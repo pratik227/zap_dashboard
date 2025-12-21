@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { IconX, IconSparkles, IconMessage2, IconTrendingUp } from '@iconify-prerendered/vue-tabler'
+import { IconX, IconSparkles, IconMessage2, IconCalendarEvent } from '@iconify-prerendered/vue-tabler'
 
 const props = defineProps({
   variant: {
@@ -130,7 +130,7 @@ const handleClick = () => {
           <div class="relative flex-shrink-0">
             <div class="absolute inset-0 bg-white rounded-3xl blur-xl opacity-50 group-hover:opacity-80 transition-opacity animate-pulse"></div>
             <div class="relative w-20 h-20 bg-white rounded-3xl p-3 shadow-2xl transform group-hover:scale-110 group-hover:-rotate-6 transition-all duration-500">
-              <img src="/threads_logo.png" alt="Threads" class="w-full h-full object-contain animate-float" />
+              <img src="/threads_logo.png" alt="Threads" class="w-full h-full object-contain" />
             </div>
           </div>
 
@@ -155,7 +155,7 @@ const handleClick = () => {
               <span class="text-sm font-bold drop-shadow-sm">Thread Management</span>
             </div>
             <div class="flex items-center gap-2 bg-white/20 backdrop-blur-sm px-3 py-2 rounded-xl transform group-hover:scale-105 transition-transform">
-              <IconTrendingUp class="w-5 h-5" />
+              <IconCalendarEvent class="w-5 h-5" />
               <span class="text-sm font-bold drop-shadow-sm">Scheduling</span>
             </div>
           </div>
@@ -215,15 +215,6 @@ const handleClick = () => {
   transform: translateY(-10px) scale(0.98);
 }
 
-@keyframes float {
-  0%, 100% {
-    transform: translateY(0px);
-  }
-  50% {
-    transform: translateY(-6px);
-  }
-}
-
 @keyframes bounce-subtle {
   0%, 100% {
     transform: translateY(0px);
@@ -231,10 +222,6 @@ const handleClick = () => {
   50% {
     transform: translateY(-4px);
   }
-}
-
-.animate-float {
-  animation: float 3s ease-in-out infinite;
 }
 
 .animate-bounce-subtle {
