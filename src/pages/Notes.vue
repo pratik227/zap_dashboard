@@ -50,6 +50,7 @@ import NoteSuccessModal from '../components/modals/NoteSuccessModal.vue'
 import ContentRenderer from '../components/content/ContentRenderer.vue'
 import MentionInput from '../components/content/MentionInput.vue'
 import MentionRenderer from '../components/content/MentionRenderer.vue'
+import ThreadsPromo from '../components/shared/ThreadsPromo.vue'
 
 const { isAuthenticated, currentUser, userProfile, login } = useNostrAuth()
 
@@ -988,6 +989,11 @@ const handleMentionClick = ({ pubkey, profile }) => {
               </div>
             </div>
           </div>
+        </div>
+
+        <!-- Threads Promo Banner -->
+        <div class="mt-4">
+          <ThreadsPromo variant="notes" />
         </div>
       </div>
 

@@ -1,5 +1,5 @@
 <script setup>
-import { computed, inject, ref } from 'vue'
+import { computed, inject, ref, watch } from 'vue'
 import { generateAvatar } from '../utils/profile/avatarGenerator.js'
 import {
   IconBolt,
@@ -18,13 +18,16 @@ import {
   IconInfoCircle,
   IconUsers,
   IconHeart,
-  IconBulb
+  IconBulb,
+  IconChevronLeft,
+  IconChevronRight
 } from '@iconify-prerendered/vue-tabler'
 import { filterZapsByTimeRange } from '../utils/core/timeFilter.js'
 import ZapEventModal from '../components/modals/ZapEventModal.vue'
 import { useContentZaps } from '../composables/content/useContentZaps.js'
 import Filters from '../components/shared/Filters.vue'
 import SkeletonList from '../components/shared/SkeletonList.vue'
+import ThreadsPromo from '../components/shared/ThreadsPromo.vue'
 
 const zapData = inject('zapData')
 const combinedZapData = inject('combinedZapData')
@@ -46,6 +49,13 @@ const selectedZapId = ref(null)
 const showFilters = ref(false)
 const viewMode = ref('feed') // 'feed' or 'compact'
 const isInitialLoading = ref(true)
+
+// Pagination state
+const currentPage = ref(1)
+const itemsPerPage = 20
+
+// Threads promo - always show, component handles dismissal internally
+const showThreadsPromo = ref(true)
 
 // Simulate initial data load
 setTimeout(() => {
@@ -149,6 +159,74 @@ const filteredZaps = computed(() => {
   zaps = filterZapsByTimeRange(zaps, selectedTimeRange.value)
   
   return zaps.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+})
+
+// Pagination computed properties
+const totalPages = computed(() => {
+  return Math.ceil(filteredZaps.value.length / itemsPerPage)
+})
+
+const paginatedZaps = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage
+  const end = start + itemsPerPage
+  return filteredZaps.value.slice(start, end)
+})
+
+// Reset to page 1 when filters change
+watch(filteredZaps, () => {
+  currentPage.value = 1
+})
+
+// Pagination controls
+const goToPage = (page) => {
+  if (page >= 1 && page <= totalPages.value) {
+    currentPage.value = page
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+}
+
+const previousPage = () => {
+  if (currentPage.value > 1) {
+    currentPage.value--
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+}
+
+const nextPage = () => {
+  if (currentPage.value < totalPages.value) {
+    currentPage.value++
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+}
+
+// Get visible page numbers for pagination
+const visiblePageNumbers = computed(() => {
+  const pages = []
+  const maxVisible = 7
+
+  if (totalPages.value <= maxVisible) {
+    for (let i = 1; i <= totalPages.value; i++) {
+      pages.push(i)
+    }
+  } else {
+    if (currentPage.value <= 4) {
+      for (let i = 1; i <= 5; i++) pages.push(i)
+      pages.push('...')
+      pages.push(totalPages.value)
+    } else if (currentPage.value >= totalPages.value - 3) {
+      pages.push(1)
+      pages.push('...')
+      for (let i = totalPages.value - 4; i <= totalPages.value; i++) pages.push(i)
+    } else {
+      pages.push(1)
+      pages.push('...')
+      for (let i = currentPage.value - 1; i <= currentPage.value + 1; i++) pages.push(i)
+      pages.push('...')
+      pages.push(totalPages.value)
+    }
+  }
+
+  return pages
 })
 
 // Handle click on zap item
@@ -364,38 +442,47 @@ const formatAmount = (amount) => {
   }
   return amount.toLocaleString()
 }
+
+// Helper to check if we should show promo at this index (position 3 when there are 3+ items)
+const shouldShowPromoAtIndex = (index) => {
+  return index === 2 && showThreadsPromo.value && filteredZaps.value.length >= 3
+}
+
+// Show promo at top when few or no items
+const showPromoAtTop = computed(() => {
+  return showThreadsPromo.value && filteredZaps.value.length < 3
+})
 </script>
 
 <template>
   <div class="space-y-6">
-    <!-- Clean Apple-like Header with Blue Accent -->
-    <div class="bg-white/95 backdrop-blur-xl rounded-2xl border border-gray-200/60 shadow-xl shadow-gray-200/40 overflow-hidden">
-      <!-- Blue Accent Line -->
+    <!-- Header Card -->
+    <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+      <!-- Orange Accent Line -->
       <div class="h-1 bg-gradient-to-r from-orange-400 via-amber-400 to-yellow-400"></div>
-      
+
       <!-- Header Content -->
-      <div class="px-4 sm:px-6 py-4 sm:py-5">
-        <!-- Mobile Layout: Stacked -->
-        <div class="block lg:hidden space-y-4">
-          <!-- Top Row: Count and View Mode -->
+      <div class="p-4 sm:p-5">
+        <!-- Mobile Layout -->
+        <div class="flex flex-col gap-4 md:hidden">
+          <!-- Top: Count + View Toggle -->
           <div class="flex items-center justify-between">
-            <!-- Left: Zap Count -->
-            <div class="flex items-center space-x-2">
-              <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-              <span class="text-sm font-medium text-gray-700">
+            <div class="flex items-center gap-2">
+              <span class="w-2 h-2 bg-green-500 rounded-full"></span>
+              <span class="text-sm font-medium text-gray-600">
                 {{ filteredZaps.length }} zap{{ filteredZaps.length !== 1 ? 's' : '' }}
               </span>
             </div>
 
-            <!-- Right: View Mode Toggle -->
-            <div class="flex items-center bg-gray-50/80 backdrop-blur-sm rounded-2xl p-1 shadow-sm border border-gray-200/50">
+            <!-- View Toggle -->
+            <div class="inline-flex bg-gray-100 rounded-lg p-1">
               <button
                 @click="viewMode = 'feed'"
                 :class="[
-                  'px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ease-out',
-                  viewMode === 'feed' 
-                    ? 'bg-white text-orange-600 shadow-md shadow-orange-100/50 transform scale-105 border border-orange-200/30' 
-                    : 'text-gray-600 hover:text-gray-800 hover:bg-white/60 hover:shadow-sm'
+                  'px-3 py-1.5 text-sm font-medium rounded-md transition-all',
+                  viewMode === 'feed'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700'
                 ]"
               >
                 Feed
@@ -403,10 +490,10 @@ const formatAmount = (amount) => {
               <button
                 @click="viewMode = 'compact'"
                 :class="[
-                  'px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ease-out',
-                  viewMode === 'compact' 
-                    ? 'bg-white text-orange-600 shadow-md shadow-orange-100/50 transform scale-105 border border-orange-200/30' 
-                    : 'text-gray-600 hover:text-gray-800 hover:bg-white/60 hover:shadow-sm'
+                  'px-3 py-1.5 text-sm font-medium rounded-md transition-all',
+                  viewMode === 'compact'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700'
                 ]"
               >
                 Compact
@@ -414,74 +501,72 @@ const formatAmount = (amount) => {
             </div>
           </div>
 
-          <!-- Bottom Row: Time Filter Buttons -->
+          <!-- Bottom: Time Filter -->
           <div class="flex justify-center">
-            <div class="flex items-center bg-gray-50/80 backdrop-blur-sm rounded-2xl p-1 shadow-sm border border-gray-200/50">
+            <div class="inline-flex bg-gray-100 rounded-lg p-1">
               <button
                 v-for="range in [
-                  { value: '24h', label: '24h', icon: '🕐' },
-                  { value: '7d', label: '7d', icon: '📅' },
-                  { value: '30d', label: '30d', icon: '📊' },
-                  { value: 'all', label: 'All', icon: '∞' }
+                  { value: '24h', label: '24h' },
+                  { value: '7d', label: '7d' },
+                  { value: '30d', label: '30d' },
+                  { value: 'all', label: 'All' }
                 ]"
                 :key="range.value"
                 @click="selectedTimeRange = range.value"
                 :class="[
-                  'px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ease-out min-w-[70px] flex items-center justify-center space-x-1.5',
+                  'px-4 py-1.5 text-sm font-medium rounded-md transition-all',
                   selectedTimeRange === range.value
-                    ? 'bg-white text-orange-600 shadow-md shadow-orange-100/50 transform scale-105 border border-orange-200/30'
-                    : 'text-gray-600 hover:text-gray-800 hover:bg-white/60 hover:shadow-sm'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700'
                 ]"
               >
-                <span class="text-xs opacity-70">{{ range.icon }}</span>
-                <span>{{ range.label }}</span>
+                {{ range.label }}
               </button>
             </div>
           </div>
         </div>
 
-        <!-- Desktop Layout: Single Row -->
-        <div class="hidden lg:flex items-center justify-between">
-          <!-- Left: Zap Count with Clean Typography -->
-          <div class="flex items-center space-x-2">
-            <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-            <span class="text-sm font-medium text-gray-700">
+        <!-- Desktop Layout -->
+        <div class="hidden md:flex items-center justify-between">
+          <!-- Left: Zap Count -->
+          <div class="flex items-center gap-2">
+            <span class="w-2 h-2 bg-green-500 rounded-full"></span>
+            <span class="text-sm font-medium text-gray-600">
               {{ filteredZaps.length }} zap{{ filteredZaps.length !== 1 ? 's' : '' }}
             </span>
           </div>
 
-          <!-- Center: Clean Time Filter Buttons -->
-          <div class="flex items-center bg-gray-50/80 backdrop-blur-sm rounded-2xl p-1 shadow-sm border border-gray-200/50">
+          <!-- Center: Time Filter -->
+          <div class="inline-flex bg-gray-100 rounded-lg p-1">
             <button
               v-for="range in [
-                { value: '24h', label: '24h', icon: '🕐' },
-                { value: '7d', label: '7d', icon: '📅' },
-                { value: '30d', label: '30d', icon: '📊' },
-                { value: 'all', label: 'All', icon: '∞' }
+                { value: '24h', label: '24h' },
+                { value: '7d', label: '7d' },
+                { value: '30d', label: '30d' },
+                { value: 'all', label: 'All' }
               ]"
               :key="range.value"
               @click="selectedTimeRange = range.value"
               :class="[
-                'px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ease-out min-w-[70px] flex items-center justify-center space-x-1.5',
+                'px-4 py-1.5 text-sm font-medium rounded-md transition-all',
                 selectedTimeRange === range.value
-                  ? 'bg-white text-orange-600 shadow-md shadow-orange-100/50 transform scale-105 border border-orange-200/30'
-                  : 'text-gray-600 hover:text-gray-800 hover:bg-white/60 hover:shadow-sm'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-500 hover:text-gray-700'
               ]"
             >
-              <span class="text-xs opacity-70">{{ range.icon }}</span>
-              <span>{{ range.label }}</span>
+              {{ range.label }}
             </button>
           </div>
 
-          <!-- Right: View Mode Toggle -->
-          <div class="flex items-center bg-gray-50/80 backdrop-blur-sm rounded-2xl p-1 shadow-sm border border-gray-200/50">
+          <!-- Right: View Toggle -->
+          <div class="inline-flex bg-gray-100 rounded-lg p-1">
             <button
               @click="viewMode = 'feed'"
               :class="[
-                'px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ease-out',
-                viewMode === 'feed' 
-                  ? 'bg-white text-orange-600 shadow-md shadow-orange-100/50 transform scale-105 border border-orange-200/30' 
-                  : 'text-gray-600 hover:text-gray-800 hover:bg-white/60 hover:shadow-sm'
+                'px-4 py-1.5 text-sm font-medium rounded-md transition-all',
+                viewMode === 'feed'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-500 hover:text-gray-700'
               ]"
             >
               Feed
@@ -489,10 +574,10 @@ const formatAmount = (amount) => {
             <button
               @click="viewMode = 'compact'"
               :class="[
-                'px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ease-out',
-                viewMode === 'compact' 
-                  ? 'bg-white text-orange-600 shadow-md shadow-orange-100/50 transform scale-105 border border-orange-200/30' 
-                  : 'text-gray-600 hover:text-gray-800 hover:bg-white/60 hover:shadow-sm'
+                'px-4 py-1.5 text-sm font-medium rounded-md transition-all',
+                viewMode === 'compact'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-500 hover:text-gray-700'
               ]"
             >
               Compact
@@ -666,12 +751,18 @@ const formatAmount = (amount) => {
 
       <!-- Feed View -->
       <div v-else-if="viewMode === 'feed'" class="space-y-4">
-        <div
-          v-for="(zap, index) in filteredZaps"
-          :key="zap.id"
-          @click="handleZapClick(zap)"
-          class="bg-white/95 backdrop-blur-sm rounded-2xl border border-gray-200/40 hover:border-gray-300/60 hover:shadow-lg hover:shadow-gray-200/30 transition-all duration-200 cursor-pointer overflow-hidden hover:-translate-y-0.5"
-        >
+        <!-- Threads Promo at top when few items -->
+        <ThreadsPromo v-if="showPromoAtTop && currentPage === 1" variant="zapfeed" />
+
+        <template v-for="(zap, index) in paginatedZaps" :key="zap.id">
+          <!-- Threads Promo Card at position 3 (only on first page) -->
+          <ThreadsPromo v-if="shouldShowPromoAtIndex(index) && currentPage === 1" variant="zapfeed" class="mb-4" />
+
+          <!-- Regular Zap Card -->
+          <div
+            @click="handleZapClick(zap)"
+            class="bg-white/95 backdrop-blur-sm rounded-2xl border border-gray-200/40 hover:border-gray-300/60 hover:shadow-lg hover:shadow-gray-200/30 transition-all duration-200 cursor-pointer overflow-hidden hover:-translate-y-0.5"
+          >
           <div class="p-5 sm:p-6">
             <!-- Header -->
             <div class="flex items-start space-x-3 mb-4">
@@ -723,55 +814,125 @@ const formatAmount = (amount) => {
               </p>
             </div>
           </div>
-        </div>
+          </div>
+        </template>
       </div>
 
       <!-- Compact View -->
-      <div v-else class="bg-white/95 backdrop-blur-sm rounded-2xl border border-gray-200/40 shadow-lg shadow-gray-200/30 overflow-hidden">
-        <div class="divide-y divide-gray-100/60">
-          <div
-            v-for="(zap, index) in filteredZaps"
-            :key="zap.id"
-            @click="handleZapClick(zap)"
-            class="p-4 hover:bg-gray-50/80 transition-all duration-150 cursor-pointer"
-          >
-            <div class="flex items-center space-x-3">
-              <!-- Avatar -->
-              <div class="w-9 h-9 rounded-xl overflow-hidden border border-gray-200/60 flex-shrink-0 shadow-sm">
-                <img
-                  :src="getSenderAvatar(zap.sender, index)"
-                  :alt="getSenderName(zap.sender)"
-                  class="w-full h-full object-cover"
-                />
+      <div v-else class="space-y-4">
+        <!-- Threads Promo at top when few items (compact view) -->
+        <ThreadsPromo v-if="showPromoAtTop && currentPage === 1" variant="zapfeed-compact" />
+
+        <div class="bg-white/95 backdrop-blur-sm rounded-2xl border border-gray-200/40 shadow-lg shadow-gray-200/30 overflow-hidden">
+          <div class="divide-y divide-gray-100/60">
+            <template v-for="(zap, index) in paginatedZaps" :key="zap.id">
+              <!-- Compact Threads Promo at position 3 (only on first page) -->
+              <div v-if="shouldShowPromoAtIndex(index) && currentPage === 1" class="p-3 bg-gray-50/50">
+                <ThreadsPromo variant="zapfeed-compact" />
               </div>
 
-              <!-- Content -->
-              <div class="flex-1 min-w-0">
-                <div class="flex items-center justify-between mb-1">
-                  <div class="flex items-center space-x-2 min-w-0">
-                    <span class="font-semibold text-gray-900 text-sm truncate">
-                      {{ getSenderName(zap.sender) }}
-                    </span>
-                    <span class="text-xs text-gray-500">{{ formatDate(zap.timestamp) }}</span>
+              <!-- Compact Zap Row -->
+              <div
+                @click="handleZapClick(zap)"
+                class="p-4 hover:bg-gray-50/80 transition-all duration-150 cursor-pointer"
+              >
+                <div class="flex items-center space-x-3">
+                  <div class="w-9 h-9 rounded-xl overflow-hidden border border-gray-200/60 flex-shrink-0 shadow-sm">
+                    <img
+                      :src="getSenderAvatar(zap.sender, index)"
+                      :alt="getSenderName(zap.sender)"
+                      class="w-full h-full object-cover"
+                    />
                   </div>
-                  
-                  <div class="flex items-center space-x-1.5 bg-gradient-to-r from-orange-50 to-amber-50 px-3 py-1 rounded-xl border border-orange-200/30 shadow-sm flex-shrink-0">
-                    <IconBolt class="w-3 h-3 text-orange-600" />
-                    <span class="font-bold text-orange-700 text-sm">{{ formatAmount(zap.amount) }}</span>
+
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center justify-between mb-1">
+                      <div class="flex items-center space-x-2 min-w-0">
+                        <span class="font-semibold text-gray-900 text-sm truncate">
+                          {{ getSenderName(zap.sender) }}
+                        </span>
+                        <span class="text-xs text-gray-500">{{ formatDate(zap.timestamp) }}</span>
+                      </div>
+
+                      <div class="flex items-center space-x-1.5 bg-gradient-to-r from-orange-50 to-amber-50 px-3 py-1 rounded-xl border border-orange-200/30 shadow-sm flex-shrink-0">
+                        <IconBolt class="w-3 h-3 text-orange-600" />
+                        <span class="font-bold text-orange-700 text-sm">{{ formatAmount(zap.amount) }}</span>
+                      </div>
+                    </div>
+
+                    <p class="text-sm text-gray-600 truncate leading-relaxed">
+                      {{ truncateNote(zap.note, 80) }}
+                    </p>
                   </div>
                 </div>
-                
-                <p class="text-sm text-gray-600 truncate leading-relaxed">
-                  {{ truncateNote(zap.note, 80) }}
-                </p>
               </div>
+            </template>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pagination Controls -->
+      <div v-if="filteredZaps.length > itemsPerPage && !isInitialLoading" class="mt-8 flex items-center justify-center">
+        <div class="bg-white/95 backdrop-blur-sm rounded-2xl border border-gray-200/40 shadow-lg shadow-gray-200/30 p-4">
+          <div class="flex items-center space-x-2">
+            <!-- Previous Button -->
+            <button
+              @click="previousPage"
+              :disabled="currentPage === 1"
+              :class="[
+                'p-2.5 rounded-xl transition-all duration-200',
+                currentPage === 1
+                  ? 'text-gray-300 cursor-not-allowed'
+                  : 'text-gray-700 hover:bg-gray-50 hover:text-orange-600'
+              ]"
+            >
+              <IconChevronLeft class="w-5 h-5" />
+            </button>
+
+            <!-- Page Numbers -->
+            <div class="flex items-center space-x-1">
+              <button
+                v-for="(page, idx) in visiblePageNumbers"
+                :key="idx"
+                @click="page !== '...' && goToPage(page)"
+                :disabled="page === '...'"
+                :class="[
+                  'min-w-[40px] h-10 rounded-xl text-sm font-semibold transition-all duration-200',
+                  page === currentPage
+                    ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md'
+                    : page === '...'
+                    ? 'text-gray-400 cursor-default'
+                    : 'text-gray-700 hover:bg-gray-50 hover:text-orange-600'
+                ]"
+              >
+                {{ page }}
+              </button>
             </div>
+
+            <!-- Next Button -->
+            <button
+              @click="nextPage"
+              :disabled="currentPage === totalPages"
+              :class="[
+                'p-2.5 rounded-xl transition-all duration-200',
+                currentPage === totalPages
+                  ? 'text-gray-300 cursor-not-allowed'
+                  : 'text-gray-700 hover:bg-gray-50 hover:text-orange-600'
+              ]"
+            >
+              <IconChevronRight class="w-5 h-5" />
+            </button>
+          </div>
+
+          <!-- Page Info -->
+          <div class="mt-3 text-center text-xs text-gray-500">
+            Page {{ currentPage }} of {{ totalPages }} ({{ filteredZaps.length }} total zaps)
           </div>
         </div>
       </div>
     </div>
   </div>
-  
+
   <!-- Event Modal -->
   <ZapEventModal 
     :event-id="selectedEventId" 

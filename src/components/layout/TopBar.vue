@@ -23,6 +23,7 @@ import {
   IconHelp
 } from '@iconify-prerendered/vue-tabler'
 import NotificationDropdown from '../shared/NotificationDropdown.vue'
+import ThreadsPromo from '../shared/ThreadsPromo.vue'
 import { useNostrAuth } from '../../composables/auth/useNostrAuth.js'
 import { generateAvatar } from '../../utils/profile/avatarGenerator.js'
 
@@ -395,13 +396,19 @@ const handleLoginClick = () => {
               <div class="border-t border-gray-100 my-1"></div>
               
               <!-- Sign Out -->
-              <button 
+              <button
                 @click="handleProfileAction('signout')"
                 class="w-full flex items-center space-x-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors duration-200"
               >
                 <IconLogout class="w-4 h-4" />
                 <span>Sign out</span>
               </button>
+
+              <!-- Divider -->
+              <div class="border-t border-gray-100 my-1"></div>
+
+              <!-- Threads Promo -->
+              <ThreadsPromo variant="menu" />
             </div>
           </transition>
         </div>
