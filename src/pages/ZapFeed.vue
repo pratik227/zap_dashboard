@@ -454,34 +454,33 @@ const shouldShowPromoAtIndex = (index) => {
 
 <template>
   <div class="space-y-6">
-    <!-- Clean Apple-like Header with Blue Accent -->
-    <div class="bg-white/95 backdrop-blur-xl rounded-2xl border border-gray-200/60 shadow-xl shadow-gray-200/40 overflow-hidden">
-      <!-- Blue Accent Line -->
+    <!-- Header Card -->
+    <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+      <!-- Orange Accent Line -->
       <div class="h-1 bg-gradient-to-r from-orange-400 via-amber-400 to-yellow-400"></div>
-      
+
       <!-- Header Content -->
-      <div class="px-4 sm:px-6 py-4 sm:py-5">
-        <!-- Mobile Layout: Stacked -->
-        <div class="block lg:hidden space-y-4">
-          <!-- Top Row: Count and View Mode -->
+      <div class="p-4 sm:p-5">
+        <!-- Mobile Layout -->
+        <div class="flex flex-col gap-4 md:hidden">
+          <!-- Top: Count + View Toggle -->
           <div class="flex items-center justify-between">
-            <!-- Left: Zap Count -->
-            <div class="flex items-center space-x-2">
-              <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-              <span class="text-sm font-medium text-gray-700">
+            <div class="flex items-center gap-2">
+              <span class="w-2 h-2 bg-green-500 rounded-full"></span>
+              <span class="text-sm font-medium text-gray-600">
                 {{ filteredZaps.length }} zap{{ filteredZaps.length !== 1 ? 's' : '' }}
               </span>
             </div>
 
-            <!-- Right: View Mode Toggle -->
-            <div class="flex items-center bg-gray-50/80 backdrop-blur-sm rounded-2xl p-1 shadow-sm border border-gray-200/50">
+            <!-- View Toggle -->
+            <div class="inline-flex bg-gray-100 rounded-lg p-1">
               <button
                 @click="viewMode = 'feed'"
                 :class="[
-                  'px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ease-out',
-                  viewMode === 'feed' 
-                    ? 'bg-white text-orange-600 shadow-md shadow-orange-100/50 transform scale-105 border border-orange-200/30' 
-                    : 'text-gray-600 hover:text-gray-800 hover:bg-white/60 hover:shadow-sm'
+                  'px-3 py-1.5 text-sm font-medium rounded-md transition-all',
+                  viewMode === 'feed'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700'
                 ]"
               >
                 Feed
@@ -489,10 +488,10 @@ const shouldShowPromoAtIndex = (index) => {
               <button
                 @click="viewMode = 'compact'"
                 :class="[
-                  'px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ease-out',
-                  viewMode === 'compact' 
-                    ? 'bg-white text-orange-600 shadow-md shadow-orange-100/50 transform scale-105 border border-orange-200/30' 
-                    : 'text-gray-600 hover:text-gray-800 hover:bg-white/60 hover:shadow-sm'
+                  'px-3 py-1.5 text-sm font-medium rounded-md transition-all',
+                  viewMode === 'compact'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700'
                 ]"
               >
                 Compact
@@ -500,74 +499,72 @@ const shouldShowPromoAtIndex = (index) => {
             </div>
           </div>
 
-          <!-- Bottom Row: Time Filter Buttons -->
+          <!-- Bottom: Time Filter -->
           <div class="flex justify-center">
-            <div class="flex items-center bg-gray-50/80 backdrop-blur-sm rounded-2xl p-1 shadow-sm border border-gray-200/50">
+            <div class="inline-flex bg-gray-100 rounded-lg p-1">
               <button
                 v-for="range in [
-                  { value: '24h', label: '24h', icon: '🕐' },
-                  { value: '7d', label: '7d', icon: '📅' },
-                  { value: '30d', label: '30d', icon: '📊' },
-                  { value: 'all', label: 'All', icon: '∞' }
+                  { value: '24h', label: '24h' },
+                  { value: '7d', label: '7d' },
+                  { value: '30d', label: '30d' },
+                  { value: 'all', label: 'All' }
                 ]"
                 :key="range.value"
                 @click="selectedTimeRange = range.value"
                 :class="[
-                  'px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ease-out min-w-[70px] flex items-center justify-center space-x-1.5',
+                  'px-4 py-1.5 text-sm font-medium rounded-md transition-all',
                   selectedTimeRange === range.value
-                    ? 'bg-white text-orange-600 shadow-md shadow-orange-100/50 transform scale-105 border border-orange-200/30'
-                    : 'text-gray-600 hover:text-gray-800 hover:bg-white/60 hover:shadow-sm'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700'
                 ]"
               >
-                <span class="text-xs opacity-70">{{ range.icon }}</span>
-                <span>{{ range.label }}</span>
+                {{ range.label }}
               </button>
             </div>
           </div>
         </div>
 
-        <!-- Desktop Layout: Single Row -->
-        <div class="hidden lg:flex items-center justify-between">
-          <!-- Left: Zap Count with Clean Typography -->
-          <div class="flex items-center space-x-2">
-            <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-            <span class="text-sm font-medium text-gray-700">
+        <!-- Desktop Layout -->
+        <div class="hidden md:flex items-center justify-between">
+          <!-- Left: Zap Count -->
+          <div class="flex items-center gap-2">
+            <span class="w-2 h-2 bg-green-500 rounded-full"></span>
+            <span class="text-sm font-medium text-gray-600">
               {{ filteredZaps.length }} zap{{ filteredZaps.length !== 1 ? 's' : '' }}
             </span>
           </div>
 
-          <!-- Center: Clean Time Filter Buttons -->
-          <div class="flex items-center bg-gray-50/80 backdrop-blur-sm rounded-2xl p-1 shadow-sm border border-gray-200/50">
+          <!-- Center: Time Filter -->
+          <div class="inline-flex bg-gray-100 rounded-lg p-1">
             <button
               v-for="range in [
-                { value: '24h', label: '24h', icon: '🕐' },
-                { value: '7d', label: '7d', icon: '📅' },
-                { value: '30d', label: '30d', icon: '📊' },
-                { value: 'all', label: 'All', icon: '∞' }
+                { value: '24h', label: '24h' },
+                { value: '7d', label: '7d' },
+                { value: '30d', label: '30d' },
+                { value: 'all', label: 'All' }
               ]"
               :key="range.value"
               @click="selectedTimeRange = range.value"
               :class="[
-                'px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ease-out min-w-[70px] flex items-center justify-center space-x-1.5',
+                'px-4 py-1.5 text-sm font-medium rounded-md transition-all',
                 selectedTimeRange === range.value
-                  ? 'bg-white text-orange-600 shadow-md shadow-orange-100/50 transform scale-105 border border-orange-200/30'
-                  : 'text-gray-600 hover:text-gray-800 hover:bg-white/60 hover:shadow-sm'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-500 hover:text-gray-700'
               ]"
             >
-              <span class="text-xs opacity-70">{{ range.icon }}</span>
-              <span>{{ range.label }}</span>
+              {{ range.label }}
             </button>
           </div>
 
-          <!-- Right: View Mode Toggle -->
-          <div class="flex items-center bg-gray-50/80 backdrop-blur-sm rounded-2xl p-1 shadow-sm border border-gray-200/50">
+          <!-- Right: View Toggle -->
+          <div class="inline-flex bg-gray-100 rounded-lg p-1">
             <button
               @click="viewMode = 'feed'"
               :class="[
-                'px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ease-out',
-                viewMode === 'feed' 
-                  ? 'bg-white text-orange-600 shadow-md shadow-orange-100/50 transform scale-105 border border-orange-200/30' 
-                  : 'text-gray-600 hover:text-gray-800 hover:bg-white/60 hover:shadow-sm'
+                'px-4 py-1.5 text-sm font-medium rounded-md transition-all',
+                viewMode === 'feed'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-500 hover:text-gray-700'
               ]"
             >
               Feed
@@ -575,10 +572,10 @@ const shouldShowPromoAtIndex = (index) => {
             <button
               @click="viewMode = 'compact'"
               :class="[
-                'px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ease-out',
-                viewMode === 'compact' 
-                  ? 'bg-white text-orange-600 shadow-md shadow-orange-100/50 transform scale-105 border border-orange-200/30' 
-                  : 'text-gray-600 hover:text-gray-800 hover:bg-white/60 hover:shadow-sm'
+                'px-4 py-1.5 text-sm font-medium rounded-md transition-all',
+                viewMode === 'compact'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-500 hover:text-gray-700'
               ]"
             >
               Compact
