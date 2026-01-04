@@ -831,13 +831,41 @@ const handleGlobalAuth = async (event) => {
           profileEvent: null
         }
 
+        // If we had NO existing profile data AND picture is missing, fetch profile FIRST
+        // This ensures user sees their avatar immediately on login, not a fallback
+        const hadExistingProfile = !!existingProfile
+        if (!hadExistingProfile && !userData.profile.picture) {
+          console.log('📷 No existing profile and picture missing, fetching full profile BEFORE setting user...')
+          try {
+            // Await the profile fetch - this ensures avatar is ready before UI renders
+            const fullUserData = await fetchAndStoreProfile(eventData.pubkey)
+            console.log('✅ Got full profile, setting currentUser:', fullUserData.npub, fullUserData.profile?.name, 'picture:', !!fullUserData.profile?.picture)
+            // fetchAndStoreProfile already sets currentUser and saves to storage
+
+            // Fetch and update user's NIP-65 relay list in background
+            updateRelaysFromNip65(eventData.pubkey).catch(err =>
+              console.warn('Failed to update relays from NIP-65:', err)
+            )
+
+            // Start listening for user events
+            startUserEventListener(eventData.pubkey)
+
+            console.log('✅ Login complete from nlAuth event (with full profile fetch)!')
+            return
+          } catch (err) {
+            console.warn('Failed to fetch full profile, using incomplete data:', err)
+            // Fall through to use incomplete data as fallback
+          }
+        }
+
+        // Normal flow: we have existing profile data or picture is present
         console.log('✅ Setting currentUser (merged):', userData.npub, userData.profile.name, 'picture:', !!userData.profile.picture)
         currentUser.value = userData
         saveUserToStorage(userData)
 
-        // If profile picture is STILL missing after merge, fetch full profile from relays
+        // If profile picture is STILL missing after merge (rare edge case), fetch in background
         if (!userData.profile.picture) {
-          console.log('📷 Picture still missing after merge, fetching full profile from relays...')
+          console.log('📷 Picture still missing, fetching full profile in background...')
           fetchAndStoreProfile(eventData.pubkey).catch(err =>
             console.warn('Failed to fetch full profile:', err)
           )
