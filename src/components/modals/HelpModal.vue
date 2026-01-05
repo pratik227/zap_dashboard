@@ -15,7 +15,9 @@ import {
   IconEye,
   IconLogin,
   IconInfoCircle,
-  IconDashboard
+  IconDashboard,
+  IconBook,
+  IconExternalLink
 } from '@iconify-prerendered/vue-tabler'
 
 const props = defineProps({
@@ -222,6 +224,10 @@ const handleViewOnly = () => {
   markWelcomeSeen()
   emit('close')
   emit('trigger-view-only')
+}
+
+const openDocs = () => {
+  window.open('https://docs-zaptracker.netlify.app', '_blank', 'noopener,noreferrer')
 }
 </script>
 
@@ -703,7 +709,7 @@ const handleViewOnly = () => {
               </h2>
 
               <p class="text-base text-gray-600 max-w-2xl mx-auto mb-10">
-                {{ currentSlideData.subtitle }}
+                Connect your Nostr account to start tracking zaps, or visit our documentation to learn more about ZapTracker's features and use cases.
               </p>
 
               <!-- CTAs -->
@@ -716,61 +722,74 @@ const handleViewOnly = () => {
                   <span>Connect with Nostr</span>
                 </button>
                 <button
-                  @click="handleViewOnly"
-                  class="flex-1 px-8 py-4 bg-white border border-gray-300 text-gray-700 rounded-xl font-medium hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 flex items-center justify-center space-x-2"
+                  @click="openDocs"
+                  class="flex-1 px-8 py-4 bg-white border-2 border-orange-300 text-orange-700 rounded-xl font-medium hover:bg-orange-50 hover:border-orange-400 transition-all duration-200 flex items-center justify-center space-x-2"
                 >
-                  <IconEye class="w-5 h-5" />
-                  <span>Read-Only Mode</span>
+                  <IconBook class="w-5 h-5" />
+                  <span>Read Documentation</span>
                 </button>
               </div>
 
-              <div class="bg-white border border-gray-200 rounded-2xl p-8 max-w-2xl mx-auto">
-                <div class="flex items-start space-x-3 mb-6">
-                  <IconEye class="w-5 h-5 text-gray-400 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <h4 class="font-semibold text-gray-900 mb-2 text-base">How to Use Read-Only Mode</h4>
-                    <p class="text-sm text-gray-600 mb-3">
-                      Click "Read-Only Mode" above and follow these steps in the login modal:
+              <!-- Documentation Info Card -->
+              <div class="bg-gradient-to-br from-orange-50 to-amber-50 border-2 border-orange-200 rounded-2xl p-8 max-w-2xl mx-auto">
+                <div class="flex items-start space-x-4 mb-6">
+                  <div class="w-12 h-12 bg-gradient-to-br from-orange-500 to-amber-500 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <IconBook class="w-6 h-6 text-white" />
+                  </div>
+                  <div class="flex-1 text-left">
+                    <h4 class="font-semibold text-gray-900 mb-2 text-lg">Explore the Documentation</h4>
+                    <p class="text-sm text-gray-700 leading-relaxed">
+                      Get comprehensive guides, detailed feature explanations, and practical use cases. Perfect for understanding how to maximize ZapTracker's potential.
                     </p>
                   </div>
                 </div>
 
-                <div class="space-y-3 ml-8">
-                  <div class="flex items-center space-x-3 text-sm">
-                    <div class="w-5 h-5 border border-gray-300 rounded-full flex items-center justify-center flex-shrink-0">
-                      <span class="text-xs font-medium text-gray-600">1</span>
+                <div class="grid md:grid-cols-3 gap-3">
+                  <div class="bg-white/70 rounded-lg p-4 border border-orange-200">
+                    <div class="flex items-center space-x-2 mb-2">
+                      <IconTarget class="w-4 h-4 text-orange-600" />
+                      <h5 class="font-medium text-gray-900 text-sm">Use Cases</h5>
                     </div>
-                    <span class="text-gray-700">Click <strong class="font-medium text-gray-900">"Login"</strong></span>
+                    <p class="text-xs text-gray-600">Real-world examples and scenarios</p>
                   </div>
-                  <div class="flex items-center space-x-3 text-sm">
-                    <div class="w-5 h-5 border border-gray-300 rounded-full flex items-center justify-center flex-shrink-0">
-                      <span class="text-xs font-medium text-gray-600">2</span>
-                    </div>
-                    <span class="text-gray-700">Click <strong class="font-medium text-gray-900">"Read only"</strong></span>
-                  </div>
-                  <div class="flex items-center space-x-3 text-sm">
-                    <div class="w-5 h-5 border border-gray-300 rounded-full flex items-center justify-center flex-shrink-0">
-                      <span class="text-xs font-medium text-gray-600">3</span>
-                    </div>
-                    <span class="text-gray-700">Enter your public <strong class="font-medium text-gray-900">npub</strong> to explore</span>
-                  </div>
-                </div>
 
-                <div class="mt-6 pt-6 border-t border-gray-200">
-                  <p class="text-xs text-gray-500">
-                    Tip: Try a creator's npub to see their earnings, zaps, and analytics! ;)
-                  </p>
+                  <div class="bg-white/70 rounded-lg p-4 border border-orange-200">
+                    <div class="flex items-center space-x-2 mb-2">
+                      <IconChartBar class="w-4 h-4 text-orange-600" />
+                      <h5 class="font-medium text-gray-900 text-sm">Feature Guides</h5>
+                    </div>
+                    <p class="text-xs text-gray-600">Step-by-step tutorials</p>
+                  </div>
+
+                  <div class="bg-white/70 rounded-lg p-4 border border-orange-200">
+                    <div class="flex items-center space-x-2 mb-2">
+                      <IconInfoCircle class="w-4 h-4 text-orange-600" />
+                      <h5 class="font-medium text-gray-900 text-sm">FAQ & Help</h5>
+                    </div>
+                    <p class="text-xs text-gray-600">Common questions answered</p>
+                  </div>
                 </div>
               </div>
 
-              <div class="mt-6">
+              <div class="mt-8 flex items-center justify-center gap-6 text-sm">
                 <a
                   href="https://usenostr.org"
                   target="_blank"
                   rel="noopener noreferrer"
-                  class="text-sm text-orange-600 hover:text-orange-700 hover:underline inline-block"
+                  class="text-orange-600 hover:text-orange-700 hover:underline inline-flex items-center gap-1"
                 >
-                  New to Nostr? Learn more →
+                  <span>New to Nostr?</span>
+                  <IconExternalLink class="w-3.5 h-3.5" />
+                </a>
+                <span class="text-gray-300">•</span>
+                <a
+                  href="https://docs-zaptracker.netlify.app"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="text-orange-600 hover:text-orange-700 hover:underline inline-flex items-center gap-1"
+                >
+                  <span>View Full Documentation</span>
+                  <IconExternalLink class="w-3.5 h-3.5" />
                 </a>
               </div>
             </div>
