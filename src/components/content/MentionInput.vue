@@ -78,6 +78,16 @@ const hasSuggestions = computed(() => {
   return filteredSuggestions.value.length > 0
 })
 
+const hoverCardStyle = computed(() => {
+  if (!hoveredUser.value) return {}
+
+  // Find the element with matching pubkey
+  const element = document.querySelector(`[data-pubkey="${hoveredUser.value.pubkey}"]`)
+  if (!element) return {}
+
+  return getHoverCardPosition(element)
+})
+
 // Methods
 const updateValue = (value) => {
   emit('update:modelValue', value)
@@ -475,7 +485,7 @@ const getHoverCardPosition = (userElement) => {
         <div
           v-if="hoveredUser && showSuggestions"
           class="hover-profile-card fixed bg-white rounded-lg shadow-2xl border border-gray-200 overflow-hidden z-[10001] p-4"
-          :style="getHoverCardPosition($el.querySelector(`[data-pubkey=\"${hoveredUser.pubkey}\"]`))"
+          :style="hoverCardStyle"
           @mouseenter="handleUserHover(hoveredUser)"
           @mouseleave="handleUserLeave"
         >
