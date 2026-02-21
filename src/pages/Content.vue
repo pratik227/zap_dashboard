@@ -78,12 +78,7 @@ const {
   // View management
   setView,
   editContent,
-  previewContent,
-
-  // Zap functions
-  getZapsForContent,
-  getTotalZapAmount,
-  getZapCount
+  previewContent
 } = useContent()
 
 // Ensure contentForm has all required properties
@@ -91,10 +86,21 @@ if (!contentForm.description) {
   contentForm.description = ''
 }
 
-const { getAllContentZaps } = useContentZaps()
+const { getAllContentZaps, startZapTracking } = useContentZaps()
 
-const { getEngagementCounts } = useEngagementMetrics()
+const { getEngagementCounts, startEngagementTracking, startLongFormContentTracking } = useEngagementMetrics()
 
+// Track zaps + engagement when a different content item is selected
+watch(() => selectedContent.value?.nostrEventId, (eventId) => {
+  if (!eventId) return
+  startZapTracking(eventId)
+  const content = selectedContent.value
+  if (content?.creatorPubkey && content?.id) {
+    startLongFormContentTracking(eventId, content.creatorPubkey, content.id)
+  } else {
+    startEngagementTracking(eventId)
+  }
+})
 
 // Writing mode state
 const isWritingMode = computed(() => {
@@ -630,11 +636,11 @@ onUnmounted(() => {
                   </span>
                   
                   <!-- Zap Badge -->
-                  <span v-if="selectedContent.nostrEventId && getTotalZapAmount(selectedContent.nostrEventId) > 0" 
+                  <span v-if="selectedContent.nostrEventId && (selectedContent.zapAmount || 0) > 0"
                         class="px-3 py-1.5 bg-gradient-to-r from-orange-100 to-amber-100 text-orange-700 rounded-full text-sm font-medium flex items-center space-x-1">
                     <IconBolt class="w-4 h-4" />
-                    <span>{{ formatZapAmount(getTotalZapAmount(selectedContent.nostrEventId)) }} sats</span>
-                    <span class="text-orange-500">({{ getZapCount(selectedContent.nostrEventId) }})</span>
+                    <span>{{ formatZapAmount(selectedContent.zapAmount) }} sats</span>
+                    <span class="text-orange-500">({{ selectedContent.zapCount || 0 }})</span>
                   </span>
                 </div>
                 
@@ -777,7 +783,7 @@ onUnmounted(() => {
 <!--                </div>-->
                 <div class="flex items-center justify-between group relative">
                   <span class="text-sm text-gray-600 cursor-help">Revenue</span>
-                  <span class="font-medium text-orange-600">{{ getTotalZapAmount(selectedContent.nostrEventId || selectedContent.id).toLocaleString() }} sats</span>
+                  <span class="font-medium text-orange-600">{{ (selectedContent.zapAmount || 0).toLocaleString() }} sats</span>
                   
                   <!-- Hover Tooltip -->
                   <div class="absolute bottom-full left-0 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-10">
@@ -790,10 +796,10 @@ onUnmounted(() => {
                   <div class="flex items-center justify-between">
                     <span class="text-sm font-medium text-gray-600">Engagement</span>
                     <div class="flex items-center gap-2">
-                      <EngagementMetrics 
-                        :key="`sidebar-engagement-${selectedContent.id}-${getEngagementCounts(selectedContent.nostrEventId).totalEngagement}-${selectedContent.zapCount || 0}`"
+                      <EngagementMetrics
+                        :key="`sidebar-engagement-${selectedContent.id}`"
                         :engagement-counts="getEngagementCounts(selectedContent.nostrEventId)"
-                        :zap-count="getZapCount(selectedContent.nostrEventId || selectedContent.id)"
+                        :zap-count="selectedContent.zapCount || 0"
                         size="default"
                         text-size="text-xs"
                         :show-all-metrics="false"
@@ -820,20 +826,20 @@ onUnmounted(() => {
                   </div>
                 </h3>
                 <div class="text-right">
-                  <div class="text-lg font-bold text-orange-600">{{ formatZapAmount(getTotalZapAmount(selectedContent.nostrEventId)) }}</div>
-                  <div class="text-xs text-gray-500">{{ getZapCount(selectedContent.nostrEventId) }} zaps</div>
+                  <div class="text-lg font-bold text-orange-600">{{ formatZapAmount(selectedContent.zapAmount || 0) }}</div>
+                  <div class="text-xs text-gray-500">{{ selectedContent.zapCount || 0 }} zaps</div>
                 </div>
               </div>
 
               <!-- Compact Zap List -->
               <div class="space-y-2 max-h-48 overflow-y-auto">
-                <div v-if="getZapsForContent(selectedContent.nostrEventId).length === 0" class="text-center py-6">
+                <div v-if="!selectedContent.zaps || selectedContent.zaps.length === 0" class="text-center py-6">
                   <IconBolt class="w-8 h-8 mx-auto text-gray-300 mb-2" />
                   <p class="text-sm text-gray-500">No zaps yet</p>
                 </div>
 
                 <div
-                  v-for="zap in getZapsForContent(selectedContent.nostrEventId).slice(0, 5)"
+                  v-for="zap in (selectedContent.zaps || []).slice(0, 5)"
                   :key="zap.id"
                   class="flex items-center space-x-2 p-2 bg-orange-50 rounded-lg"
                 >
@@ -854,9 +860,9 @@ onUnmounted(() => {
                   </div>
                 </div>
 
-                <div v-if="getZapsForContent(selectedContent.nostrEventId).length > 5" class="text-center pt-2">
+                <div v-if="(selectedContent.zaps || []).length > 5" class="text-center pt-2">
                   <span class="text-xs text-gray-500">
-                    +{{ getZapsForContent(selectedContent.nostrEventId).length - 5 }} more zaps
+                    +{{ selectedContent.zaps.length - 5 }} more zaps
                   </span>
                 </div>
               </div>

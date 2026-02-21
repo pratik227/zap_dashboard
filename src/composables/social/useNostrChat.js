@@ -1,4 +1,4 @@
-import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { useNostrAuth } from '../auth/useNostrAuth.js'
 import { useNostrConnections } from '../core/useNostrConnections.js'
 import { useNotifications } from '../core/useNotifications.js'
@@ -521,11 +521,6 @@ export function useNostrChat() {
       activeConversation.value = null
     }
   }, { immediate: true })
-
-  // Cleanup on unmount
-  onUnmounted(() => {
-    cleanup()
-  })
 
   return {
     // State

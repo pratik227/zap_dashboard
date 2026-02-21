@@ -7,18 +7,12 @@ import {
   IconX,
   IconTrash,
   IconBolt,
-  IconWallet,
   IconAlertCircle,
-  IconCircleCheck,
-  IconSparkles,
-  IconFilter,
-  IconCalendar,
-  IconClock,
-  IconChevronDown,
-  IconSettings
+  IconCalendar
 } from '@iconify-prerendered/vue-tabler'
 import { useNotifications } from '../../composables/core/useNotifications.js'
-import { generateAvatar } from '../../utils/profile/avatarGenerator.js'
+import NotificationItem from './NotificationItem.vue'
+import NotificationModal from './NotificationModal.vue'
 
 const {
   notifications,
@@ -35,6 +29,7 @@ const dropdownRef = ref(null)
 const filterType = ref('all')
 const displayCount = ref(50)
 const scrollContainer = ref(null)
+const showNotificationModal = ref(false)
 
 // Close dropdown when clicking outside
 const handleClickOutside = (event) => {
@@ -131,80 +126,6 @@ const handleNotificationClick = (notification) => {
   markAsRead(notification.id)
 }
 
-const getNotificationIcon = (type) => {
-  switch (type) {
-    case NOTIFICATION_TYPES.ZAP_RECEIVED_NWC:
-      return IconWallet
-    case NOTIFICATION_TYPES.ZAP_RECEIVED_NOSTR:
-      return IconSparkles
-    case NOTIFICATION_TYPES.ZAP_SENT:
-      return IconBolt
-    case NOTIFICATION_TYPES.BALANCE_CHANGE:
-      return IconWallet
-    case NOTIFICATION_TYPES.CONNECTION_SUCCESS:
-    case NOTIFICATION_TYPES.PAYMENT_SUCCESS:
-      return IconCircleCheck
-    case NOTIFICATION_TYPES.CONNECTION_ERROR:
-    case NOTIFICATION_TYPES.PAYMENT_ERROR:
-    case NOTIFICATION_TYPES.WALLET_ERROR:
-      return IconAlertCircle
-    case NOTIFICATION_TYPES.CALENDAR_INVITE:
-      return IconCalendar
-    case NOTIFICATION_TYPES.CALENDAR_EVENT_START:
-      return IconClock
-    default:
-      return IconBell
-  }
-}
-
-const getNotificationColor = (type) => {
-  switch (type) {
-    case NOTIFICATION_TYPES.ZAP_RECEIVED_NWC:
-      return 'text-blue-600 bg-blue-50'
-    case NOTIFICATION_TYPES.ZAP_RECEIVED_NOSTR:
-      return 'text-orange-600 bg-orange-50'
-    case NOTIFICATION_TYPES.ZAP_SENT:
-      return 'text-amber-600 bg-amber-50'
-    case NOTIFICATION_TYPES.BALANCE_CHANGE:
-      return 'text-blue-600 bg-blue-50'
-    case NOTIFICATION_TYPES.CONNECTION_SUCCESS:
-    case NOTIFICATION_TYPES.PAYMENT_SUCCESS:
-      return 'text-green-600 bg-green-50'
-    case NOTIFICATION_TYPES.CONNECTION_ERROR:
-    case NOTIFICATION_TYPES.PAYMENT_ERROR:
-    case NOTIFICATION_TYPES.WALLET_ERROR:
-      return 'text-red-600 bg-red-50'
-    case NOTIFICATION_TYPES.CALENDAR_INVITE:
-      return 'text-amber-600 bg-amber-50'
-    case NOTIFICATION_TYPES.CALENDAR_EVENT_START:
-      return 'text-red-600 bg-red-50'
-    default:
-      return 'text-gray-600 bg-gray-50'
-  }
-}
-
-const formatTime = (timestamp) => {
-  const date = new Date(timestamp)
-  const now = new Date()
-  const diff = now - date
-
-  if (diff < 60000) return 'Just now'
-  if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`
-  if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`
-  if (diff < 604800000) return `${Math.floor(diff / 86400000)}d ago`
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-}
-
-const formatFullTime = (timestamp) => {
-  const date = new Date(timestamp)
-  return date.toLocaleString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit'
-  })
-}
-
 const hasUnread = computed(() => unreadCount.value > 0)
 
 const filterOptions = [
@@ -217,6 +138,11 @@ const filterOptions = [
 const unreadFilteredCount = computed(() => {
   return filteredNotifications.value.filter(n => !n.read).length
 })
+
+const openNotificationModal = () => {
+  showNotificationModal.value = true
+  showDropdown.value = false
+}
 </script>
 
 <template>
@@ -423,144 +349,34 @@ const unreadFilteredCount = computed(() => {
               </div>
             </div>
 
-            <!-- Load More Indicator -->
-            <div v-if="displayCount < filteredNotifications.length" class="p-4 text-center bg-gradient-to-t from-gray-50 to-transparent">
-              <div class="inline-flex items-center gap-2 text-sm font-medium text-gray-600">
-                <IconChevronDown class="w-4 h-4 animate-bounce" />
-                <span>Showing {{ displayCount }} of {{ filteredNotifications.length }}</span>
-              </div>
-              <p class="text-xs text-gray-500 mt-1">Scroll for more</p>
-            </div>
-
-            <!-- All Loaded Indicator -->
-            <div v-else-if="filteredNotifications.length > 20" class="p-3 text-center bg-gray-50 border-t border-gray-200">
-              <div class="text-xs text-gray-600 font-medium">
-                All {{ filteredNotifications.length }} notifications loaded
-              </div>
+            <!-- View All Button -->
+            <div class="p-3 text-center border-t border-gray-200 bg-gray-50/80">
+              <button
+                @click="openNotificationModal"
+                class="text-sm font-semibold text-amber-600 hover:text-amber-700 px-4 py-2 rounded-lg hover:bg-amber-50 transition-all duration-200"
+              >
+                View all notifications
+              </button>
             </div>
           </div>
         </div>
       </div>
     </transition>
+
+    <!-- Notification Modal -->
+    <NotificationModal
+      v-if="showNotificationModal"
+      :show="showNotificationModal"
+      :notifications="notifications"
+      :notification-types="NOTIFICATION_TYPES"
+      @close="showNotificationModal = false"
+      @mark-read="markAsRead"
+      @mark-all-read="markAllAsRead"
+      @remove="removeNotification"
+      @clear-all="clearAllNotifications"
+    />
   </div>
 </template>
-
-<script>
-// Notification Item Component (inline for simplicity)
-import { defineComponent, h } from 'vue'
-
-const NotificationItem = defineComponent({
-  props: ['notification'],
-  emits: ['remove'],
-  setup(props, { emit }) {
-    const { NOTIFICATION_TYPES } = useNotifications()
-
-    const getNotificationIcon = (type) => {
-      switch (type) {
-        case NOTIFICATION_TYPES.ZAP_RECEIVED_NWC: return IconWallet
-        case NOTIFICATION_TYPES.ZAP_RECEIVED_NOSTR: return IconSparkles
-        case NOTIFICATION_TYPES.ZAP_SENT: return IconBolt
-        case NOTIFICATION_TYPES.BALANCE_CHANGE: return IconWallet
-        case NOTIFICATION_TYPES.CONNECTION_SUCCESS:
-        case NOTIFICATION_TYPES.PAYMENT_SUCCESS: return IconCircleCheck
-        case NOTIFICATION_TYPES.CONNECTION_ERROR:
-        case NOTIFICATION_TYPES.PAYMENT_ERROR:
-        case NOTIFICATION_TYPES.WALLET_ERROR: return IconAlertCircle
-        case NOTIFICATION_TYPES.CALENDAR_INVITE: return IconCalendar
-        case NOTIFICATION_TYPES.CALENDAR_EVENT_START: return IconClock
-        default: return IconBell
-      }
-    }
-
-    const getNotificationColor = (type) => {
-      switch (type) {
-        case NOTIFICATION_TYPES.ZAP_RECEIVED_NWC: return 'text-blue-600 bg-blue-50'
-        case NOTIFICATION_TYPES.ZAP_RECEIVED_NOSTR: return 'text-orange-600 bg-orange-50'
-        case NOTIFICATION_TYPES.ZAP_SENT: return 'text-amber-600 bg-amber-50'
-        case NOTIFICATION_TYPES.BALANCE_CHANGE: return 'text-blue-600 bg-blue-50'
-        case NOTIFICATION_TYPES.CONNECTION_SUCCESS:
-        case NOTIFICATION_TYPES.PAYMENT_SUCCESS: return 'text-green-600 bg-green-50'
-        case NOTIFICATION_TYPES.CONNECTION_ERROR:
-        case NOTIFICATION_TYPES.PAYMENT_ERROR:
-        case NOTIFICATION_TYPES.WALLET_ERROR: return 'text-red-600 bg-red-50'
-        case NOTIFICATION_TYPES.CALENDAR_INVITE: return 'text-amber-600 bg-amber-50'
-        case NOTIFICATION_TYPES.CALENDAR_EVENT_START: return 'text-red-600 bg-red-50'
-        default: return 'text-gray-600 bg-gray-50'
-      }
-    }
-
-    const formatTime = (timestamp) => {
-      const date = new Date(timestamp)
-      const now = new Date()
-      const diff = now - date
-      if (diff < 60000) return 'Just now'
-      if (diff < 3600000) return `${Math.floor(diff / 60000)}m`
-      if (diff < 86400000) return `${Math.floor(diff / 3600000)}h`
-      return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
-    }
-
-    return () => h('div', { class: 'flex items-start gap-3' }, [
-      // Unread indicator
-      !props.notification.read && h('div', {
-        class: 'absolute left-2 top-1/2 transform -translate-y-1/2 w-2 h-2 bg-amber-500 rounded-full ring-2 ring-amber-200'
-      }),
-
-      // Icon
-      h('div', {
-        class: `w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 transition-all duration-200 group-hover:scale-105 ${getNotificationColor(props.notification.type)} ${!props.notification.read ? 'ml-3' : ''}`
-      }, [
-        h(getNotificationIcon(props.notification.type), { class: 'w-5 h-5' })
-      ]),
-
-      // Content
-      h('div', { class: 'flex-1 min-w-0' }, [
-        h('div', { class: 'flex items-start justify-between gap-2 mb-1' }, [
-          h('h4', { class: 'text-sm font-semibold text-gray-900 leading-tight' }, props.notification.title),
-          h('span', { class: 'text-xs text-gray-500 whitespace-nowrap flex-shrink-0 font-medium' }, formatTime(props.notification.timestamp))
-        ]),
-        h('p', { class: 'text-sm text-gray-600 leading-snug mb-2' }, props.notification.message),
-
-        // Amount badge
-        props.notification.data?.amount && h('div', { class: 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-100 text-amber-700' }, [
-          h(IconBolt, { class: 'w-3.5 h-3.5' }),
-          h('span', `${props.notification.data.amount.toLocaleString()} sats`)
-        ]),
-
-        // Sender info for Nostr zaps
-        props.notification.data?.sender && props.notification.type === NOTIFICATION_TYPES.ZAP_RECEIVED_NOSTR && h('div', { class: 'flex items-center gap-2 mt-2 pt-2 border-t border-gray-100' }, [
-          h('img', {
-            src: props.notification.data.sender.picture || props.notification.data.sender.avatar || generateAvatar(props.notification.data.sender.pubkey),
-            alt: props.notification.data.sender.name,
-            class: 'w-6 h-6 rounded-full ring-2 ring-white',
-            onerror: (e) => e.target.src = generateAvatar(props.notification.data.sender.pubkey)
-          }),
-          h('span', { class: 'text-xs text-gray-600' }, [
-            'from ',
-            h('span', { class: 'font-semibold text-gray-900' }, props.notification.data.sender.name)
-          ])
-        ])
-      ]),
-
-      // Remove button
-      h('button', {
-        onClick: (e) => {
-          e.stopPropagation()
-          emit('remove', props.notification.id)
-        },
-        class: 'text-gray-400 hover:text-red-600 transition-colors p-1.5 rounded-lg hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex-shrink-0'
-      }, [
-        h(IconX, { class: 'w-4 h-4' })
-      ])
-    ])
-  }
-})
-
-export default {
-  components: {
-    NotificationItem
-  }
-}
-</script>
 
 <style scoped>
 /* Dropdown transition */

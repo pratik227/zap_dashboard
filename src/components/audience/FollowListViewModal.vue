@@ -29,19 +29,22 @@ const props = defineProps({
   list: {
     type: Object,
     default: null
+  },
+  isProcessing: {
+    type: Boolean,
+    default: false
   }
 })
 
 const emit = defineEmits(['close', 'follow-all', 'follow-selected'])
 
-const { getProfile, isFollowingMember } = useFollowLists()
+const { getProfile } = useFollowLists()
 const { isFollowing } = useAudience()
 
 // UI state
 const searchQuery = ref('')
 const selectedMembers = ref(new Set())
 const showBulkActions = ref(false)
-const isProcessing = ref(false)
 const followingStatus = ref(new Map())
 const startY = ref(0)
 const currentY = ref(0)
@@ -73,21 +76,12 @@ const allSelected = computed(() => {
          filteredMembers.value.every(pubkey => selectedMembers.value.has(pubkey))
 })
 
-// Check following status for all members
-const checkFollowingStatus = async () => {
+// Check following status for all members using local state (no relay calls)
+const checkFollowingStatus = () => {
   if (!props.list?.members) return
-
-  const statusPromises = props.list.members.map(async (pubkey) => {
-    try {
-      const isFollowingUser = await isFollowingMember(pubkey)
-      followingStatus.value.set(pubkey, isFollowingUser)
-    } catch (error) {
-      console.warn(`Failed to check following status for ${pubkey.substring(0, 8)}:`, error)
-      followingStatus.value.set(pubkey, false)
-    }
+  props.list.members.forEach(pubkey => {
+    followingStatus.value.set(pubkey, isFollowing(pubkey))
   })
-
-  await Promise.allSettled(statusPromises)
 }
 
 // Toggle member selection
@@ -124,68 +118,16 @@ const toggleSelectAll = () => {
   }
 }
 
-// Follow selected members
-const followSelected = async () => {
+// Follow selected members — emit to parent, which handles async + feedback
+const followSelected = () => {
   if (selectedMembers.value.size === 0) return
-
-  isProcessing.value = true
-
-  try {
-    const selectedArray = Array.from(selectedMembers.value)
-    const result = await emit('follow-selected', props.list, selectedArray)
-
-    if (result && result.success) {
-      if (result.addedMembers && result.addedMembers.length > 0) {
-        result.addedMembers.forEach(pubkey => {
-          followingStatus.value.set(pubkey, true)
-        })
-      }
-
-      if (result.alreadyFollowingAll) {
-        alert(`✅ ${result.message}`)
-      } else {
-        alert(`🎉 ${result.message}\n\nTotal people you're now following: ${result.totalFollows.toLocaleString()}`)
-      }
-    }
-
-    selectedMembers.value.clear()
-    showBulkActions.value = false
-
-  } catch (error) {
-    console.error('Failed to follow selected members:', error)
-    alert(`❌ Failed to follow selected members: ${error.message}\n\nYour existing follows remain safe.`)
-  } finally {
-    isProcessing.value = false
-  }
+  const selectedArray = Array.from(selectedMembers.value)
+  emit('follow-selected', props.list, selectedArray)
 }
 
-// Follow entire list
-const followAll = async () => {
-  isProcessing.value = true
-
-  try {
-    const result = await emit('follow-all', props.list)
-
-    if (result && result.success) {
-      if (result.addedMembers && result.addedMembers.length > 0) {
-        result.addedMembers.forEach(pubkey => {
-          followingStatus.value.set(pubkey, true)
-        })
-      }
-
-      if (result.alreadyFollowingAll) {
-        alert(`✅ ${result.message}`)
-      } else {
-        alert(`🎉 ${result.message}\n\nTotal people you're now following: ${result.totalFollows.toLocaleString()}`)
-      }
-    }
-
-  } catch (error) {
-    console.error('Failed to follow entire list:', error)
-    alert(`❌ Failed to follow pack: ${error.message}\n\nYour existing follows remain safe.`)
-  } finally {
-    isProcessing.value = false
-  }
+// Follow entire list — emit to parent, which handles async + feedback
+const followAll = () => {
+  emit('follow-all', props.list)
 }
 
 // Get member display name
@@ -242,6 +184,15 @@ const closeModal = () => {
 watch(() => props.show, (show) => {
   if (show && props.list) {
     checkFollowingStatus()
+  }
+})
+
+// Refresh following status and clear selection when processing completes
+watch(() => props.isProcessing, (newVal, oldVal) => {
+  if (oldVal && !newVal) {
+    checkFollowingStatus()
+    selectedMembers.value.clear()
+    showBulkActions.value = false
   }
 })
 

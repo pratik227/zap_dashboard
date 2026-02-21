@@ -1,10 +1,127 @@
 <template>
   <div class="min-h-screen bg-white">
-    <!-- Loading State -->
-    <div v-if="isLoading && !campaign" class="flex items-center justify-center min-h-screen">
-      <div class="text-center">
-        <div class="animate-spin rounded-full h-10 w-10 border-2 border-gray-200 border-t-orange-500 mx-auto mb-3"></div>
-        <p class="text-sm text-gray-500">Loading campaign...</p>
+    <!-- Loading Skeleton -->
+    <div v-if="isLoading && !campaign" class="relative min-h-screen">
+      <!-- Hero Skeleton -->
+      <div class="relative w-full bg-gray-100">
+        <div class="w-full aspect-[2.5/1] sm:aspect-[3/1] max-h-[360px] skeleton-shimmer"></div>
+      </div>
+
+      <!-- Skeleton Content Grid -->
+      <div class="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-5 p-4 sm:p-6 lg:p-8">
+        <!-- Left Column -->
+        <div class="lg:col-span-2 space-y-5">
+          <!-- Header Card Skeleton -->
+          <div class="bg-white rounded-2xl border border-gray-200/60">
+            <div class="p-5 sm:p-6">
+              <!-- Title skeleton -->
+              <div class="flex items-start justify-between gap-4 mb-4">
+                <div class="flex-1 space-y-2">
+                  <div class="h-7 w-3/4 bg-gray-200 rounded-lg skeleton-shimmer"></div>
+                  <div class="h-5 w-1/2 bg-gray-100 rounded-lg skeleton-shimmer"></div>
+                </div>
+                <div class="h-7 w-20 bg-gray-100 rounded-full skeleton-shimmer"></div>
+              </div>
+              <!-- Author skeleton -->
+              <div class="flex items-center space-x-2.5 mb-4">
+                <div class="w-10 h-10 rounded-full bg-gray-200 skeleton-shimmer"></div>
+                <div class="space-y-1.5">
+                  <div class="h-4 w-28 bg-gray-200 rounded skeleton-shimmer"></div>
+                  <div class="h-3 w-20 bg-gray-100 rounded skeleton-shimmer"></div>
+                </div>
+              </div>
+              <!-- Summary skeleton -->
+              <div class="space-y-2">
+                <div class="h-4 w-full bg-gray-100 rounded skeleton-shimmer"></div>
+                <div class="h-4 w-5/6 bg-gray-100 rounded skeleton-shimmer"></div>
+                <div class="h-4 w-2/3 bg-gray-100 rounded skeleton-shimmer"></div>
+              </div>
+            </div>
+            <!-- Progress skeleton -->
+            <div class="border-t border-gray-200/60 p-5 sm:p-6">
+              <div class="flex items-baseline justify-between mb-3">
+                <div class="space-y-1.5">
+                  <div class="h-8 w-32 bg-gray-200 rounded-lg skeleton-shimmer"></div>
+                  <div class="h-4 w-40 bg-gray-100 rounded skeleton-shimmer"></div>
+                </div>
+                <div class="h-7 w-14 bg-gray-200 rounded-lg skeleton-shimmer"></div>
+              </div>
+              <div class="w-full bg-gray-200 rounded-full h-2 mb-4"></div>
+              <div class="grid grid-cols-3 gap-3">
+                <div class="space-y-1.5">
+                  <div class="h-3 w-16 bg-gray-100 rounded skeleton-shimmer"></div>
+                  <div class="h-5 w-10 bg-gray-200 rounded skeleton-shimmer"></div>
+                </div>
+                <div class="border-l border-gray-200 pl-3 space-y-1.5">
+                  <div class="h-3 w-14 bg-gray-100 rounded skeleton-shimmer"></div>
+                  <div class="h-5 w-16 bg-gray-200 rounded skeleton-shimmer"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Description Skeleton -->
+          <div class="bg-white rounded-2xl border border-gray-200/60 p-5 sm:p-6">
+            <div class="h-6 w-16 bg-gray-200 rounded skeleton-shimmer mb-3"></div>
+            <div class="space-y-2">
+              <div class="h-4 w-full bg-gray-100 rounded skeleton-shimmer"></div>
+              <div class="h-4 w-full bg-gray-100 rounded skeleton-shimmer"></div>
+              <div class="h-4 w-4/5 bg-gray-100 rounded skeleton-shimmer"></div>
+              <div class="h-4 w-3/4 bg-gray-100 rounded skeleton-shimmer"></div>
+            </div>
+          </div>
+
+          <!-- Supporters Skeleton -->
+          <div class="bg-white rounded-2xl border border-gray-200/60 p-5 sm:p-6">
+            <div class="h-6 w-36 bg-gray-200 rounded skeleton-shimmer mb-4"></div>
+            <div class="space-y-3">
+              <div v-for="n in 3" :key="n" class="flex items-center justify-between py-2.5">
+                <div class="flex items-center space-x-3">
+                  <div class="w-10 h-10 rounded-full bg-gray-200 skeleton-shimmer"></div>
+                  <div class="space-y-1.5">
+                    <div class="h-4 w-24 bg-gray-200 rounded skeleton-shimmer"></div>
+                    <div class="h-3 w-16 bg-gray-100 rounded skeleton-shimmer"></div>
+                  </div>
+                </div>
+                <div class="h-4 w-12 bg-orange-100 rounded skeleton-shimmer"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ZapTracker Branding -->
+          <div class="mt-8 pb-8 text-center">
+            <a
+              href="/"
+              class="inline-flex items-center space-x-2 text-orange-600 font-medium text-sm"
+            >
+              <img src="/new_logo3.png" alt="ZapTracker" class="w-4 h-4 object-contain" />
+              <span>Powered by ZapTracker</span>
+            </a>
+          </div>
+        </div>
+
+        <!-- Right Column: Payment Skeleton (Desktop) -->
+        <div class="hidden lg:block lg:col-span-1">
+          <div class="sticky top-6">
+            <div class="bg-white rounded-2xl border border-gray-200/60 shadow-sm p-6 space-y-5">
+              <div class="space-y-1.5">
+                <div class="h-6 w-44 bg-gray-200 rounded-lg skeleton-shimmer"></div>
+                <div class="h-4 w-52 bg-gray-100 rounded skeleton-shimmer"></div>
+              </div>
+              <div class="grid grid-cols-2 gap-2.5">
+                <div v-for="n in 4" :key="n" class="h-16 bg-gray-100 rounded-xl skeleton-shimmer"></div>
+              </div>
+              <div class="h-4 w-28 bg-gray-100 rounded skeleton-shimmer"></div>
+              <div class="h-24 w-full bg-gray-100 rounded-xl skeleton-shimmer"></div>
+              <div class="h-12 w-full bg-orange-100 rounded-xl skeleton-shimmer"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mobile FAB Skeleton -->
+      <div class="lg:hidden fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-white via-white to-transparent pointer-events-none z-40">
+        <div class="h-14 w-full bg-orange-100 rounded-xl skeleton-shimmer"></div>
       </div>
     </div>
 
@@ -25,27 +142,51 @@
     <div v-else-if="campaign" class="relative min-h-screen">
       <!-- Hero Image Section -->
       <div class="relative w-full bg-gray-100">
-        <div class="relative w-full h-[280px] sm:h-[320px] overflow-hidden">
+        <div class="relative w-full aspect-[2.5/1] sm:aspect-[3/1] max-h-[360px] overflow-hidden">
           <img
-            v-if="campaign.image"
+            v-if="campaign.image && !heroImageFailed"
             :src="campaign.image"
             :alt="campaign.title"
-            class="w-full h-full object-cover"
-            @error="handleImageError"
+            class="w-full h-full object-cover object-center"
+            @error="heroImageFailed = true"
           />
-          <img
+          <div
             v-else
-            src="/ZapTracker_campaigns.png"
-            alt="ZapTracker Campaign"
-            class="w-full h-full object-cover opacity-60"
-          />
+            class="w-full h-full bg-gradient-to-br from-orange-50 via-amber-50 to-orange-100 flex items-center justify-center"
+          >
+            <div class="text-center opacity-60">
+              <img
+                src="/new_logo3.png"
+                alt="ZapTracker"
+                class="w-12 h-12 mx-auto mb-2 object-contain"
+              />
+              <span class="text-sm font-medium text-orange-400">ZapTracker Campaign</span>
+            </div>
+          </div>
+          <!-- Bottom fade for seamless transition to content -->
+          <div class="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-white to-transparent"></div>
+          <!-- Floating nav overlay -->
+          <div class="absolute top-0 left-0 right-0 flex items-center justify-between p-4">
+            <button
+              @click="changePage('campaigns')"
+              class="w-10 h-10 flex items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-sm hover:bg-black/60 transition-colors"
+            >
+              <IconArrowLeft class="w-5 h-5" />
+            </button>
+            <button
+              @click="openShareModal"
+              class="w-10 h-10 flex items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-sm hover:bg-black/60 transition-colors"
+            >
+              <IconShare class="w-5 h-5" />
+            </button>
+          </div>
         </div>
       </div>
 
       <!-- Main Content Grid -->
       <div class="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-5 p-4 sm:p-6 lg:p-8">
         <!-- Left Column: Campaign Details -->
-        <div class="lg:col-span-2 space-y-5">
+        <div class="lg:col-span-2 space-y-5 pb-24 lg:pb-0">
           <!-- Campaign Header Card -->
           <div class="bg-white rounded-2xl border border-gray-200/60">
             <div class="p-5 sm:p-6">
@@ -61,7 +202,7 @@
               </div>
 
               <!-- Author Info -->
-              <div v-if="campaignAuthor" class="flex items-center space-x-2.5 mb-4">
+              <div v-if="campaignAuthor" @click="openUserProfile" class="flex items-center space-x-2.5 mb-4 cursor-pointer hover:bg-gray-50 rounded-lg transition-colors -mx-2 px-2 py-1">
                 <img
                   :src="campaignAuthor.picture"
                   :alt="campaignAuthor.name"
@@ -78,6 +219,18 @@
               <div class="text-[15px] text-gray-700 leading-relaxed">
                 <p>{{ campaign.summary }}</p>
               </div>
+
+              <!-- View on Nostr -->
+              <a
+                v-if="campaign.id"
+                :href="nostrEventUrl"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="inline-flex items-center space-x-1.5 text-xs text-gray-400 hover:text-orange-600 mt-3 transition-colors"
+              >
+                <IconExternalLink class="w-3.5 h-3.5" />
+                <span>View on Nostr</span>
+              </a>
             </div>
 
             <!-- Campaign Progress Section -->
@@ -86,7 +239,7 @@
               <div class="flex items-baseline justify-between mb-3">
                 <div>
                   <div class="text-2xl sm:text-3xl font-semibold text-gray-900">{{ formatCurrency(progress.current) }}</div>
-                  <div class="text-sm text-gray-500 mt-0.5">raised of {{ formatCurrency(campaign.goalAmount) }} goal</div>
+                  <div class="text-sm text-gray-500 mt-0.5">raised of {{ formatCurrency(progress.goal) }} goal</div>
                 </div>
                 <div class="text-right">
                   <div class="text-xl font-semibold text-gray-900">{{ progress.percentage }}%</div>
@@ -123,10 +276,10 @@
 
           <!-- Supporters Section -->
           <div class="bg-white rounded-2xl border border-gray-200/60 p-5 sm:p-6">
-            <h3 class="text-lg font-semibold text-gray-900 mb-4">Recent supporters</h3>
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Recent supporters{{ recentZaps.length > 0 ? ` (${recentZaps.length})` : '' }}</h3>
             <div v-if="recentZaps.length > 0" class="space-y-2.5">
               <div
-                v-for="(zap, index) in displayedSupporters.slice(0, 5)"
+                v-for="zap in displayedSupporters"
                 :key="zap.id"
                 class="flex items-center justify-between py-2.5 border-b border-gray-100 last:border-0"
               >
@@ -139,11 +292,18 @@
                   />
                   <div>
                     <div class="text-sm font-medium text-gray-900">{{ getSenderName(zap) }}</div>
-                    <div class="text-xs text-gray-500">{{ formatTimeAgo(zap.created_at) }}</div>
+                    <div class="text-xs text-gray-500">{{ zap.timeAgo }}</div>
                   </div>
                 </div>
                 <div class="text-sm font-semibold text-orange-600">{{ formatZapAmount(zap.amount) }}</div>
               </div>
+              <button
+                v-if="recentZaps.length > 5"
+                @click="showAllSupporters = !showAllSupporters"
+                class="w-full text-center text-sm font-medium text-orange-600 hover:text-orange-700 pt-3 transition-colors"
+              >
+                {{ showAllSupporters ? 'Show less' : `Show all ${recentZaps.length} supporters` }}
+              </button>
             </div>
             <div v-else class="text-center py-8">
               <div class="text-sm text-gray-500">No supporters yet</div>
@@ -169,13 +329,23 @@
 
         <!-- Right Column: Payment Section (Desktop) -->
         <div class="hidden lg:block lg:col-span-1">
-          <div class="sticky top-6">
+          <div class="sticky top-6 max-h-[calc(100vh-3rem)] overflow-y-auto">
             <!-- Payment Card - Apple/Twitter Aesthetic -->
             <div class="bg-white rounded-2xl border border-gray-200/60 shadow-sm overflow-hidden">
               <!-- Payment Content -->
               <div class="p-6">
+                <!-- Campaign ended / Goal reached -->
+                <div v-if="isPaymentDisabled" class="text-center py-8">
+                  <div class="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <IconCheck v-if="status === 'completed'" class="w-7 h-7 text-green-600" />
+                    <IconAlertCircle v-else class="w-7 h-7 text-gray-400" />
+                  </div>
+                  <h4 class="text-lg font-semibold text-gray-900 mb-1">{{ paymentDisabledLabel }}</h4>
+                  <p class="text-sm text-gray-500">This campaign is no longer accepting contributions.</p>
+                </div>
+
                 <!-- Amount Selection (Step 1) -->
-                <div v-if="currentStep === 'amount'" class="space-y-6">
+                <div v-else-if="currentStep === 'amount'" class="space-y-6">
                   <!-- Header -->
                   <div>
                     <h3 class="text-xl font-semibold text-gray-900">Support this campaign</h3>
@@ -225,13 +395,14 @@
                     </div>
 
                     <!-- Custom Amount Input with Slider Effect -->
-                    <div v-if="isCustomAmount" class="space-y-3">
+                    <div v-if="isCustomAmount" class="space-y-2">
                       <div class="relative">
                         <input
                           ref="customAmountInput"
                           v-model.number="customAmount"
                           type="number"
                           min="1"
+                          :max="MAX_ZAP_AMOUNT"
                           placeholder="Enter amount"
                           class="w-full px-4 py-3.5 pr-16 border-2 border-orange-200 rounded-xl focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 transition-all text-base font-semibold bg-white"
                         />
@@ -239,6 +410,7 @@
                           <span class="text-sm font-semibold text-gray-500">sats</span>
                         </div>
                       </div>
+                      <p v-if="isAmountExceedsMax" class="text-xs text-red-500">Maximum amount is {{ MAX_ZAP_AMOUNT.toLocaleString() }} sats</p>
                     </div>
                   </div>
 
@@ -305,11 +477,7 @@
                   <!-- QR Code -->
                   <div class="text-center">
                     <div class="bg-white p-4 rounded-xl border border-gray-200 inline-block">
-                      <div v-if="!invoice" class="w-[200px] h-[200px] flex items-center justify-center">
-                        <IconLoader class="w-8 h-8 animate-spin text-orange-500" />
-                      </div>
                       <QRCodeVue3
-                        v-else
                         :value="`lightning:${invoice}`"
                         :size="200"
                         color="#000000"
@@ -319,7 +487,23 @@
                     </div>
                     <p class="text-sm text-gray-500 mt-3">Scan with your Lightning wallet</p>
                   </div>
-                  
+
+                  <!-- Copy Invoice -->
+                  <button
+                    @click="copyToClipboard(invoice, 'invoice')"
+                    class="w-full px-4 py-2.5 rounded-xl border border-gray-200 hover:bg-gray-50 text-sm font-medium text-gray-700 transition-colors flex items-center justify-center space-x-2"
+                  >
+                    <IconCopy class="w-4 h-4" />
+                    <span>{{ copySuccess === 'invoice' ? 'Copied!' : 'Copy Invoice' }}</span>
+                  </button>
+
+                  <!-- QR / External wallet info notice -->
+                  <div class="bg-amber-50 border border-amber-200 rounded-xl p-3">
+                    <p class="text-xs text-amber-800 leading-relaxed">
+                      <span class="font-semibold">Good to know:</span> Your sats will reach the campaign creator, but payments made via QR code or external wallet can't be tracked in the campaign progress. Want your support to show?<span v-if="nostrEventUrl"> <a :href="nostrEventUrl" target="_blank" rel="noopener noreferrer" class="underline font-medium hover:text-amber-900">Zap the campaign on Nostr</a> instead.</span><span v-else> Zap the campaign post on Nostr instead.</span>
+                    </p>
+                  </div>
+
                   <!-- Payment Buttons -->
                   <div class="space-y-2.5">
                     <!-- Pay with ZapTracker Wallet -->
@@ -384,13 +568,19 @@
                   <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
                     <IconCheck class="w-8 h-8 text-green-600" />
                   </div>
-                  <h4 class="text-xl font-semibold text-green-600 mb-2">Thank You! 🎉</h4>
+                  <h4 class="text-xl font-semibold text-green-600 mb-2">Thank You!</h4>
                   <p class="text-gray-600 mb-4">Your {{ effectiveAmount.toLocaleString() }} sats contribution makes a difference!</p>
-                  <div class="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-lg p-3">
-                    <p class="text-orange-800 font-medium">
-                      🚀 Your support helps bring this campaign closer to its goal
+                  <div class="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-lg p-3 mb-4">
+                    <p class="text-orange-800 font-medium text-sm">
+                      Your support helps bring this campaign closer to its goal
                     </p>
                   </div>
+                  <button
+                    @click="resetForm"
+                    class="text-orange-600 hover:text-orange-700 text-sm font-semibold transition-colors"
+                  >
+                    Support again
+                  </button>
                 </div>
 
                 <!-- Error State -->
@@ -422,9 +612,15 @@
       <div class="lg:hidden fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-white via-white to-transparent pointer-events-none z-40">
         <button
           @click="openMobilePayment"
-          class="w-full bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white px-6 py-4 rounded-xl font-semibold text-base shadow-lg flex items-center justify-center space-x-2 pointer-events-auto transition-all duration-200"
+          :disabled="isPaymentDisabled"
+          :class="[
+            'w-full px-6 py-4 rounded-xl font-semibold text-base shadow-lg flex items-center justify-center space-x-2 pointer-events-auto transition-all duration-200',
+            isPaymentDisabled
+              ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+              : 'bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white'
+          ]"
         >
-          <span>Support this campaign</span>
+          <span>{{ isPaymentDisabled ? paymentDisabledLabel : 'Support this campaign' }}</span>
         </button>
       </div>
     </div>
@@ -510,18 +706,22 @@
                 </button>
               </div>
 
-              <div v-if="isCustomAmount" class="relative">
-                <input
-                  ref="customAmountInput"
-                  v-model.number="customAmount"
-                  type="number"
-                  min="1"
-                  placeholder="Enter amount"
-                  class="w-full px-4 py-3.5 pr-16 border border-gray-300 rounded-xl focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-all text-base font-semibold"
-                />
-                <div class="absolute inset-y-0 right-0 flex items-center pr-4">
-                  <span class="text-sm font-semibold text-gray-500">sats</span>
+              <div v-if="isCustomAmount" class="space-y-2">
+                <div class="relative">
+                  <input
+                    ref="customAmountInput"
+                    v-model.number="customAmount"
+                    type="number"
+                    min="1"
+                    :max="MAX_ZAP_AMOUNT"
+                    placeholder="Enter amount"
+                    class="w-full px-4 py-3.5 pr-16 border border-gray-300 rounded-xl focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-all text-base font-semibold"
+                  />
+                  <div class="absolute inset-y-0 right-0 flex items-center pr-4">
+                    <span class="text-sm font-semibold text-gray-500">sats</span>
+                  </div>
                 </div>
+                <p v-if="isAmountExceedsMax" class="text-xs text-red-500">Maximum amount is {{ MAX_ZAP_AMOUNT.toLocaleString() }} sats</p>
               </div>
             </div>
 
@@ -564,11 +764,7 @@
             <!-- QR Code -->
             <div class="text-center">
               <div class="bg-white p-6 rounded-2xl border-2 border-gray-200 inline-block shadow-sm">
-                <div v-if="!invoice" class="w-[220px] h-[220px] flex items-center justify-center">
-                  <IconLoader class="w-10 h-10 animate-spin text-orange-500" />
-                </div>
                 <QRCodeVue3
-                  v-else
                   :value="`lightning:${invoice}`"
                   :size="220"
                   color="#000000"
@@ -577,6 +773,22 @@
                 />
               </div>
               <p class="text-sm text-gray-600 mt-4">Scan with any Lightning wallet</p>
+            </div>
+
+            <!-- Copy Invoice -->
+            <button
+              @click="copyToClipboard(invoice, 'invoice')"
+              class="w-full px-4 py-3 rounded-xl border border-gray-200 hover:bg-gray-50 text-sm font-medium text-gray-700 transition-colors flex items-center justify-center space-x-2"
+            >
+              <IconCopy class="w-4 h-4" />
+              <span>{{ copySuccess === 'invoice' ? 'Copied!' : 'Copy Invoice' }}</span>
+            </button>
+
+            <!-- QR / External wallet info notice -->
+            <div class="bg-amber-50 border border-amber-200 rounded-xl p-3">
+              <p class="text-xs text-amber-800 leading-relaxed">
+                <span class="font-semibold">Good to know:</span> Your sats will reach the campaign creator, but payments made via QR code or external wallet can't be tracked in the campaign progress. Want your support to show?<span v-if="nostrEventUrl"> <a :href="nostrEventUrl" target="_blank" rel="noopener noreferrer" class="underline font-medium hover:text-amber-900">Zap the campaign on Nostr</a> instead.</span><span v-else> Zap the campaign post on Nostr instead.</span>
+              </p>
             </div>
 
             <!-- Payment Buttons -->
@@ -622,11 +834,17 @@
             </div>
             <h4 class="text-2xl font-bold text-green-600 mb-3">Thank You!</h4>
             <p class="text-gray-600 mb-5">Your {{ effectiveAmount.toLocaleString() }} sats contribution makes a difference!</p>
-            <div class="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-xl p-4">
+            <div class="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-xl p-4 mb-5">
               <p class="text-orange-800 font-semibold text-sm">
                 Your support helps bring this campaign closer to its goal
               </p>
             </div>
+            <button
+              @click="resetForm"
+              class="text-orange-600 hover:text-orange-700 font-semibold transition-colors"
+            >
+              Support again
+            </button>
           </div>
 
           <!-- Error State -->
@@ -672,23 +890,16 @@
 import { ref, computed, onMounted, watch, inject, nextTick } from 'vue'
 import { generateAvatar } from '../utils/profile/avatarGenerator.js'
 import {
-  IconTarget,
   IconBolt,
-  IconCalendar,
-  IconUsers,
   IconShare,
   IconArrowLeft,
   IconLoader,
   IconAlertCircle,
-  IconClock,
   IconCheck,
   IconX,
   IconExternalLink,
   IconCopy,
-  IconUser,
-  IconMessageCircle,
-  IconWallet,
-  IconShield
+  IconWallet
 } from '@iconify-prerendered/vue-tabler'
 import QRCodeVue3 from 'qrcode-vue3'
 import { useCampaigns } from '../composables/campaigns/useCampaigns.js'
@@ -724,10 +935,10 @@ const { handleZapSent, handlePaymentSuccess, handlePaymentError } = useNotificat
 // State
 const campaign = ref(null)
 const campaignAuthor = ref(null)
+const heroImageFailed = ref(false)
 const showShareModal = ref(false)
 const showUserModal = ref(false)
 const copySuccess = ref('')
-const showFullDescription = ref(false)
 const showAllSupporters = ref(false)
 const showMobilePayment = ref(false)
 const mobilePaymentAnimating = ref(false)
@@ -768,22 +979,14 @@ const loadCampaign = async () => {
     return
   }
   
-  console.log('Attempting to load campaign with eventId:', eventId)
-  
   try {
     const loadedCampaign = await fetchCampaignById(eventId)
-    console.log('Campaign loaded successfully:', loadedCampaign)
     campaign.value = loadedCampaign
     
     // Fetch author profile
     await fetchAuthorProfile(loadedCampaign.pubkey)
   } catch (err) {
     console.error('Failed to load campaign:', err)
-    console.error('Error details:', {
-      message: err.message,
-      stack: err.stack,
-      eventId: eventId
-    })
     changePage('campaign-not-found')
   }
 }
@@ -806,7 +1009,8 @@ const fetchAuthorProfile = async (pubkey) => {
           picture: profile.picture || generateAvatar(pubkey),
           nip05: profile.nip05 || null,
           about: profile.about || null,
-          lud16: profile.lud16 || null
+          lud16: profile.lud16 || null,
+          lud06: profile.lud06 || null
         }
       } catch (err) {
         console.warn('Failed to parse author profile:', err)
@@ -840,19 +1044,16 @@ const progress = computed(() => {
   return getCampaignProgress(campaign.value.id)
 })
 
-// Format amount in sats
-const formatAmount = (amount) => {
-  if (!amount) return '0'
-  
+// Nostr event URL for njump.me
+const nostrEventUrl = computed(() => {
+  if (!campaign.value?.id) return ''
   try {
-    // Convert from millisats to sats
-    const sats = Math.floor(amount / 1000)
-    return sats ? sats.toLocaleString() : '0'
-  } catch (error) {
-    console.error('Error formatting amount:', error, amount)
-    return '0'
+    const nevent = nip19.neventEncode({ id: campaign.value.id })
+    return `https://njump.me/${nevent}`
+  } catch {
+    return ''
   }
-}
+})
 
 // Enhanced currency formatting with K/M suffixes
 const formatCurrency = (amount) => {
@@ -884,6 +1085,17 @@ const status = computed(() => {
   return getCampaignStatus(campaign.value)
 })
 
+// Check if payment should be disabled
+const isPaymentDisabled = computed(() => {
+  return status.value === 'expired' || status.value === 'completed'
+})
+
+const paymentDisabledLabel = computed(() => {
+  if (status.value === 'expired') return 'Campaign ended'
+  if (status.value === 'completed') return 'Goal reached'
+  return ''
+})
+
 // Get status color
 const statusColor = computed(() => {
   switch (status.value) {
@@ -896,32 +1108,12 @@ const statusColor = computed(() => {
   }
 })
 
-// Format date
-const formatDate = (timestamp) => {
-  if (!timestamp) return ''
-  
-  const date = new Date(timestamp * 1000)
-  return date.toLocaleDateString('en-US', {
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric'
-  })
-}
-
 // Get recent zaps from campaign aggregated zaps
 const recentZaps = computed(() => {
   if (!campaign.value) return []
   
   // Get zaps from the campaign aggregated zaps system using the reactive Map
   const campaignZaps = campaignZapsMap.value.get(campaign.value.id) || []
-  
-  console.log(`🔍 CampaignView: Campaign ${campaign.value.id.substring(0, 8)}... has ${campaignZaps.length} zaps`)
-  console.log('🔍 CampaignView: Campaign zaps data:', campaignZaps.map(zap => ({
-    id: zap.id.substring(0, 8) + '...',
-    amount: zap.amount,
-    sender: zap.sender?.name || 'Unknown',
-    picture: zap.sender?.picture || 'No picture'
-  })))
   
   return campaignZaps
     .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)) // Sort by most recent first
@@ -931,25 +1123,17 @@ const recentZaps = computed(() => {
     }))
 })
 
-// Display exactly 7 supporters or all if showAllSupporters is true
 const displayedSupporters = computed(() => {
   if (showAllSupporters.value) {
     return recentZaps.value
   }
-  return recentZaps.value.slice(0, 7)
+  return recentZaps.value.slice(0, 5)
 })
 // Get total zap count for this campaign
 const totalZapCount = computed(() => {
   if (!campaign.value) return 0
   const campaignZaps = campaignZapsMap.value.get(campaign.value.id) || []
   return campaignZaps.length
-})
-
-// Get total zap amount for this campaign
-const totalZapAmount = computed(() => {
-  if (!campaign.value) return 0
-  const campaignZaps = campaignZapsMap.value.get(campaign.value.id) || []
-  return campaignZaps.reduce((sum, zap) => sum + zap.amount, 0)
 })
 
 const formatTimeAgo = (timestamp) => {
@@ -972,8 +1156,14 @@ const isValidAmount = computed(() => {
   return effectiveAmount.value > 0
 })
 
+const MAX_ZAP_AMOUNT = 10_000_000
+
+const isAmountExceedsMax = computed(() => {
+  return effectiveAmount.value > MAX_ZAP_AMOUNT
+})
+
 const canProceed = computed(() => {
-  return isValidAmount.value && !isGeneratingInvoice.value
+  return isValidAmount.value && !isAmountExceedsMax.value && !isGeneratingInvoice.value
 })
 
 // Watch for custom amount changes
@@ -1042,27 +1232,34 @@ const generateInvoice = async () => {
   paymentStatus.value = ''
   
   try {
-    console.log('Generating zap invoice for campaign:', campaign.value.id)
-    
-    // Get author's profile metadata to extract zap endpoint
-    const profileEvent = await nostrRelayManager.getEvent({
-      kinds: [0],
-      authors: [campaignAuthor.value.pubkey],
-      limit: 1
-    })
-    
-    if (!profileEvent) {
-      throw new Error('Could not find author profile')
+    // Use cached author data to construct metadata for zap endpoint resolution
+    let profileEvent
+    if (campaignAuthor.value?.lud16 || campaignAuthor.value?.lud06) {
+      // Build synthetic metadata event from cached profile
+      profileEvent = {
+        content: JSON.stringify({
+          lud16: campaignAuthor.value.lud16,
+          lud06: campaignAuthor.value.lud06
+        })
+      }
+    } else {
+      // Fallback: fetch from relay only if no cached lightning data
+      profileEvent = await nostrRelayManager.getEvent({
+        kinds: [0],
+        authors: [campaignAuthor.value.pubkey],
+        limit: 1
+      })
+      if (!profileEvent) {
+        throw new Error('Could not find author profile')
+      }
     }
-    
+
     // Get zap endpoint using proper nostr-tools implementation
     const zapEndpoint = await getZapEndpoint(profileEvent)
     
     if (!zapEndpoint) {
       throw new Error('Author does not have a zap endpoint configured')
     }
-    
-    console.log('Using zap endpoint:', zapEndpoint)
     
     // Create zap request
     const zapRequest = makeZapRequest({
@@ -1091,16 +1288,18 @@ const generateInvoice = async () => {
     
     // Add event tag to reference the campaign
     zapRequest.tags.push(['e', campaign.value.id])
-    
-    console.log('Created zap request:', zapRequest)
-    
+
+    // NIP-57 requires the zap request to be signed before sending
+    if (!window.nostr) {
+      throw new Error('No Nostr signer available. Please install a NIP-07 extension.')
+    }
+    const signedZapRequest = await window.nostr.signEvent(zapRequest)
+
     // Get invoice from zap endpoint
-    const zapRequestString = JSON.stringify(zapRequest)
+    const zapRequestString = JSON.stringify(signedZapRequest)
     const encodedZapRequest = encodeURIComponent(zapRequestString)
     const zapEndpointUrl = `${zapEndpoint}?amount=${effectiveAmount.value * 1000}&nostr=${encodedZapRequest}`
-    
-    console.log('Requesting invoice from zap endpoint:', zapEndpointUrl)
-    
+
     const response = await fetch(zapEndpointUrl, {
       method: 'GET',
       headers: {
@@ -1115,17 +1314,14 @@ const generateInvoice = async () => {
     }
     
     const zapEndpointResponse = await response.json()
-    console.log('Zap endpoint response:', zapEndpointResponse)
     
     if (!zapEndpointResponse.pr) {
       console.error('Zap endpoint response:', zapEndpointResponse)
       throw new Error('No payment request in zap endpoint response')
     }
     
-    console.log('Setting invoice:', zapEndpointResponse.pr)
     invoice.value = zapEndpointResponse.pr
     currentStep.value = 'payment'
-    console.log('Invoice generated successfully, transitioning to payment view')
     
   } catch (err) {
     console.error('Failed to generate invoice:', err)
@@ -1144,26 +1340,18 @@ const payWithInternalNWC = async () => {
   paymentError.value = ''
   
   try {
-    console.log('Paying with internal NWC wallet...')
-    
     const paymentResult = await payInvoice({
       invoice: invoice.value
     })
     
-    console.log('Internal NWC payment successful:', paymentResult)
     paymentStatus.value = 'success'
     
     // Notify about successful payment
     handlePaymentSuccess(paymentResult)
-    handleZapSent({ 
+    handleZapSent({
       amount: effectiveAmount.value,
       recipient: campaignAuthor.value.name || 'Campaign Author'
     })
-    
-    // Reset form after 4 seconds
-    setTimeout(() => {
-      resetForm()
-    }, 4000)
     
   } catch (err) {
     console.error('Internal NWC payment failed:', err)
@@ -1180,13 +1368,9 @@ const openExternalWallet = () => {
   if (!invoice.value) return
   
   try {
-    console.log('Opening invoice in external wallet...')
-    
-    // Create lightning: URI and attempt to open it
+    // Create lightning: URI — use location.href to avoid blank tab
     const lightningUri = `lightning:${invoice.value}`
-    window.open(lightningUri, '_blank')
-    
-    console.log('Lightning URI opened:', lightningUri)
+    window.location.href = lightningUri
     
   } catch (err) {
     console.error('Failed to open external wallet:', err)
@@ -1222,8 +1406,6 @@ async function getZapEndpoint(metadata) {
       return null
     }
     
-    console.log('Resolved LNURL:', lnurl)
-    
     // Fetch LNURL metadata
     const response = await fetch(lnurl)
     if (!response.ok) {
@@ -1231,14 +1413,11 @@ async function getZapEndpoint(metadata) {
     }
     
     const body = await response.json()
-    console.log('LNURL response:', body)
     
     // Check for NIP-57 zap compatibility
     if (body.allowsNostr && body.nostrPubkey) {
-      console.log('Zap endpoint found:', body.callback)
       return body.callback
     } else {
-      console.log('LNURL endpoint does not support zaps')
       return null
     }
   } catch (err) {
@@ -1318,13 +1497,9 @@ const openUserProfile = () => {
   showUserModal.value = true
 }
 
-// Handle image error
-const handleImageError = (event) => {
-  event.target.style.display = 'none'
-}
-
 // Mobile payment sheet functions
 const openMobilePayment = () => {
+  if (isPaymentDisabled.value) return
   showMobilePayment.value = true
   setTimeout(() => {
     mobilePaymentAnimating.value = true
@@ -1387,6 +1562,20 @@ select {
 
 .animate-shimmer {
   animation: shimmer 1.5s infinite;
+}
+
+/* Skeleton loading shimmer */
+.skeleton-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+
+.skeleton-shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.5) 50%, transparent 100%);
+  animation: shimmer 1.8s ease-in-out infinite;
 }
 
 /* Ensure proper touch targets on mobile */

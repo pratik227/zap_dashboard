@@ -164,7 +164,6 @@ const fetchBadgeDefinitions = async (badgeRefs) => {
           if (badge.d) {
             const badgeRef = `30009:${event.pubkey}:${badge.d}`
             badgeDefinitions.value.set(badgeRef, badge)
-            // Trigger reactivity update
             badgeUpdateTrigger.value++
           }
         } catch (err) {
@@ -172,19 +171,11 @@ const fetchBadgeDefinitions = async (badgeRefs) => {
         }
       },
       oneose: () => {
-        console.log('Badge definitions fetch completed')
+        // Close after a short grace period for late-arriving events
+        setTimeout(() => { sub?.close() }, 2000)
       },
-      onclose: (reasons) => {
-        console.log('Badge definitions subscription closed:', reasons)
-      }
+      onclose: () => {}
     })
-
-    // Auto-close subscription after 10 seconds
-    setTimeout(() => {
-      if (sub && sub.close) {
-        sub.close()
-      }
-    }, 10000)
 
   } catch (err) {
     console.error('Error fetching badge definitions:', err)
@@ -210,20 +201,17 @@ const fetchBadgeAwards = async (badgeRef) => {
       onevent: (event) => {
         try {
           const award = parseBadgeAward(event)
-          
-          // Store awards for each awarded pubkey
+
           award.awardedTo.forEach(({ pubkey }) => {
             if (!badgeAwards.value.has(pubkey)) {
               badgeAwards.value.set(pubkey, [])
             }
-            
-            // Check if this award already exists
+
             const existingAwards = badgeAwards.value.get(pubkey)
             const exists = existingAwards.some(a => a.id === award.id)
-            
+
             if (!exists) {
               existingAwards.push(award)
-              // Trigger reactivity update
               badgeUpdateTrigger.value++
             }
           })
@@ -232,19 +220,10 @@ const fetchBadgeAwards = async (badgeRef) => {
         }
       },
       oneose: () => {
-        console.log('Badge awards fetch completed')
+        setTimeout(() => { sub?.close() }, 2000)
       },
-      onclose: (reasons) => {
-        console.log('Badge awards subscription closed:', reasons)
-      }
+      onclose: () => {}
     })
-
-    // Auto-close subscription after 10 seconds
-    setTimeout(() => {
-      if (sub && sub.close) {
-        sub.close()
-      }
-    }, 10000)
 
   } catch (err) {
     console.error('Error fetching badge awards:', err)
@@ -272,10 +251,8 @@ const fetchProfileBadges = async (pubkey) => {
         try {
           const profileBadge = parseProfileBadges(event)
           profileBadges.value.set(pubkey, profileBadge.badges)
-          // Trigger reactivity update
           badgeUpdateTrigger.value++
 
-          // Fetch badge definitions for all referenced badges
           const badgeRefs = profileBadge.badges.map(b => b.badgeDefinition)
           if (badgeRefs.length > 0) {
             fetchBadgeDefinitions(badgeRefs)
@@ -285,19 +262,10 @@ const fetchProfileBadges = async (pubkey) => {
         }
       },
       oneose: () => {
-        console.log('Profile badges fetch completed')
+        setTimeout(() => { sub?.close() }, 2000)
       },
-      onclose: (reasons) => {
-        console.log('Profile badges subscription closed:', reasons)
-      }
+      onclose: () => {}
     })
-
-    // Auto-close subscription after 10 seconds
-    setTimeout(() => {
-      if (sub && sub.close) {
-        sub.close()
-      }
-    }, 10000)
 
   } catch (err) {
     console.error('Error fetching profile badges:', err)

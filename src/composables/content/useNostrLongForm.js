@@ -4,6 +4,7 @@ import { useContentZaps } from './useContentZaps.js'
 import { nostrRelayManager } from '../../utils/network/nostrRelayManager.js'
 import { finalizeEvent, verifyEvent } from 'nostr-tools/pure'
 import { contentService } from '../../utils/content/contentService.js'
+import { registerRefresh, unregisterRefresh } from '../../utils/refreshCycle.js'
 
 // Global state for long-form content
 // Helper function to extract d tag identifier from event
@@ -119,12 +120,7 @@ export function useNostrLongForm() {
       return
     }
 
-    // Check if relay manager is initialized
-    if (!nostrRelayManager.isInitialized) {
-      console.log('Relay manager not initialized, cannot fetch long-form content')
-      error.value = 'Relay manager not initialized'
-      return
-    }
+    await nostrRelayManager.ready()
 
     isLoading.value = true
     error.value = ''
@@ -469,24 +465,14 @@ export function useNostrLongForm() {
         }
         processedEventIds.clear() // Clear processed event IDs
         
-        // Wait for relay manager to be initialized
-        const initializeContent = () => {
-          if (nostrRelayManager.isInitialized) {
-            fetchUserLongFormContent()
-          } else {
-            // Listen for initialization event
-            const handleInitialized = () => {
-              fetchUserLongFormContent()
-              
-              // Remove the event listener
-              nostrRelayManager.removeEventListener('initialized', handleInitialized)
-            }
-            
-            nostrRelayManager.addEventListener('initialized', handleInitialized)
-          }
-        }
-        
-        initializeContent()
+        // fetchUserLongFormContent already awaits ready() internally
+        fetchUserLongFormContent()
+
+        registerRefresh('longform', async () => {
+          if (currentSubscription) { currentSubscription.close(); currentSubscription = null }
+          processedEventIds.clear()
+          await fetchUserLongFormContent()
+        })
       }
     } else {
       // Clean up subscription when not authenticated
@@ -496,6 +482,7 @@ export function useNostrLongForm() {
       }
       processedEventIds.clear() // Clear processed event IDs
       longFormContent.value = []
+      unregisterRefresh('longform')
     }
   }, { immediate: true })
 

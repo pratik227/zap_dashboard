@@ -33,7 +33,6 @@ import {
 import { useNostrAuth } from '../composables/auth/useNostrAuth.js'
 import { useAudience } from '../composables/audience/useAudience.js'
 import { nostrRelayManager } from '../utils/network/nostrRelayManager.js'
-import * as nip19 from 'nostr-tools/nip19'
 import { verifyEvent } from 'nostr-tools/pure'
 import ProfileCard from '../components/profile/ProfileCard.vue'
 import ProfileModal from '../components/modals/ProfileModal.vue'
@@ -92,6 +91,16 @@ const selectedUsers = ref(new Set())
 const selectedBadge = ref(null)
 const showBadgeModal = ref(false)
 
+// Inline status banner
+const statusMessage = ref(null)
+let statusTimer = null
+
+const showStatus = (type, text, duration = 5000) => {
+  clearTimeout(statusTimer)
+  statusMessage.value = { type, text }
+  statusTimer = setTimeout(() => { statusMessage.value = null }, duration)
+}
+
 // Tabs configuration
 const tabs = [
   {
@@ -99,13 +108,8 @@ const tabs = [
   { id: 'following', label: 'Following', icon: IconUserCheck, count: computed(() => getFollowingCount()) },
   { id: 'followers', label: 'Followers', icon: IconUsers, count: computed(() => getFollowersCount()) },
   { id: 'lists', label: 'Follow Packs', icon: IconList, count: computed(() => myLists.value.length) },
-  { id: 'suggestions', label: 'Suggestions', icon: IconUserPlus, count: computed(() => suggestedUsers.value.length) }
+  { id: 'suggestions', label: 'Suggestions', icon: IconUserPlus, count: null }
 ]
-
-// Computed properties
-const suggestedUsers = ref([])
-const isLoadingSuggestions = ref(false)
-const suggestionsError = ref('')
 
 const filteredFollowing = computed(() => {
   let users = following.value
@@ -140,108 +144,6 @@ const filteredFollowers = computed(() => {
   
   return users
 })
-
-const filteredSuggestions = computed(() => {
-  let suggestions = suggestedUsers.value
-
-  // Apply search filter
-  if (searchQuery.value) {
-    const query = searchQuery.value.toLowerCase()
-    suggestions = suggestions.filter(suggestion =>
-      suggestion.profile?.name?.toLowerCase().includes(query) ||
-      suggestion.profile?.about?.toLowerCase().includes(query) ||
-      suggestion.pubkey.toLowerCase().includes(query)
-    )
-  }
-
-  // Limit results if not showing all
-  if (!showAllSuggestions.value) {
-    suggestions = suggestions.slice(0, 12)
-  }
-
-  return suggestions
-})
-
-// Generate smart suggestions based on mutual follows
-const generateSmartSuggestions = async () => {
-  if (following.value.length === 0) {
-    console.log('No following list available for suggestions')
-    return
-  }
-
-  isLoadingSuggestions.value = true
-  suggestionsError.value = ''
-
-  try {
-    console.log('Generating smart suggestions based on mutual follows...')
-    
-    const mutualConnections = new Map() // pubkey -> count
-    const followedPubkeys = new Set(following.value)
-
-    // Fetch contact lists of people we follow (limit to first 15 for performance)
-    const contactPromises = following.value.slice(0, 15).map(async (pubkey) => {
-      try {
-        const contactEvent = await nostrRelayManager.getEvent({
-          kinds: [3],
-          authors: [pubkey],
-          limit: 1
-        })
-
-        if (contactEvent) {
-          const theirFollows = contactEvent.tags
-            .filter(tag => tag[0] === 'p' && tag[1])
-            .map(tag => tag[1])
-
-          // Count mutual connections
-          theirFollows.forEach(theirFollowPubkey => {
-            if (!followedPubkeys.has(theirFollowPubkey) && theirFollowPubkey !== currentUser.value.pubkey) {
-              mutualConnections.set(theirFollowPubkey, (mutualConnections.get(theirFollowPubkey) || 0) + 1)
-            }
-          })
-        }
-      } catch (error) {
-        console.warn('Failed to fetch contact list for:', pubkey.substring(0, 8))
-      }
-    })
-
-    await Promise.allSettled(contactPromises)
-
-    // Sort by mutual connection count and take top suggestions
-    const suggestions = Array.from(mutualConnections.entries())
-      .filter(([, mutualCount]) => mutualCount >= 2) // At least 2 mutual connections
-      .sort(([,a], [,b]) => b - a)
-      .slice(0, 12)
-      .map(([pubkey, mutualCount]) => ({
-        pubkey,
-        mutualCount,
-        profile: null
-      }))
-
-    // Fetch profiles for suggestions
-    const profilePromises = suggestions.map(async (suggestion) => {
-      try {
-        suggestion.profile = await fetchProfile(suggestion.pubkey)
-        return suggestion
-      } catch (error) {
-        console.warn('Failed to fetch profile for suggestion:', suggestion.pubkey.substring(0, 8))
-        return null
-      }
-    })
-
-    const suggestionsWithProfiles = await Promise.allSettled(profilePromises)
-    suggestedUsers.value = suggestionsWithProfiles
-      .filter(result => result.status === 'fulfilled' && result.value)
-      .map(result => result.value)
-      .filter(suggestion => suggestion.profile) // Only include suggestions with valid profiles
-
-    console.log('Generated smart suggestions:', suggestedUsers.value.length)
-  } catch (error) {
-    console.error('Failed to generate smart suggestions:', error)
-    suggestionsError.value = 'Failed to generate suggestions'
-  } finally {
-    isLoadingSuggestions.value = false
-  }
-}
 
 // Handle Nostr login
 const handleNostrLogin = async () => {
@@ -305,49 +207,36 @@ const handleBulkFollow = async () => {
   try {
     console.log('Starting bulk follow operation for', selectedUsers.value.size, 'users')
     
-    // Get current following list first to ensure we have the latest data
-    const currentFollowingEvent = await nostrRelayManager.getEvent({
-      kinds: [3], // Contact lists
-      authors: [currentUser.value.pubkey],
-      limit: 1
-    })
+    const kind3Filters = { kinds: [3], authors: [currentUser.value.pubkey], limit: 1 }
+    const currentFollowingEvent = await nostrRelayManager.getEvent(kind3Filters)
 
-    // Extract current follows
+    // Extract current follows and preserve relay config in content field
     let currentFollows = []
+    const existingContent = currentFollowingEvent?.content || ''
     if (currentFollowingEvent) {
       currentFollows = currentFollowingEvent.tags
         .filter(tag => tag[0] === 'p' && tag[1])
         .map(tag => tag[1])
-      console.log('Current follows from Nostr:', currentFollows.length)
     }
 
-    // Filter out users we're already following
     const selectedArray = Array.from(selectedUsers.value)
     const newFollows = selectedArray.filter(pubkey => !currentFollows.includes(pubkey))
     const mergedFollows = [...new Set([...currentFollows, ...newFollows])]
-    
-    console.log('Bulk follow merge analysis:', {
-      existingFollows: currentFollows.length,
-      selectedUsers: selectedArray.length,
-      newFollows: newFollows.length,
-      mergedTotal: mergedFollows.length
-    })
 
     if (newFollows.length === 0) {
-      alert(`✅ You're already following all ${selectedArray.length} selected users`)
+      showStatus('success', `Already following all ${selectedArray.length} selected users`)
       selectedUsers.value.clear()
       showBulkActions.value = false
       return
     }
 
-    // Create new contact list event with merged follows
     const contactTags = mergedFollows.map(pubkey => ['p', pubkey])
-    
+
     const eventTemplate = {
       kind: 3,
       created_at: Math.floor(Date.now() / 1000),
       tags: contactTags,
-      content: `Updated via ZapTracker - bulk followed ${newFollows.length} users`
+      content: existingContent
     }
 
     // Sign and publish the event
@@ -363,30 +252,19 @@ const handleBulkFollow = async () => {
       throw new Error('Failed to publish to any relays')
     }
 
+    // Invalidate cached kind 3 so subsequent operations see updated list
+    nostrRelayManager.clearEventCache(kind3Filters)
+
     // Update local state
     following.value = mergedFollows
-    
-    // Fetch profiles for new follows
-    newFollows.forEach(pubkey => {
-      fetchProfile(pubkey).catch(error => {
-        console.warn(`Failed to fetch profile for ${pubkey.substring(0, 8)}:`, error)
-      })
-    })
 
-    console.log('✅ Bulk follow completed successfully:', {
-      newFollows: newFollows.length,
-      totalFollows: mergedFollows.length,
-      successfulRelays: result.successful
-    })
+    showStatus('success', `Followed ${newFollows.length} new people — now following ${mergedFollows.length.toLocaleString()} total`)
 
-    // Show success message
-    alert(`🎉 Successfully followed ${newFollows.length} new people!\n\nTotal people you're now following: ${mergedFollows.length.toLocaleString()}`)
-    
     selectedUsers.value.clear()
     showBulkActions.value = false
-  } catch (error) {
-    console.error('Bulk follow failed:', error)
-    alert(`❌ Bulk follow failed: ${error.message}\n\nYour existing follows remain safe.`)
+  } catch (err) {
+    console.error('Bulk follow failed:', err)
+    showStatus('error', `Bulk follow failed: ${err.message}`)
   }
 }
 
@@ -433,14 +311,8 @@ const formatCount = (count) => {
 // Initialize on mount
 onMounted(() => {
   if (isAuthenticated.value) {
-    // Start with overview for first-time users
     refreshFollowing()
     refreshFollowers()
-    
-    // Generate suggestions after following list is loaded
-    setTimeout(() => {
-      generateSmartSuggestions()
-    }, 3000)
   }
 })
 
@@ -449,29 +321,13 @@ watch(isAuthenticated, (authenticated) => {
   if (authenticated) {
     refreshFollowing()
     refreshFollowers()
-    
-    // Generate suggestions after following list is loaded
-    setTimeout(() => {
-      generateSmartSuggestions()
-    }, 3000)
   } else {
-    // Clear data when logged out
     activeTab.value = 'overview'
     searchQuery.value = ''
-    suggestedUsers.value = []
     clearSelection()
   }
 })
 
-// Watch for changes in following list to regenerate suggestions
-watch(following, (newFollowing, oldFollowing) => {
-  if (isAuthenticated.value && newFollowing.length !== oldFollowing?.length) {
-    // Regenerate suggestions when following list changes
-    setTimeout(() => {
-      generateSmartSuggestions()
-    }, 2000)
-  }
-}, { deep: true })
 </script>
 
 <template>
@@ -527,6 +383,29 @@ watch(following, (newFollowing, oldFollowing) => {
           </nav>
         </div>
       </div>
+
+      <!-- Status Banner -->
+      <transition name="slide-down">
+        <div
+          v-if="statusMessage"
+          :class="[
+            'rounded-lg px-4 py-3 flex items-center gap-3',
+            statusMessage.type === 'success'
+              ? 'bg-green-50 border border-green-300 text-green-800'
+              : 'bg-red-50 border border-red-300 text-red-800'
+          ]"
+        >
+          <IconCheck v-if="statusMessage.type === 'success'" class="w-5 h-5 flex-shrink-0" />
+          <IconAlertCircle v-else class="w-5 h-5 flex-shrink-0" />
+          <span class="text-sm font-medium flex-1">{{ statusMessage.text }}</span>
+          <button
+            @click="statusMessage = null"
+            class="p-1 rounded hover:bg-black/5 flex-shrink-0"
+          >
+            <IconX class="w-4 h-4" />
+          </button>
+        </div>
+      </transition>
 
       <!-- Error Message -->
       <div v-if="error" class="bg-red-50 border border-red-200 rounded-lg p-4">
@@ -778,9 +657,9 @@ watch(following, (newFollowing, oldFollowing) => {
         </div>
 
         <div v-if="activeTab === 'suggestions'" class="p-6">
-          <SuggestionsTab 
-            @follow-user="followUser"
+          <SuggestionsTab
             @profile-click="handleProfileClick"
+            @switch-tab="activeTab = $event"
           />
         </div>
 

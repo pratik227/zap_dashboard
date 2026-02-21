@@ -42,7 +42,7 @@ const contentForm = reactive({
 // UI state
 const currentView = ref('list') // list, create, edit, preview, performance
 const editingContent = ref(null)
-const selectedContent = ref(null)
+const selectedContentId = ref(null)
 const isLoading = ref(false)
 const error = ref('')
 
@@ -470,8 +470,17 @@ export function useContent() {
     currentView.value = 'edit'
   }
 
+  // selectedContent is a computed that live-tracks the item from the enriched list,
+  // so it auto-updates when zaps/engagement data change
+  const selectedContent = computed(() => {
+    if (!selectedContentId.value) return null
+    return combinedContentItemsWithZaps.value.find(
+      item => (item.id === selectedContentId.value || item.nostrEventId === selectedContentId.value)
+    ) || null
+  })
+
   const previewContent = (content) => {
-    selectedContent.value = content
+    selectedContentId.value = content?.id || content?.nostrEventId || null
     currentView.value = 'preview'
   }
 

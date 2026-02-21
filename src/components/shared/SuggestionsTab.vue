@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import {
   IconUserPlus,
   IconUsers,
@@ -7,53 +7,54 @@ import {
   IconAlertCircle,
   IconRefresh,
   IconCheck,
-  IconStar,
   IconBolt,
   IconShield,
-  IconExternalLink,
   IconSearch,
-  IconX,
   IconSparkles,
   IconTarget,
-  IconHeart
+  IconX
 } from '@iconify-prerendered/vue-tabler'
 import { useNostrAuth } from '../../composables/auth/useNostrAuth.js'
 import { useAudience } from '../../composables/audience/useAudience.js'
 import { nostrRelayManager } from '../../utils/network/nostrRelayManager.js'
-import * as nip19 from 'nostr-tools/nip19'
 import { generateAvatar } from '../../utils/profile/avatarGenerator.js'
 
-const emit = defineEmits(['follow-user', 'profile-click'])
+const emit = defineEmits(['profile-click', 'switch-tab'])
 
 const { currentUser, isAuthenticated } = useNostrAuth()
-const { following, getProfile, fetchProfile, isFollowing } = useAudience()
+const { following, getProfile, fetchProfile, isFollowing, followUser } = useAudience()
 
 // State
 const suggestions = ref([])
 const isLoading = ref(false)
 const error = ref('')
 const followingInProgress = ref(new Set())
-const searchQuery = ref('')
+const recentlyFollowed = ref(new Set())
+
+// Inline status banner
+const statusMessage = ref(null) // { type: 'success'|'error', text: '' }
+let statusTimer = null
+
+const showStatus = (type, text, duration = 4000) => {
+  clearTimeout(statusTimer)
+  statusMessage.value = { type, text }
+  statusTimer = setTimeout(() => { statusMessage.value = null }, duration)
+}
 
 // Computed properties
 const filteredSuggestions = computed(() => {
-  // CRITICAL: Filter out users we're already following in real-time
   return suggestions.value
-    .filter(suggestion => !isFollowing(suggestion.pubkey))
-    .slice(0, 12) // Limit to 12 suggestions for clean UI
+    .filter(s => !isFollowing(s.pubkey) || recentlyFollowed.value.has(s.pubkey))
+    .slice(0, 12)
 })
 
 const hasFollowing = computed(() => following.value.length > 0)
 
 // Generate smart suggestions based on friends of friends
 const generateSuggestions = async () => {
-  if (!isAuthenticated.value || !currentUser.value?.pubkey) {
-    console.log('Not authenticated, cannot generate suggestions')
-    return
-  }
+  if (!isAuthenticated.value || !currentUser.value?.pubkey) return
 
   if (following.value.length === 0) {
-    console.log('No following list available for suggestions')
     error.value = 'Follow some people first to get personalized suggestions'
     return
   }
@@ -63,19 +64,14 @@ const generateSuggestions = async () => {
   suggestions.value = []
 
   try {
-    console.log('🔍 Generating smart suggestions based on friends of friends...')
-    
-    const mutualConnections = new Map() // pubkey -> { count, connectedThrough }
-    const followedPubkeys = new Set([...following.value, currentUser.value.pubkey]) // Include self
+    const mutualConnections = new Map()
+    const followedPubkeys = new Set([...following.value, currentUser.value.pubkey])
 
-    // Fetch contact lists of people we follow (limit to 5 to reduce load)
     const sampleSize = Math.min(5, following.value.length)
     const contactPromises = following.value.slice(0, sampleSize).map(async (pubkey) => {
       try {
-        console.log(`Fetching contact list for: ${pubkey.substring(0, 8)}...`)
-        
         const contactEvent = await nostrRelayManager.getEvent({
-          kinds: [3], // Contact lists
+          kinds: [3],
           authors: [pubkey],
           limit: 1
         })
@@ -85,9 +81,6 @@ const generateSuggestions = async () => {
             .filter(tag => tag[0] === 'p' && tag[1])
             .map(tag => tag[1])
 
-          console.log(`Found ${theirFollows.length} follows for ${pubkey.substring(0, 8)}...`)
-
-          // Count mutual connections
           theirFollows.forEach(theirFollowPubkey => {
             if (!followedPubkeys.has(theirFollowPubkey)) {
               const current = mutualConnections.get(theirFollowPubkey) || { count: 0, connectedThrough: [] }
@@ -97,58 +90,47 @@ const generateSuggestions = async () => {
             }
           })
         }
-      } catch (error) {
-        console.warn(`Failed to fetch contact list for ${pubkey.substring(0, 8)}:`, error)
+      } catch (err) {
+        console.warn(`Failed to fetch contact list for ${pubkey.substring(0, 8)}:`, err)
       }
     })
 
     await Promise.allSettled(contactPromises)
 
-    console.log(`Found ${mutualConnections.size} potential suggestions`)
-
-    // Sort by mutual connection count and take top suggestions
     const topSuggestions = Array.from(mutualConnections.entries())
-      .filter(([, data]) => data.count >= 1) // At least 1 mutual connection (simplified)
+      .filter(([, data]) => data.count >= 1)
       .sort(([,a], [,b]) => b.count - a.count)
-      .slice(0, 15) // Get top 15 for profile fetching
+      .slice(0, 15)
       .map(([pubkey, data]) => ({
         pubkey,
         mutualCount: data.count,
         connectedThrough: data.connectedThrough,
         profile: null,
-        score: data.count // Simple scoring based on mutual connections
+        score: data.count
       }))
 
-    console.log(`Processing ${topSuggestions.length} top suggestions...`)
-
-    // Fetch profiles for suggestions
     const profilePromises = topSuggestions.map(async (suggestion) => {
       try {
-        const profile = await fetchProfile(suggestion.pubkey)
-        suggestion.profile = profile
+        suggestion.profile = await fetchProfile(suggestion.pubkey)
         return suggestion
-      } catch (error) {
-        console.warn(`Failed to fetch profile for suggestion ${suggestion.pubkey.substring(0, 8)}:`, error)
+      } catch (err) {
+        console.warn(`Failed to fetch profile for ${suggestion.pubkey.substring(0, 8)}:`, err)
         return null
       }
     })
 
-    const suggestionsWithProfiles = await Promise.allSettled(profilePromises)
-    const validSuggestions = suggestionsWithProfiles
-      .filter(result => result.status === 'fulfilled' && result.value && result.value.profile)
-      .map(result => result.value)
+    const results = await Promise.allSettled(profilePromises)
+    const validSuggestions = results
+      .filter(r => r.status === 'fulfilled' && r.value?.profile)
+      .map(r => r.value)
 
-    // Sort by score and profile completeness
     validSuggestions.sort((a, b) => {
-      // Prioritize users with more complete profiles
       const scoreA = a.score + (a.profile?.about ? 1 : 0) + (a.profile?.nip05 ? 1 : 0) + (a.profile?.lud16 ? 1 : 0)
       const scoreB = b.score + (b.profile?.about ? 1 : 0) + (b.profile?.nip05 ? 1 : 0) + (b.profile?.lud16 ? 1 : 0)
       return scoreB - scoreA
     })
 
     suggestions.value = validSuggestions
-    console.log(`✅ Generated ${suggestions.value.length} smart suggestions`)
-
   } catch (err) {
     console.error('Failed to generate suggestions:', err)
     error.value = 'Failed to generate suggestions. Please try again.'
@@ -157,47 +139,49 @@ const generateSuggestions = async () => {
   }
 }
 
-// Handle follow user with proper merging
+// Handle follow
 const handleFollowUser = async (pubkey) => {
   if (followingInProgress.value.has(pubkey)) return
 
   followingInProgress.value.add(pubkey)
 
   try {
-    emit('follow-user', pubkey)
+    await followUser(pubkey)
 
-    // Remove from suggestions after follow attempt
-    // The parent component handles the actual follow logic
+    // Get display name for status
+    const suggestion = suggestions.value.find(s => s.pubkey === pubkey)
+    const displayName = suggestion?.profile?.name || pubkey.substring(0, 8)
+    showStatus('success', `Now following ${displayName}`)
+
+    // Keep card visible briefly with "followed" state, then let it slide out
+    recentlyFollowed.value.add(pubkey)
     setTimeout(() => {
-      suggestions.value = suggestions.value.filter(s => s.pubkey !== pubkey)
-    }, 500)
-
-  } catch (error) {
-    console.error('Failed to follow user:', error)
+      recentlyFollowed.value.delete(pubkey)
+    }, 1500)
+  } catch (err) {
+    console.error('Failed to follow user:', err)
+    showStatus('error', 'Failed to follow user. Please try again.')
   } finally {
     followingInProgress.value.delete(pubkey)
   }
 }
 
-// Handle profile click
 const handleProfileClick = (pubkey) => {
   emit('profile-click', pubkey)
 }
 
-
-// Get mutual connection names for display
 const getMutualConnectionNames = (suggestion) => {
   if (!suggestion.connectedThrough || suggestion.connectedThrough.length === 0) {
     return 'Suggested for you'
   }
-  
+
   const names = suggestion.connectedThrough
-    .slice(0, 2) // Show max 2 names
+    .slice(0, 2)
     .map(pubkey => {
       const profile = getProfile(pubkey)
       return profile?.name || `user:${pubkey.substring(0, 8)}`
     })
-  
+
   if (suggestion.connectedThrough.length > 2) {
     return `Followed by ${names.join(', ')} and ${suggestion.connectedThrough.length - 2} others`
   } else if (names.length === 2) {
@@ -207,22 +191,17 @@ const getMutualConnectionNames = (suggestion) => {
   }
 }
 
-// Initialize suggestions when component mounts
 onMounted(() => {
   if (isAuthenticated.value && hasFollowing.value) {
     generateSuggestions()
   }
 })
-
-// Note: We don't auto-regenerate on follow changes anymore
-// The filteredSuggestions computed will automatically hide followed users
-// Users can manually refresh if they want new suggestions
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div class="space-y-4">
     <!-- Header -->
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
       <div>
         <h2 class="text-xl font-bold text-gray-900 flex items-center space-x-2">
           <IconSparkles class="w-5 h-5 text-orange-600" />
@@ -232,7 +211,7 @@ onMounted(() => {
           Discover people through your network connections
         </p>
       </div>
-      
+
       <button
         @click="generateSuggestions"
         :disabled="isLoading || !hasFollowing"
@@ -242,6 +221,29 @@ onMounted(() => {
         <span>Refresh</span>
       </button>
     </div>
+
+    <!-- Status Banner -->
+    <transition name="status-banner">
+      <div
+        v-if="statusMessage"
+        :class="[
+          'rounded-lg px-4 py-3 flex items-center gap-3',
+          statusMessage.type === 'success'
+            ? 'bg-green-50 border border-green-300 text-green-800'
+            : 'bg-red-50 border border-red-300 text-red-800'
+        ]"
+      >
+        <IconCheck v-if="statusMessage.type === 'success'" class="w-5 h-5 flex-shrink-0" />
+        <IconAlertCircle v-else class="w-5 h-5 flex-shrink-0" />
+        <span class="text-sm font-medium flex-1">{{ statusMessage.text }}</span>
+        <button
+          @click="statusMessage = null"
+          class="p-1 rounded hover:bg-black/5 flex-shrink-0"
+        >
+          <IconX class="w-4 h-4" />
+        </button>
+      </div>
+    </transition>
 
     <!-- No Following State -->
     <div v-if="!hasFollowing" class="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-8 text-center">
@@ -253,8 +255,8 @@ onMounted(() => {
         Follow some people first, and we'll suggest friends of friends to help you discover more interesting accounts.
       </p>
       <button
-        @click="$emit('switch-tab', 'lists')"
-        class="bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white px-6 py-3 rounded-lg font-medium transition-all duration-200 flex items-center space-x-2 mx-auto shadow-lg hover:shadow-xl transform hover:scale-105"
+        @click="emit('switch-tab', 'lists')"
+        class="bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white px-6 py-3 rounded-lg font-medium transition-all duration-200 flex items-center space-x-2 mx-auto shadow-lg hover:shadow-xl"
       >
         <IconTarget class="w-5 h-5" />
         <span>Discover Follow Packs</span>
@@ -288,25 +290,18 @@ onMounted(() => {
       <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
         <IconSearch class="w-8 h-8 text-gray-400" />
       </div>
-      <h3 class="text-lg font-medium text-gray-900 mb-2">
-        {{ searchQuery ? 'No matching suggestions' : 'No suggestions available' }}
-      </h3>
+      <h3 class="text-lg font-medium text-gray-900 mb-2">No suggestions available</h3>
       <p class="text-gray-600 mb-4">
         Follow more people to get better suggestions
       </p>
-      <div class="flex flex-col sm:flex-row gap-3 justify-center">
-        <button 
-          @click="generateSuggestions" 
-          class="btn-primary"
-        >
-          <IconRefresh class="w-4 h-4" />
-          Try Again
-        </button>
-      </div>
+      <button @click="generateSuggestions" class="btn-primary">
+        <IconRefresh class="w-4 h-4" />
+        Try Again
+      </button>
     </div>
 
     <!-- Suggestions Grid -->
-    <div v-else class="space-y-6">
+    <div v-else class="space-y-4">
       <!-- Stats Header -->
       <div class="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-xl p-4">
         <div class="flex items-center justify-between">
@@ -327,90 +322,93 @@ onMounted(() => {
       </div>
 
       <!-- Suggestions Grid -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <TransitionGroup
+        name="suggestion-card"
+        tag="div"
+        class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
+      >
         <div
           v-for="suggestion in filteredSuggestions"
           :key="suggestion.pubkey"
-          class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm hover:shadow-md transition-all duration-200 p-5 group"
+          :class="[
+            'rounded-xl border shadow-sm transition-all duration-300 overflow-hidden',
+            recentlyFollowed.has(suggestion.pubkey)
+              ? 'bg-green-50 border-green-300'
+              : 'bg-white/90 backdrop-blur-sm border-orange-100/50 hover:shadow-md'
+          ]"
         >
-          <!-- Profile Header -->
-          <div class="flex items-start space-x-4 mb-4">
-            <!-- Avatar -->
-            <div 
-              class="relative cursor-pointer"
-              @click="handleProfileClick(suggestion.pubkey)"
-            >
-              <div class="w-14 h-14 rounded-xl overflow-hidden border-2 border-orange-200 group-hover:border-orange-300 transition-colors">
-                <img
-                  :src="suggestion.profile?.picture || generateAvatar(suggestion.pubkey)"
-                  :alt="suggestion.profile?.name || 'User'"
-                  class="w-full h-full object-cover"
-                  @error="$event.target.src = generateAvatar(suggestion.pubkey)"
-                />
-              </div>
-              <!-- Mutual connection indicator -->
-              <div class="absolute -top-1 -right-1 w-6 h-6 bg-orange-400 rounded-full flex items-center justify-center shadow-sm">
-                <span class="text-xs font-bold text-white">{{ suggestion.mutualCount }}</span>
-              </div>
+          <!-- Followed overlay -->
+          <div
+            v-if="recentlyFollowed.has(suggestion.pubkey)"
+            class="p-5 flex flex-col items-center justify-center text-center min-h-[180px]"
+          >
+            <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mb-3">
+              <IconCheck class="w-6 h-6 text-green-600" />
             </div>
-            
-            <!-- Profile Info -->
-            <div class="flex-1 min-w-0">
-              <div class="flex items-center space-x-2 mb-1">
-                <h3 
-                  class="font-semibold text-gray-900 truncate cursor-pointer hover:text-orange-600 transition-colors"
-                  @click="handleProfileClick(suggestion.pubkey)"
-                >
-                  {{ suggestion.profile?.name || `user:${suggestion.pubkey.substring(0, 8)}` }}
-                </h3>
-                
-                <!-- Verification Badges -->
-                <div class="flex items-center space-x-1">
-                  <IconShield v-if="suggestion.profile?.nip05" class="w-4 h-4 text-blue-600" title="NIP-05 Verified" />
-                  <IconBolt v-if="suggestion.profile?.lud16" class="w-4 h-4 text-yellow-500" title="Lightning Address" />
-                </div>
-              </div>
-              
-              <!-- About -->
-              <p v-if="suggestion.profile?.about" class="text-sm text-gray-600 line-clamp-2 mb-2">
-                {{ suggestion.profile.about }}
-              </p>
-              
-              <!-- Mutual Connection Info -->
-              <p class="text-xs text-orange-600 font-medium">
-                {{ getMutualConnectionNames(suggestion) }}
-              </p>
-            </div>
+            <p class="text-green-800 font-semibold text-base">Followed!</p>
+            <p class="text-green-600 text-sm mt-1">
+              {{ suggestion.profile?.name || suggestion.pubkey.substring(0, 8) }}
+            </p>
           </div>
 
-          <!-- Actions -->
-          <div class="flex items-center justify-between pt-3 border-t border-gray-100">
-            <!-- Follow Button -->
+          <!-- Normal card content -->
+          <div v-else class="p-5 group">
+            <!-- Profile Header -->
+            <div class="flex items-start space-x-3 mb-3">
+              <!-- Avatar -->
+              <div
+                class="relative cursor-pointer flex-shrink-0"
+                @click="handleProfileClick(suggestion.pubkey)"
+              >
+                <div class="w-12 h-12 rounded-xl overflow-hidden border-2 border-orange-200 group-hover:border-orange-300 transition-colors">
+                  <img
+                    :src="suggestion.profile?.picture || generateAvatar(suggestion.pubkey)"
+                    :alt="suggestion.profile?.name || 'User'"
+                    class="w-full h-full object-cover"
+                    @error="$event.target.src = generateAvatar(suggestion.pubkey)"
+                  />
+                </div>
+                <div class="absolute -top-1 -right-1 w-5 h-5 bg-orange-400 rounded-full flex items-center justify-center shadow-sm">
+                  <span class="text-[10px] font-bold text-white">{{ suggestion.mutualCount }}</span>
+                </div>
+              </div>
+
+              <!-- Profile Info -->
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-1.5 mb-0.5">
+                  <h3
+                    class="font-semibold text-gray-900 truncate cursor-pointer hover:text-orange-600 transition-colors text-sm"
+                    @click="handleProfileClick(suggestion.pubkey)"
+                  >
+                    {{ suggestion.profile?.name || `user:${suggestion.pubkey.substring(0, 8)}` }}
+                  </h3>
+                  <IconShield v-if="suggestion.profile?.nip05" class="w-3.5 h-3.5 text-blue-600 flex-shrink-0" title="NIP-05 Verified" />
+                  <IconBolt v-if="suggestion.profile?.lud16" class="w-3.5 h-3.5 text-yellow-500 flex-shrink-0" title="Lightning Address" />
+                </div>
+
+                <p v-if="suggestion.profile?.about" class="text-xs text-gray-500 line-clamp-2 mb-1.5">
+                  {{ suggestion.profile.about }}
+                </p>
+
+                <p class="text-xs text-orange-600 font-medium">
+                  {{ getMutualConnectionNames(suggestion) }}
+                </p>
+              </div>
+            </div>
+
+            <!-- Follow Button — full width, tall touch target -->
             <button
               @click="handleFollowUser(suggestion.pubkey)"
-              :disabled="followingInProgress.has(suggestion.pubkey) || isFollowing(suggestion.pubkey)"
-              class="btn-primary flex-1 mr-3 disabled:opacity-50"
+              :disabled="followingInProgress.has(suggestion.pubkey)"
+              class="btn-primary w-full justify-center min-h-[44px]"
             >
               <IconLoader v-if="followingInProgress.has(suggestion.pubkey)" class="w-4 h-4 animate-spin" />
-              <IconCheck v-else-if="isFollowing(suggestion.pubkey)" class="w-4 h-4" />
               <IconUserPlus v-else class="w-4 h-4" />
-              <span>
-                {{ followingInProgress.has(suggestion.pubkey) ? 'Following...' :
-                   isFollowing(suggestion.pubkey) ? 'Following' : 'Follow' }}
-              </span>
-            </button>
-            
-            <!-- View Profile -->
-            <button
-              @click="handleProfileClick(suggestion.pubkey)"
-              class="p-2 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
-              title="View profile"
-            >
-              <IconExternalLink class="w-4 h-4" />
+              <span>{{ followingInProgress.has(suggestion.pubkey) ? 'Following...' : 'Follow' }}</span>
             </button>
           </div>
         </div>
-      </div>
+      </TransitionGroup>
     </div>
   </div>
 </template>
@@ -423,49 +421,44 @@ onMounted(() => {
   overflow: hidden;
 }
 
-/* Smooth hover effects */
-.group:hover .group-hover\:border-orange-300 {
-  border-color: rgb(253 186 116);
+/* Status banner */
+.status-banner-enter-active {
+  transition: all 0.25s ease-out;
+}
+.status-banner-leave-active {
+  transition: all 0.2s ease-in;
+}
+.status-banner-enter-from,
+.status-banner-leave-to {
+  opacity: 0;
+  transform: translateY(-8px);
 }
 
-/* Loading animation */
-.animate-spin {
-  animation: spin 1s linear infinite;
+/* Card transitions */
+.suggestion-card-enter-active {
+  transition: all 0.3s ease-out;
+}
+.suggestion-card-leave-active {
+  transition: all 0.4s ease-in;
+  position: absolute;
+}
+.suggestion-card-enter-from {
+  opacity: 0;
+  transform: scale(0.95);
+}
+.suggestion-card-leave-to {
+  opacity: 0;
+  transform: scale(0.9);
+}
+.suggestion-card-move {
+  transition: transform 0.3s ease;
 }
 
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-/* Button transitions */
-button {
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-button:hover:not(:disabled) {
-  transform: translateY(-1px);
-}
-
-button:active:not(:disabled) {
-  transform: translateY(0);
-}
-
-/* Focus states for accessibility */
-button:focus-visible {
-  outline: 2px solid #f97316;
-  outline-offset: 2px;
-}
-
-/* Mobile optimizations */
+/* Mobile touch targets */
 @media (max-width: 640px) {
-  .grid-cols-1 {
-    grid-template-columns: repeat(1, minmax(0, 1fr));
-  }
-  
   button {
     min-height: 44px;
-    font-size: 16px; /* Prevent zoom on iOS */
+    font-size: 16px;
   }
 }
 </style>

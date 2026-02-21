@@ -1,11 +1,12 @@
 import { nostrRelayManager } from '../network/nostrRelayManager.js'
+import { subscribe } from '../network/subscribe.js'
 
 // Shared profile cache and in-flight promises
 export const profileCache = new Map()
 const profileFetchPromises = new Map()
 
 // Normalize fetched profile according to schema
-const normalizeProfileData = (pubkey, profileData) => {
+export const normalizeProfileData = (pubkey, profileData) => {
   return {
     pubkey,
     name: profileData.name || profileData.display_name || `user:${pubkey.substring(0, 8)}`,
@@ -27,10 +28,9 @@ const normalizeProfileData = (pubkey, profileData) => {
 export const fetchProfile = async (pubkey, { ttl = 24 * 60 * 60 * 1000 } = {}) => {
   if (!pubkey) return null
 
-  // Return cached if fresh AND has picture (don't return incomplete cached profiles)
+  // Return cached if fresh AND has picture
   const cached = profileCache.get(pubkey)
   if (cached && (Date.now() - cached.timestamp) < ttl && cached.profile?.picture) {
-    console.log('📦 fetchProfile: Returning cached profile with picture for', pubkey.substring(0, 16))
     return cached.profile
   }
 
@@ -39,17 +39,13 @@ export const fetchProfile = async (pubkey, { ttl = 24 * 60 * 60 * 1000 } = {}) =
     return profileFetchPromises.get(pubkey)
   }
 
-  console.log('🔍 fetchProfile: Fetching from relays for', pubkey.substring(0, 16))
   const p = _fetchProfileFromRelays(pubkey)
   profileFetchPromises.set(pubkey, p)
 
   try {
     const profile = await p
 
-    // Handle null profile (EOSE without profile event found)
     if (!profile) {
-      console.log('⚠️ fetchProfile: No profile found on relays for', pubkey.substring(0, 16))
-      // Create a minimal fallback
       const fallback = {
         pubkey,
         name: `user:${pubkey.substring(0, 8)}`,
@@ -70,12 +66,10 @@ export const fetchProfile = async (pubkey, { ttl = 24 * 60 * 60 * 1000 } = {}) =
       return fallback
     }
 
-    console.log('✅ fetchProfile: Got profile for', pubkey.substring(0, 16), '- picture:', profile.picture ? 'YES' : 'NO')
     profileCache.set(pubkey, { profile, timestamp: Date.now() })
     return profile
   } catch (err) {
-    console.error('❌ fetchProfile: Error for', pubkey.substring(0, 16), '-', err.message)
-    // Fallback profile
+    console.error('fetchProfile error for', pubkey.substring(0, 16), '-', err.message)
     const fallback = {
       pubkey,
       name: `user:${pubkey.substring(0, 8)}`,
@@ -98,111 +92,47 @@ export const fetchProfile = async (pubkey, { ttl = 24 * 60 * 60 * 1000 } = {}) =
   }
 }
 
-// Internal single-profile fetch via subscription (uses nostrRelayManager)
+// Internal single-profile fetch via getEvent (one-shot, no relay spam)
 const _fetchProfileFromRelays = async (pubkey) => {
   if (!pubkey || typeof pubkey !== 'string' || pubkey.length !== 64) {
     throw new Error(`Invalid pubkey for profile fetch: ${pubkey}`)
   }
 
-  console.log('🔌 _fetchProfileFromRelays: Starting fetch for', pubkey.substring(0, 16))
-  console.log('🔌 _fetchProfileFromRelays: nostrRelayManager available:', !!nostrRelayManager)
-  console.log('🔌 _fetchProfileFromRelays: subscribeToEvents available:', typeof nostrRelayManager?.subscribeToEvents)
-
-  return new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => {
-      console.log('⏱️ _fetchProfileFromRelays: TIMEOUT after 15s for', pubkey.substring(0, 16))
-      reject(new Error('Profile fetch timeout'))
-    }, 15000)
-
-    try {
-      console.log('📡 _fetchProfileFromRelays: Calling subscribeToEvents for', pubkey.substring(0, 16))
-      const sub = nostrRelayManager.subscribeToEvents([
-        { kinds: [0], authors: [pubkey], limit: 1 }
-      ], {
-        onevent: (event) => {
-          console.log('📨 _fetchProfileFromRelays: onevent fired for', pubkey.substring(0, 16))
-          try {
-            clearTimeout(timeout)
-            const data = JSON.parse(event.content || '{}')
-            const profile = normalizeProfileData(event.pubkey || pubkey, data)
-            console.log('✅ _fetchProfileFromRelays: Profile parsed successfully for', pubkey.substring(0, 16))
-            sub.close()
-            resolve(profile)
-          } catch (e) {
-            console.error('❌ _fetchProfileFromRelays: Error parsing event for', pubkey.substring(0, 16), e)
-            clearTimeout(timeout)
-            sub.close()
-            reject(e)
-          }
-        },
-        oneose: () => {
-          console.log('🏁 _fetchProfileFromRelays: EOSE received for', pubkey.substring(0, 16))
-          setTimeout(() => {
-            clearTimeout(timeout)
-            sub.close()
-            console.log('⚠️ _fetchProfileFromRelays: Resolving null (no profile found) for', pubkey.substring(0, 16))
-            resolve(null)
-          }, 1000)
-        },
-        onclose: () => {
-          console.log('🔒 _fetchProfileFromRelays: onclose fired for', pubkey.substring(0, 16))
-          clearTimeout(timeout)
-        }
-      })
-      console.log('✅ _fetchProfileFromRelays: Subscription created:', !!sub, 'for', pubkey.substring(0, 16))
-    } catch (e) {
-      console.error('❌ _fetchProfileFromRelays: Exception during subscribe for', pubkey.substring(0, 16), e)
-      clearTimeout(timeout)
-      reject(e)
-    }
+  const event = await nostrRelayManager.getEvent({
+    kinds: [0], authors: [pubkey], limit: 1
   })
+
+  if (!event) return null
+
+  const data = JSON.parse(event.content || '{}')
+  return normalizeProfileData(event.pubkey || pubkey, data)
 }
 
-// Batch fetch profiles for many pubkeys. Updates profileCache as results arrive.
-export const batchFetchProfiles = async (pubkeys = [], { batchSize = 50, timeoutMs = 10000 } = {}) => {
-  // Filter out invalid pubkeys
+// Batch fetch profiles for many pubkeys using subscribe helper.
+// Updates profileCache as results arrive.
+export const batchFetchProfiles = async (pubkeys = [], { batchSize = 50, timeoutMs = 15000 } = {}) => {
   const validPubkeys = pubkeys.filter(pk => pk && typeof pk === 'string' && pk.length === 64)
   const missing = validPubkeys.filter(pk => !profileCache.has(pk))
 
   if (missing.length === 0) return
 
   // Split into batches to avoid overly long author lists
-  const batches = []
   for (let i = 0; i < missing.length; i += batchSize) {
-    batches.push(missing.slice(i, i + batchSize))
-  }
+    const batch = missing.slice(i, i + batchSize)
 
-  const promises = batches.map(batch => new Promise((resolve) => {
-    let resolved = false
-    const timeout = setTimeout(() => {
-      if (!resolved) { resolved = true; resolve() }
-    }, timeoutMs)
+    const events = await subscribe(
+      [{ kinds: [0], authors: batch, limit: batch.length }],
+      { timeout: timeoutMs, eoseGrace: 1500 }
+    )
 
-    try {
-      const sub = nostrRelayManager.subscribeToEvents([
-        { kinds: [0], authors: batch, limit: batch.length }
-      ], {
-        onevent: (event) => {
-          try {
-            const data = JSON.parse(event.content || '{}')
-            const profile = normalizeProfileData(event.pubkey, data)
-            profileCache.set(event.pubkey, { profile, timestamp: Date.now() })
-          } catch (e) {
-            // ignore
-          }
-        },
-        oneose: () => {
-          if (!resolved) { resolved = true; clearTimeout(timeout); resolve() }
-        },
-        onclose: () => {
-          if (!resolved) { resolved = true; clearTimeout(timeout); resolve() }
-        }
-      })
-    } catch (e) {
-      clearTimeout(timeout)
-      if (!resolved) { resolved = true; resolve() }
+    for (const event of events) {
+      try {
+        const data = JSON.parse(event.content || '{}')
+        const profile = normalizeProfileData(event.pubkey, data)
+        profileCache.set(event.pubkey, { profile, timestamp: Date.now() })
+      } catch {
+        // skip invalid profiles
+      }
     }
-  }))
-
-  await Promise.all(promises)
+  }
 }

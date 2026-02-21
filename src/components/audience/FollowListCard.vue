@@ -164,7 +164,7 @@ const memberAvatars = computed(() => {
           class="btn-primary text-sm flex-1"
         >
           <IconLoader v-if="isProcessing" class="w-4 h-4 animate-spin" />
-          <IconUserPlus class="w-4 h-4" />
+          <IconUserPlus v-else class="w-4 h-4" />
           {{ isProcessing ? 'Following...' : 'Follow All' }}
         </button>
         <button

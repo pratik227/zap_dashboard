@@ -64,7 +64,6 @@ const loadNotifications = () => {
     if (stored) {
       const parsed = JSON.parse(stored)
       notifications.value = Array.isArray(parsed) ? parsed : []
-      console.log('✅ Loaded notifications from storage:', notifications.value.length)
     }
   } catch (error) {
     console.error('Failed to load notifications:', error)
@@ -105,8 +104,13 @@ const saveNotificationSettings = () => {
 // Watch for settings changes and save
 watch(notificationSettings, saveNotificationSettings, { deep: true })
 
-// Watch for notification changes and save
-watch(notifications, saveNotifications, { deep: true })
+// Debounced watch for notification changes (2s delay)
+let saveTimeout = null
+const debouncedSave = () => {
+  clearTimeout(saveTimeout)
+  saveTimeout = setTimeout(saveNotifications, 2000)
+}
+watch(notifications, debouncedSave, { deep: true })
 
 // Create notification object
 const createNotification = (type, title, message, data = {}) => {
@@ -159,8 +163,6 @@ const addNotification = (notification, isNewNotification = true) => {
     // Mark as played to prevent replay
     notification.played = true
   }
-
-  console.log('✅ Notification added:', notification.title)
 }
 
 // Show desktop notification
@@ -406,7 +408,8 @@ const handleCalendarInvite = (eventData) => {
       eventTitle: eventData.title,
       eventStart: eventData.start || eventData.start_date,
       eventType: eventData.type,
-      organizer: eventData.organizer
+      organizer: eventData.organizer,
+      organizerProfile: eventData.organizerProfile || null
     }
   )
 
@@ -440,11 +443,8 @@ let processedTransactions = new Set()
 
 const startTransactionMonitoring = async () => {
   if (transactionPolling) {
-    console.log('⚠️ Transaction monitoring already active')
     return
   }
-
-  console.log('🔍 Starting NWC transaction monitoring...')
 
   // Load last known state from localStorage
   try {
@@ -454,17 +454,14 @@ const startTransactionMonitoring = async () => {
 
     if (storedTimestamp) {
       lastTransactionTimestamp = parseInt(storedTimestamp)
-      console.log('📌 Loaded last transaction timestamp:', new Date(lastTransactionTimestamp * 1000).toISOString())
     }
 
     if (storedBalance) {
       lastBalance = parseInt(storedBalance)
-      console.log('📌 Loaded last balance:', lastBalance, 'sats')
     }
 
     if (storedProcessedTransactions) {
       processedTransactions = new Set(JSON.parse(storedProcessedTransactions))
-      console.log('📌 Loaded', processedTransactions.size, 'processed transaction hashes')
     }
   } catch (error) {
     console.warn('Failed to load last transaction state:', error)
@@ -501,8 +498,6 @@ const startTransactionMonitoring = async () => {
 
           // Create notification for incoming transactions only
           if (transaction.type === 'incoming') {
-            console.log('💰 New incoming transaction detected:', Math.floor(transaction.amount / 1000), 'sats')
-
             handleZapReceivedNWC({
               amount: Math.floor(transaction.amount / 1000),
               timestamp: new Date(timestamp * 1000).toISOString(),
@@ -546,15 +541,12 @@ const startTransactionMonitoring = async () => {
       console.warn('Transaction monitoring error:', error.message)
     }
   }, 10000) // Check every 10 seconds
-
-  console.log('✅ NWC transaction monitoring started')
 }
 
 const stopTransactionMonitoring = () => {
   if (transactionPolling) {
     clearInterval(transactionPolling)
     transactionPolling = null
-    console.log('🛑 NWC transaction monitoring stopped')
   }
 
   processedTransactions.clear()
@@ -569,7 +561,6 @@ const loadNotifiedEvents = () => {
     const stored = localStorage.getItem(NOTIFIED_EVENTS_KEY)
     if (stored) {
       notifiedEvents = new Set(JSON.parse(stored))
-      console.log('📌 Loaded', notifiedEvents.size, 'notified event IDs')
     }
   } catch (error) {
     console.warn('Failed to load notified events:', error)
@@ -588,11 +579,9 @@ const saveNotifiedEvents = () => {
 
 const startEventMonitoring = (getEventsCallback) => {
   if (eventMonitoring) {
-    console.log('⚠️ Event monitoring already active')
     return
   }
 
-  console.log('🔍 Starting calendar event monitoring...')
   loadNotifiedEvents()
 
   eventMonitoring = setInterval(() => {
@@ -620,7 +609,6 @@ const startEventMonitoring = (getEventsCallback) => {
         const timeUntilEvent = eventStartTime - now
 
         if (timeUntilEvent <= fiveMinutes && timeUntilEvent > -60000) {
-          console.log('📅 Event starting soon:', event.title)
           handleCalendarEventStart(event)
           notifiedEvents.add(eventKey)
           saveNotifiedEvents()
@@ -630,21 +618,17 @@ const startEventMonitoring = (getEventsCallback) => {
       console.warn('Event monitoring error:', error.message)
     }
   }, 30000)
-
-  console.log('✅ Calendar event monitoring started')
 }
 
 const stopEventMonitoring = () => {
   if (eventMonitoring) {
     clearInterval(eventMonitoring)
     eventMonitoring = null
-    console.log('🛑 Calendar event monitoring stopped')
   }
 }
 
 // Initialize notification system
 const initializeNotifications = async () => {
-  console.log('🔔 Initializing notifications system...')
   loadNotificationSettings()
   loadNotifications()
 
@@ -652,8 +636,6 @@ const initializeNotifications = async () => {
   if (notificationSettings.value.desktop) {
     await requestNotificationPermission()
   }
-
-  console.log('✅ Notifications system initialized')
 }
 
 export function useNotifications() {
@@ -662,10 +644,8 @@ export function useNotifications() {
   // Watch for wallet connection changes
   watch(isWalletConnected, (connected) => {
     if (connected) {
-      console.log('💳 Wallet connected, starting transaction monitoring...')
       startTransactionMonitoring()
     } else {
-      console.log('💳 Wallet disconnected, stopping transaction monitoring...')
       stopTransactionMonitoring()
     }
   }, { immediate: true })

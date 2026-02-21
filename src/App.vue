@@ -5,6 +5,8 @@ import Sidebar from './components/layout/Sidebar.vue'
 import { IconTarget } from '@iconify-prerendered/vue-tabler'
 import { useContentZaps } from './composables/content/useContentZaps.js'
 import { generateAvatar } from './utils/profile/avatarGenerator.js'
+import { fetchProfile, batchFetchProfiles, profileCache as sharedProfileCache } from './utils/profile/profileFetcher.js'
+import { useUserZaps } from './composables/content/useUserZaps.js'
 import TopBar from './components/layout/TopBar.vue'
 import Dashboard from './pages/Dashboard.vue'
 import { useNostrLongForm } from './composables/content/useNostrLongForm.js'
@@ -30,91 +32,64 @@ import { useNostrConnections } from './composables/core/useNostrConnections.js'
 import { useNotifications } from './composables/core/useNotifications.js'
 import { nostrRelayManager } from './utils/network/nostrRelayManager.js'
 import { useNostrNotes } from './composables/content/useNostrNotes.js'
+import { startRefreshCycle, stopRefreshCycle } from './utils/refreshCycle.js'
 import Calendar from './pages/Calendar.vue'
 import ContestResolver from './pages/ContestResolver.vue'
 import WelcomeModal from './components/modals/WelcomeModal.vue'
 import HelpModal from './components/modals/HelpModal.vue'
+import AppLoader from './components/layout/AppLoader.vue'
 
+// App loading gate
+const appReady = ref(false)
+const loadingPhase = ref('session')
+
+// Read stored user for loading screen
+const storedUserRaw = localStorage.getItem('nostrUser')
+const hasStoredUser = !!storedUserRaw
+const storedUserName = ref('')
+const storedUserAvatar = ref('')
+if (storedUserRaw) {
+  try {
+    const parsed = JSON.parse(storedUserRaw)
+    storedUserName.value = parsed.profile?.display_name || parsed.profile?.name || ''
+    storedUserAvatar.value = parsed.profile?.picture || ''
+  } catch (e) { /* ignore parse errors */ }
+}
+
+// If no stored user, show app immediately (new user)
+if (!hasStoredUser) {
+  appReady.value = true
+}
 
 // UI state for dismissible banners
 const showLargeDatasetBanner = ref(true)
 let largeDatasetBannerTimeout = null
 
-// Profile cache to avoid repeated fetches
-const profileCache = new Map()
-const profileFetchPromises = new Map()
-
-// Fetch author profile using relay manager
+// Fetch author profile using shared profileFetcher
 const fetchAuthorProfile = async (pubkey, forceRefresh = false) => {
-  // Return cached profile if available (unless force refresh)
-  if (!forceRefresh && profileCache.has(pubkey)) {
-    return profileCache.get(pubkey)
-  }
-  
-  // If already fetching this profile, wait for the promise
-  if (profileFetchPromises.has(pubkey)) {
-    return profileFetchPromises.get(pubkey)
-  }
-  
-  // Create a new fetch promise
-  const fetchPromise = (async () => {
-    try {
-      const authorEvent = await nostrRelayManager.getEvent({
-        kinds: [0],
-        authors: [pubkey],
-        limit: 1
-      })
-      
-      let profile = null
-      
-      if (authorEvent) {
-        try {
-          profile = JSON.parse(authorEvent.content)
-        } catch (err) {
-          console.warn('Failed to parse author profile:', err)
-        }
-      }
-      
-      const profileData = {
-        pubkey,
-        name: profile?.name || profile?.display_name || `user:${pubkey.substring(0, 8)}`,
-        picture: profile?.picture || generateAvatar(pubkey),
-        nip05: profile?.nip05 || null,
-        about: profile?.about || null
-      }
-      
-      // Cache the profile
-      profileCache.set(pubkey, profileData)
-      return profileData
-      
-    } catch (err) {
-      console.warn('Failed to fetch author profile:', err)
-      const fallbackProfile = {
-        pubkey,
-        name: `user:${pubkey.substring(0, 8)}`,
-        picture: generateAvatar(pubkey),
-        nip05: null,
-        about: null
-      }
-      
-      // Cache the fallback profile
-      profileCache.set(pubkey, fallbackProfile)
-      return fallbackProfile
-    } finally {
-      // Clean up the promise
-      profileFetchPromises.delete(pubkey)
+  const profile = await fetchProfile(pubkey, forceRefresh ? { ttl: 0 } : {})
+  if (!profile) {
+    return {
+      pubkey,
+      name: `user:${pubkey.substring(0, 8)}`,
+      picture: generateAvatar(pubkey),
+      nip05: null,
+      about: null
     }
-  })()
-  
-  // Store the promise to prevent duplicate fetches
-  profileFetchPromises.set(pubkey, fetchPromise)
-  return fetchPromise
+  }
+  return {
+    pubkey: profile.pubkey,
+    name: profile.name,
+    picture: profile.picture || generateAvatar(pubkey),
+    nip05: profile.nip05,
+    about: profile.about
+  }
 }
 
 // Refresh profile for a specific pubkey
 const refreshProfile = async (pubkey) => {
   if (!pubkey) return
-  
+
   try {
     const profile = await fetchAuthorProfile(pubkey, true) // Force refresh
     profileStore.value.set(pubkey, profile)
@@ -155,9 +130,12 @@ const { getAllContentZaps } = useContentZaps()
 // Initialize content zaps tracking
 const { initializeZapTracking } = useContentZaps()
 
-// Initialize notes and zaps tracking early
-const { notes, fetchUserNotes } = useNostrNotes()
-const { fetchUserLongFormContent } = useNostrLongForm()
+// Use the user zaps composable for #p-based zap subscription
+const { userZaps } = useUserZaps()
+
+// Initialize notes tracking early (composable self-registers with refresh cycle)
+const { notes } = useNostrNotes()
+useNostrLongForm() // triggers composable initialization + refresh registration
 
 // Global state
 const zapData = ref([])
@@ -187,74 +165,47 @@ const dataLoadingProgress = ref({
 })
 const isWritingMode = ref(false)
 
-// Combine NWC payments (zapData) with NIP-57 zaps based on connection status
+// Combine user zaps (#p subscription) with content zaps (#e subscriptions)
 const combinedZapData = computed(() => {
-  // Create a map to store unique zaps by payment hash/id
   const uniqueZapsMap = new Map()
-  
-  // Check connection statuses
-  const hasNWCConnection = isWalletConnected.value
+
   const hasNostrConnection = isAuthenticated.value
-  
-  // If neither connection is active, return empty array
-  if (!hasNWCConnection && !hasNostrConnection) {
+
+  if (!hasNostrConnection) {
     return []
   }
-  
-  // Process NIP-57 zaps only if Nostr account is connected
-  if (hasNostrConnection) {
-    const contentZapsMap = getAllContentZaps.value
-    
-    // Convert the map of content zaps to an array
-    Object.entries(contentZapsMap).forEach(([eventId, zapData]) => {
-      zapData.zaps.forEach(zap => {
-        // Add NIP-57 zap to the map with payment hash/id as key
-        uniqueZapsMap.set(zap.id, {
-          id: zap.id,
-          amount: zap.amount,
-          timestamp: zap.timestamp,
-          sender: {
-            name: zap.sender?.name || `User ${zap.zapperPubkey.substring(0, 8)}`,
-            pubkey: zap.zapperPubkey,
-            nip05: zap.sender?.nip05 || null,
-            avatar: zap.sender?.picture || generateAvatar(zap.zapperPubkey),
-            // Add profile fetching capability
-            fetchProfile: () => fetchAuthorProfile(zap.zapperPubkey)
-          },
-          note: zap.message || 'Zap',
-          noteType: 'original',
-          client: 'nostr',
-          source: 'nip57', // Explicitly mark as NIP-57 zap
-          eventId: eventId
-        })
+
+  // Source 1: User zaps from #p subscription (primary — catches ALL zaps to user)
+  userZaps.value.forEach(zap => {
+    uniqueZapsMap.set(zap.id, zap)
+  })
+
+  // Source 2: Content zaps from #e subscriptions (may overlap, deduped by id)
+  const contentZapsMap = getAllContentZaps.value
+  Object.entries(contentZapsMap).forEach(([eventId, zapData]) => {
+    zapData.zaps.forEach(zap => {
+      if (uniqueZapsMap.has(zap.id)) return // already have from user zaps
+      uniqueZapsMap.set(zap.id, {
+        id: zap.id,
+        amount: zap.amount,
+        timestamp: zap.timestamp,
+        sender: {
+          name: zap.sender?.name || `User ${zap.zapperPubkey.substring(0, 8)}`,
+          pubkey: zap.zapperPubkey,
+          nip05: zap.sender?.nip05 || null,
+          avatar: zap.sender?.picture || generateAvatar(zap.zapperPubkey),
+          fetchProfile: () => fetchAuthorProfile(zap.zapperPubkey)
+        },
+        note: zap.message || 'Zap',
+        noteType: 'original',
+        client: 'nostr',
+        source: 'nip57',
+        eventId: eventId
       })
     })
-  }
-  
-  // Process NWC payments only if NWC wallet is connected
-  // if (hasNWCConnection) {
-  //   zapData.value.forEach(zap => {
-  //     // If both connections are active, only add NWC payment if we don't already have a NIP-57 zap with the same ID
-  //     // If only NWC is connected, add all NWC payments
-  //     if (!hasNostrConnection || !uniqueZapsMap.has(zap.id)) {
-  //       uniqueZapsMap.set(zap.id, {
-  //         ...zap,
-  //         source: 'nwc', // Explicitly mark as NWC payment
-  //         eventId: null, // NWC payments don't have associated event IDs
-  //         // Add profile fetching capability for NWC payments if they have sender pubkey
-  //         sender: zap.sender?.pubkey ? {
-  //           ...zap.sender,
-  //           fetchProfile: () => fetchAuthorProfile(zap.sender.pubkey)
-  //         } : zap.sender
-  //       })
-  //     } else if (hasNostrConnection && uniqueZapsMap.has(zap.id)) {
-  //       console.log(`Skipping duplicate NWC payment with id ${zap.id?.substring(0, 16)}... (already have NIP-57 zap)`)
-  //     }
-  //   })
-  // }
+  })
 
-  // Convert map values to array and sort by timestamp
-  return Array.from(uniqueZapsMap.values()).sort((a, b) => 
+  return Array.from(uniqueZapsMap.values()).sort((a, b) =>
     new Date(b.timestamp) - new Date(a.timestamp)
   )
 })
@@ -267,48 +218,34 @@ const isPageLoading = ref(false)
 // Reactive profile store
 const profileStore = ref(new Map())
 
-// Enhanced profile fetching with batching and progress tracking
-const fetchProfilesInBatches = async (pubkeys, batchSize = 10) => {
-  const batches = []
-  for (let i = 0; i < pubkeys.length; i += batchSize) {
-    batches.push(pubkeys.slice(i, i + batchSize))
-  }
-  
-  let totalProcessed = 0
+// Profile fetching with batching using shared profileFetcher
+const fetchProfilesInBatches = async (pubkeys) => {
   const totalProfiles = pubkeys.length
-  
-  for (const batch of batches) {
-    const batchPromises = batch.map(pubkey => 
-      fetchAuthorProfile(pubkey).then(profile => {
-        profileStore.value.set(pubkey, profile)
-        totalProcessed++
-        
-        // Update progress
-        dataLoadingProgress.value.progress = Math.round((totalProcessed / totalProfiles) * 100)
-        dataLoadingProgress.value.loadedItems = totalProcessed
-        dataLoadingProgress.value.currentStep = `Loading profiles (${totalProcessed}/${totalProfiles})`
-        
-        return profile
-      }).catch(error => {
-        console.warn('Failed to fetch profile for pubkey:', pubkey, error)
-        totalProcessed++
-        
-        // Update progress even on error
-        dataLoadingProgress.value.progress = Math.round((totalProcessed / totalProfiles) * 100)
-        dataLoadingProgress.value.loadedItems = totalProcessed
-        dataLoadingProgress.value.currentStep = `Loading profiles (${totalProcessed}/${totalProfiles})`
-        
-        return null
+
+  dataLoadingProgress.value.currentStep = `Loading profiles (0/${totalProfiles})`
+
+  await batchFetchProfiles(pubkeys)
+
+  // After batch fetch, populate profileStore from shared cache
+  let loaded = 0
+  for (const pubkey of pubkeys) {
+    const cached = sharedProfileCache.get(pubkey)
+    if (cached?.profile) {
+      const p = cached.profile
+      profileStore.value.set(pubkey, {
+        pubkey: p.pubkey,
+        name: p.name,
+        picture: p.picture || generateAvatar(pubkey),
+        nip05: p.nip05,
+        about: p.about
       })
-    )
-    
-    await Promise.allSettled(batchPromises)
-    
-    // Small delay between batches to prevent overwhelming the relays
-    if (batches.indexOf(batch) < batches.length - 1) {
-      await new Promise(resolve => setTimeout(resolve, 100))
     }
+    loaded++
   }
+
+  dataLoadingProgress.value.progress = 100
+  dataLoadingProgress.value.loadedItems = loaded
+  dataLoadingProgress.value.currentStep = `Loading profiles (${loaded}/${totalProfiles})`
 }
 
 // Watch for new zaps and fetch profiles with batching
@@ -323,8 +260,6 @@ watch(combinedZapData, async (newZaps) => {
   })
   
   if (uniquePubkeys.size > 0) {
-    console.log(`📊 Fetching ${uniquePubkeys.size} profiles in batches...`)
-    
     // Only show profile loading progress if we're not already loading main data
     if (!isRefreshingData.value) {
       dataLoadingProgress.value.isLoading = true
@@ -333,13 +268,11 @@ watch(combinedZapData, async (newZaps) => {
     }
     
     await fetchProfilesInBatches(Array.from(uniquePubkeys))
-    
+
     // Only clear profile loading if we're not loading main data
     if (!isRefreshingData.value) {
       dataLoadingProgress.value.isLoading = false
     }
-    
-    console.log(`✅ Profile fetching completed: ${uniquePubkeys.size} profiles loaded`)
   }
 }, { immediate: true })
 
@@ -455,13 +388,11 @@ const isStandalonePage = computed(() => {
 // Enhanced data refresh function with progressive loading and better error handling
 const refreshZapData = async (force = false, retryCount = 0) => {
   if (!activeConnection.value && !force) {
-    console.log('No active connection, clearing zap data')
     zapData.value = []
     return
   }
-  
+
   if (isRefreshingData.value && retryCount === 0) {
-    console.log('Data refresh already in progress, skipping...')
     return
   }
   
@@ -469,8 +400,6 @@ const refreshZapData = async (force = false, retryCount = 0) => {
   const maxRetries = 3
   
   try {
-    console.log(`Refreshing zap data... (attempt ${retryCount + 1}/${maxRetries + 1})`)
-    
     // Update progress tracking
     dataLoadingProgress.value.isLoading = true
     dataLoadingProgress.value.currentStep = 'Loading zap data from wallet...'
@@ -485,13 +414,7 @@ const refreshZapData = async (force = false, retryCount = 0) => {
     dataLoadingProgress.value.progress = 50
     dataLoadingProgress.value.currentStep = `Loaded ${data.length} zaps, processing data...`
     
-    // Log performance metrics for large datasets
-    if (data.length > 100) {
-      console.log(`📊 Performance: Loaded ${data.length} zaps in ${loadTime}ms (${Math.round(data.length / (loadTime / 1000))} zaps/sec)`)
-    }
-    
     zapData.value = data
-    console.log('Zap data refreshed successfully:', data.length, 'zaps')
     
     // Update final progress
     dataLoadingProgress.value.progress = 100
@@ -512,8 +435,7 @@ const refreshZapData = async (force = false, retryCount = 0) => {
     
     // If we have retries left and it's a network/connection error, retry
     if (retryCount < maxRetries && isNetworkError(error)) {
-      const delay = Math.min(1000 * Math.pow(2, retryCount), 10000) // Exponential backoff, max 10s
-      console.log(`Retrying data refresh in ${delay}ms...`)
+      const delay = Math.min(1000 * Math.pow(2, retryCount), 10000)
       
       setTimeout(async () => {
         await refreshZapData(force, retryCount + 1)
@@ -563,11 +485,6 @@ const isNetworkError = (error) => {
 
 // Watch for active connection changes with immediate execution
 watch(activeConnection, async (newConnection, oldConnection) => {
-  console.log('Active connection changed:', {
-    old: oldConnection?.name || 'none',
-    new: newConnection?.name || 'none'
-  })
-  
   if (newConnection) {
     // Small delay to ensure NWC client is fully initialized
     await nextTick()
@@ -581,71 +498,98 @@ watch(activeConnection, async (newConnection, oldConnection) => {
 
 // Enhanced initialization
 onMounted(async () => {
-  console.log('🚀 App mounted, initializing ZapTracker...')
+  // Hard timeout — always show app after 15s regardless of loading state
+  const hardTimeout = setTimeout(() => { appReady.value = true }, 15000)
 
-  // Check if this is first visit - show HelpModal
-  const hasSeenHelp = localStorage.getItem('zaptracker_welcome_seen')
-  if (!hasSeenHelp && !isAuthenticated.value) {
-    console.log('👋 First visit detected, showing HelpModal...')
-    showHelpModal.value = true
-  }
-
-  // Check NIP-07 extension availability
-  if (window.nostr) {
-    console.log('✅ NIP-07 extension detected')
-  } else {
-    console.log('ℹ️ No NIP-07 extension - user needs to install Alby, nos2x, or similar to login')
-  }
-
-  // Check authentication state
-  console.log('🔐 Authentication status:', {
-    isAuthenticated: isAuthenticated.value,
-    hasStoredUser: !!localStorage.getItem('nostrUser'),
-    isWalletConnected: isWalletConnected.value
-  })
-
-  try {
-    // Initialize the relay manager first
-    await nostrRelayManager.initialize()
-    console.log('✅ Relay manager initialized successfully')
-
-    // Initialize content zap tracking
-    if (isWalletConnected.value) {
-      console.log('💰 Initializing content zap tracking...')
-      setTimeout(() => {
-        initializeZapTracking()
-      }, 2000)
-    }
-  } catch (error) {
-    console.error('❌ Failed to initialize relay manager:', error)
-  }
-
-  // Check URL parameters for page navigation
+  // Check URL parameters for page navigation (do this early)
   const urlParams = new URLSearchParams(window.location.search)
   const pageParam = urlParams.get('page')
-
   if (pageParam && components[pageParam]) {
     currentPage.value = pageParam
   }
 
-  // Check if we need to show connection modal (only for non-standalone pages)
-  // COMMENTED OUT: Auto-showing connection modal was too aggressive
-  // Users can still connect via the Wallet page's "Connect Wallet" button or Settings
-  // if (!isWalletConnected.value && !isStandalonePage.value) {
-  //   console.log('💳 No wallet connected, showing connection modal')
-  //   showConnectionModal.value = true
-  // } else if (isWalletConnected.value) {
+  // Standalone pages skip loading screen
+  if (isStandalonePage.value) {
+    appReady.value = true
+    clearTimeout(hardTimeout)
+  }
+
+  // Check if this is first visit - show HelpModal
+  const hasSeenHelp = localStorage.getItem('zaptracker_welcome_seen')
+  if (!hasSeenHelp && !isAuthenticated.value) {
+    showHelpModal.value = true
+  }
+
+  // --- Loading phases (only meaningful for returning users) ---
+  if (hasStoredUser && !appReady.value) {
+    loadingPhase.value = 'session'
+    // Small tick so the loader renders before we proceed
+    await nextTick()
+  }
+
+  // Phase 2: Relay init
+  if (hasStoredUser && !appReady.value) {
+    loadingPhase.value = 'relays'
+  }
+
+  // useNostrAuth handles primary relay initialization with user relays.
+  // Fallback: ensure relays are initialized even if auth init fails.
+  try {
+    if (!nostrRelayManager.isInitialized) {
+      await nostrRelayManager.initialize()
+    }
+  } catch (error) {
+    console.error('Failed to initialize relay manager:', error)
+  }
+
+  // Phase 3: Profile / auth
+  if (hasStoredUser && !appReady.value) {
+    loadingPhase.value = 'profile'
+  }
+
+  // Wait briefly for relay manager ready — but never hang.
+  // initialize() above already connected; ready() can hang forever if init failed,
+  // so race it with a 5s timeout.
+  try {
+    await Promise.race([
+      nostrRelayManager.ready(),
+      new Promise(r => setTimeout(r, 5000))
+    ])
+  } catch (e) {
+    // continue regardless
+  }
+
+  // Initialize content zap tracking for all authenticated users (not just wallet-connected)
+  if (isAuthenticated.value) {
+    initializeZapTracking()
+  } else if (isWalletConnected.value) {
+    initializeZapTracking()
+  }
+
+  // Phase 4: Syncing composables
+  if (hasStoredUser && !appReady.value) {
+    loadingPhase.value = 'syncing'
+    // Give composables + engagement background refresh time to initiate relay subscriptions
+    await new Promise(r => setTimeout(r, 2000))
+  }
+
+  // Phase 5: Ready
+  if (hasStoredUser && !appReady.value) {
+    loadingPhase.value = 'ready'
+    // Brief settle so the "ready" step is visible
+    await new Promise(r => setTimeout(r, 400))
+    appReady.value = true
+    clearTimeout(hardTimeout)
+  }
+
   if (isWalletConnected.value) {
-    console.log('💳 Wallet already connected, refreshing data...')
     setTimeout(() => {
       refreshZapData(true)
     }, 1000)
   }
 
-  // Start periodic health check and data refresh
   startPeriodicHealthCheck()
-
-  console.log('✅ ZapTracker initialization complete')
+  startRefreshCycle()
 })
 
 // Periodic health check and data refresh
@@ -659,43 +603,23 @@ const startPeriodicHealthCheck = () => {
   // Check every 2 minutes
   healthCheckInterval = setInterval(async () => {
     if (isWalletConnected.value && !isRefreshingData.value) {
-      console.log('Performing periodic health check and data refresh...')
-      
       try {
-        // Test connection health by doing a simple balance check
         await getBalance()
-        
-        // If successful, refresh data to catch any new transactions
         await refreshZapData(true)
-        
+
       } catch (error) {
         console.warn('Periodic health check failed:', error)
-        
-        // If connection seems broken, try to reconnect
+
         if (error.message.includes('not initialized') || error.message.includes('timeout')) {
-          console.log('Connection appears broken, attempting auto-reconnect...')
           try {
             await autoReconnect()
-            console.log('Auto-reconnect successful')
           } catch (reconnectError) {
             console.error('Auto-reconnect failed:', reconnectError)
             connectionError.value = 'Connection lost. Please reconnect your wallet.'
           }
         }
-        
+
         initializeZapTracking()
-        
-        // Also initialize notes tracking
-        console.log('Initializing notes tracking...')
-        fetchUserNotes().catch(err => {
-          console.error('Failed to fetch notes:', err)
-        })
-        
-        // Initialize long-form content tracking
-        console.log('Initializing long-form content tracking...')
-        fetchUserLongFormContent().catch(err => {
-          console.error('Failed to fetch long-form content:', err)
-        })
       }
     }
   }, 120000) // 2 minutes
@@ -706,6 +630,7 @@ onUnmounted(() => {
   if (healthCheckInterval) {
     clearInterval(healthCheckInterval)
   }
+  stopRefreshCycle()
 })
 
 // Watch for transaction notifications and auto-refresh
@@ -722,7 +647,6 @@ watch(notifications, (newNotifications, oldNotifications) => {
     )
   
   if (hasNewPaymentNotification && isWalletConnected.value) {
-    console.log('New payment notification detected, auto-refreshing data...')
     setTimeout(() => {
       refreshZapData(true)
     }, 2000) // Small delay to ensure transaction is fully processed
@@ -774,7 +698,6 @@ provide('changePage', changePage)
 
 // Enhanced connection success handler with notifications
 const handleConnectionSuccess = async () => {
-  console.log('Connection successful, updating UI...')
   showConnectionModal.value = false
   
   // Notify about successful connection
@@ -797,12 +720,7 @@ const handleConnectionError = (error) => {
 
 // Manual refresh function for user-triggered refreshes
 const handleManualRefresh = async () => {
-  if (!isWalletConnected.value) {
-    console.log('No wallet connected for manual refresh')
-    return
-  }
-  
-  console.log('Manual refresh triggered')
+  if (!isWalletConnected.value) return
   await refreshZapData(true)
 }
 
@@ -849,9 +767,50 @@ const showLoginError = (error) => {
   }
 }
 
+const runPostLoginLoader = async () => {
+  // Show loading screen through the init phases after login
+  appReady.value = false
+  const timeout = setTimeout(() => { appReady.value = true }, 15000)
+
+  loadingPhase.value = 'relays'
+  try {
+    await Promise.race([
+      nostrRelayManager.ready(),
+      new Promise(r => setTimeout(r, 5000))
+    ])
+  } catch (e) { /* continue */ }
+
+  loadingPhase.value = 'profile'
+  initializeZapTracking()
+  await new Promise(r => setTimeout(r, 800))
+
+  loadingPhase.value = 'syncing'
+  await new Promise(r => setTimeout(r, 2000))
+
+  loadingPhase.value = 'ready'
+  await new Promise(r => setTimeout(r, 400))
+
+  appReady.value = true
+  clearTimeout(timeout)
+}
+
 const handleTriggerLogin = async () => {
   try {
+    // Re-read stored user info for loader greeting (login() writes to localStorage)
+    loadingPhase.value = 'session'
     await login()
+
+    // After login, read the freshly stored user for the loader display
+    const raw = localStorage.getItem('nostrUser')
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw)
+        storedUserName.value = parsed.profile?.display_name || parsed.profile?.name || ''
+        storedUserAvatar.value = parsed.profile?.picture || ''
+      } catch (e) { /* ignore */ }
+    }
+
+    await runPostLoginLoader()
   } catch (error) {
     showLoginError(error)
   }
@@ -866,11 +825,7 @@ const handleTriggerViewOnly = async () => {
 const handleChecklistTaskAction = async (action) => {
   switch (action) {
     case 'connect-nostr':
-      try {
-        await login()
-      } catch (error) {
-        showLoginError(error)
-      }
+      await handleTriggerLogin()
       break
     case 'setup-profile':
       changePage('settings', 'nostr')
@@ -889,17 +844,27 @@ const handleChecklistTaskAction = async (action) => {
 </script>
 
 <template>
+  <!-- Loading screen -->
+  <Transition name="loader-fade">
+    <AppLoader
+      v-if="!appReady"
+      :phase="loadingPhase"
+      :user-name="storedUserName"
+      :user-avatar="storedUserAvatar"
+    />
+  </Transition>
+
   <!-- Standalone Invoice Share Page -->
-  <div v-if="isStandalonePage" class="min-h-screen bg-gradient-to-br from-orange-25 via-amber-25 to-yellow-25">
-    <component 
-      :is="components[currentPage]" 
+  <div v-if="appReady && isStandalonePage" class="min-h-screen bg-gradient-to-br from-orange-25 via-amber-25 to-yellow-25">
+    <component
+      :is="components[currentPage]"
       :key="currentPage"
       @change-page="changePage"
     />
   </div>
 
   <!-- Main Application Layout -->
-  <div v-else :class="[
+  <div v-else-if="appReady" :class="[
     'h-screen bg-gradient-to-br from-orange-25 via-amber-25 to-yellow-25 flex overflow-hidden',
     isWritingMode ? 'writing-mode' : ''
   ]">
@@ -1185,5 +1150,14 @@ const handleChecklistTaskAction = async (action) => {
   .writing-mode {
     background: #fafafa !important;
   }
+}
+
+/* Loader fade-out transition */
+.loader-fade-leave-active {
+  transition: opacity 0.4s ease;
+}
+
+.loader-fade-leave-to {
+  opacity: 0;
 }
 </style>

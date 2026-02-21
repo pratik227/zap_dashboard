@@ -1,8 +1,10 @@
-import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { useNostrAuth } from '../auth/useNostrAuth.js'
 import { nostrRelayManager } from '../../utils/network/nostrRelayManager.js'
+import { registerRefresh, unregisterRefresh } from '../../utils/refreshCycle.js'
 import { finalizeEvent, verifyEvent } from 'nostr-tools/pure'
 import { useNotifications } from '../core/useNotifications.js'
+import { fetchProfile, batchFetchProfiles, profileCache } from '../../utils/profile/profileFetcher.js'
 
 // NIP-52 Calendar Event Kinds
 const CALENDAR_EVENT_KINDS = {
@@ -66,42 +68,16 @@ export function useNostrCalendar() {
     })
   })
 
-  // Fetch user profile metadata
+  // Fetch user profile metadata using shared profileFetcher
   const fetchUserProfile = async (pubkey) => {
     try {
-      return new Promise((resolve) => {
-        const timeout = setTimeout(() => {
-          resolve(null)
-        }, 3000) // 3 second timeout
-
-        const sub = nostrRelayManager.subscribeToEvents([
-          {
-            kinds: [0], // Metadata events
-            authors: [pubkey],
-            limit: 1
-          }
-        ], {
-          onevent: (event) => {
-            clearTimeout(timeout)
-            try {
-              const metadata = JSON.parse(event.content)
-              resolve({
-                name: metadata.name || metadata.display_name,
-                picture: metadata.picture,
-                nip05: metadata.nip05
-              })
-            } catch (e) {
-              resolve(null)
-            }
-            sub.close()
-          },
-          oneose: () => {
-            clearTimeout(timeout)
-            resolve(null)
-            sub.close()
-          }
-        })
-      })
+      const profile = await fetchProfile(pubkey)
+      if (!profile) return null
+      return {
+        name: profile.name || profile.display_name,
+        picture: profile.picture,
+        nip05: profile.nip05
+      }
     } catch (error) {
       console.error('Failed to fetch user profile:', error)
       return null
@@ -165,13 +141,6 @@ export function useNostrCalendar() {
 
       // Fetch profiles for participants
       if (participantTags.length > 0) {
-        console.log(`📋 Event "${title}" has ${participantTags.length} participants`)
-        console.log('📋 Participant pubkey lengths:', participantTags.map(p => ({ 
-          pubkey: p.pubkey, 
-          length: p.pubkey.length,
-          role: p.role 
-        })))
-        
         const profilePromises = participantTags.map(async (participant) => {
           const profile = await fetchUserProfile(participant.pubkey)
           const result = {
@@ -180,20 +149,10 @@ export function useNostrCalendar() {
             picture: profile?.picture,
             nip05: profile?.nip05
           }
-          console.log(`📋 Participant after profile fetch:`, {
-            pubkey: result.pubkey,
-            pubkeyLength: result.pubkey?.length,
-            name: result.name
-          })
           return result
         })
         
         eventData.participants = await Promise.all(profilePromises)
-        console.log(`✅ Loaded ${eventData.participants.length} participant profiles for "${title}"`)
-        console.log('✅ Final participant pubkeys:', eventData.participants.map(p => ({
-          pubkey: p.pubkey,
-          length: p.pubkey?.length
-        })))
       }
 
       // Extract hashtags (t tags)
@@ -216,15 +175,10 @@ export function useNostrCalendar() {
   // Fetch calendar events from Nostr relays
   const fetchCalendarEvents = async () => {
     if (!isAuthenticated.value || !currentUser.value?.pubkey) {
-      console.log('Not authenticated, cannot fetch calendar events')
       return
     }
 
-    if (!nostrRelayManager.isInitialized) {
-      console.log('Relay manager not initialized, cannot fetch calendar events')
-      error.value = 'Relay manager not initialized'
-      return
-    }
+    await nostrRelayManager.ready()
 
     isLoading.value = true
     error.value = ''
@@ -232,14 +186,11 @@ export function useNostrCalendar() {
     // Set a timeout to stop loading after 5 seconds
     const loadingTimeout = setTimeout(() => {
       if (isLoading.value) {
-        console.log('⏱️ Calendar events loading timeout - stopping loading state')
         isLoading.value = false
       }
     }, 5000)
 
     try {
-      console.log('Fetching calendar events for user:', currentUser.value.pubkey.substring(0, 8) + '...')
-
       // Subscribe to calendar events (both time-based and date-based)
       currentSubscription = nostrRelayManager.subscribeToEvents([
         {
@@ -261,11 +212,8 @@ export function useNostrCalendar() {
         }
       ], {
         onevent: async (event) => {
-          console.log('Received calendar event:', event.kind, event.id.substring(0, 16) + '...', 'at', new Date().toISOString())
-          
           // Check if we've already processed this event ID
           if (processedEventIds.has(event.id)) {
-            console.log('⚠️ Event already processed, skipping:', event.id.substring(0, 16) + '...')
             return
           }
           
@@ -278,34 +226,30 @@ export function useNostrCalendar() {
             
             if (existingIndex === -1) {
               // Add new event
-              console.log('✅ Adding new calendar event to local state:', event.id.substring(0, 16) + '...')
               const eventData = await createEventData(event)
               if (eventData) {
                 events.value.push(eventData)
-                console.log(`✅ Event "${eventData.title}" added to events array. Total events: ${events.value.length}`)
-                console.log(`✅ Event titles in array:`, events.value.map(e => e.title))
 
                 // Check if current user is invited (not the organizer)
                 if (currentUser.value && eventData.pubkey !== currentUser.value.pubkey) {
                   const isInvited = eventData.participants?.some(p => p.pubkey === currentUser.value.pubkey)
                   if (isInvited) {
-                    console.log('📅 User is invited to event, triggering notification')
+                    // Fetch organizer profile for the notification
+                    const organizerProfile = await fetchUserProfile(eventData.pubkey)
                     handleCalendarInvite({
                       id: eventData.id,
                       title: eventData.title,
                       start: eventData.start,
                       start_date: eventData.start_date,
                       type: eventData.type,
-                      organizer: eventData.pubkey
+                      organizer: eventData.pubkey,
+                      organizerProfile: organizerProfile || null
                     })
                   }
                 }
-              } else {
-                console.log('⚠️ createEventData returned null for event:', event.id.substring(0, 16) + '...')
               }
             } else {
               // Update existing event
-              console.log('🔄 Updating existing calendar event in local state:', event.id.substring(0, 16) + '...')
               const eventData = await createEventData(event)
               if (eventData) {
                 events.value[existingIndex] = eventData
@@ -313,8 +257,6 @@ export function useNostrCalendar() {
             }
           } else if (event.kind === 5) {
             // Handle deletion events
-            console.log('🗑️ Processing deletion event:', event.id.substring(0, 16) + '...')
-            
             const deletedEventIds = event.tags
               .filter(tag => tag[0] === 'e')
               .map(tag => tag[1])
@@ -322,19 +264,16 @@ export function useNostrCalendar() {
             deletedEventIds.forEach(deletedId => {
               const index = events.value.findIndex(e => e.id === deletedId)
               if (index !== -1) {
-                console.log('🗑️ Removing deleted event from local state:', deletedId.substring(0, 16) + '...')
                 events.value.splice(index, 1)
               }
             })
           }
         },
         oneose: () => {
-          console.log('End of stored calendar events')
           clearTimeout(loadingTimeout)
           isLoading.value = false
         },
-        onclose: (reason) => {
-          console.log('Calendar events subscription closed:', reason)
+        onclose: () => {
           clearTimeout(loadingTimeout)
           isLoading.value = false
         }
@@ -364,8 +303,6 @@ export function useNostrCalendar() {
     error.value = ''
 
     try {
-      console.log('Creating calendar event...')
-
       const isTimeBased = eventData.type === 'time-based'
       const kind = isTimeBased ? CALENDAR_EVENT_KINDS.TIME_BASED : CALENDAR_EVENT_KINDS.DATE_BASED
 
@@ -463,8 +400,6 @@ export function useNostrCalendar() {
         content: eventData.description.trim()
       }
 
-      console.log('Signing calendar event...')
-      
       // Sign the event using the browser extension
       const signedEvent = await window.nostr.signEvent(eventTemplate)
       
@@ -474,20 +409,12 @@ export function useNostrCalendar() {
         throw new Error('Event signature verification failed')
       }
 
-      console.log('Publishing calendar event to relays...')
-
       // Publish to Nostr relays
       const result = await nostrRelayManager.publishEvent(signedEvent)
 
       if (result.successful === 0) {
         throw new Error('Failed to publish to any relays')
       }
-
-      console.log('✅ Calendar event published successfully:', {
-        eventId: signedEvent.id,
-        successfulRelays: result.successful,
-        failedRelays: result.failed
-      })
 
       // Add the event to our local state immediately
       const newEvent = await createEventData(signedEvent)
@@ -559,8 +486,6 @@ export function useNostrCalendar() {
     }
 
     try {
-      console.log('Publishing deletion event for calendar event:', eventId)
-
       // Create deletion event (kind:5)
       let deletionEvent = {
         kind: 5,
@@ -587,8 +512,6 @@ export function useNostrCalendar() {
         if (index !== -1) {
           events.value.splice(index, 1)
         }
-        
-        console.log('✅ Calendar event deletion published successfully')
       }
 
       return result
@@ -684,8 +607,6 @@ export function useNostrCalendar() {
     error.value = ''
 
     try {
-      console.log('Creating RSVP for event:', eventId)
-
       // Build tags for RSVP
       let tags = [
         ['a', `${eventKind}:${eventAuthor}:${eventId}`],
@@ -708,8 +629,6 @@ export function useNostrCalendar() {
         content: note.trim()
       }
 
-      console.log('Signing RSVP event...')
-      
       // Sign the event
       const signedEvent = await window.nostr.signEvent(rsvpEvent)
       
@@ -719,21 +638,12 @@ export function useNostrCalendar() {
         throw new Error('RSVP signature verification failed')
       }
 
-      console.log('Publishing RSVP to relays...')
-
       // Publish to Nostr relays
       const result = await nostrRelayManager.publishEvent(signedEvent)
 
       if (result.successful === 0) {
         throw new Error('Failed to publish RSVP to any relays')
       }
-
-      console.log('✅ RSVP published successfully:', {
-        rsvpId: signedEvent.id,
-        eventId,
-        status,
-        successfulRelays: result.successful
-      })
 
       // Add to local state
       const rsvpData = {
@@ -772,17 +682,12 @@ export function useNostrCalendar() {
   // Fetch RSVPs for calendar events
   const fetchRSVPs = async (eventId = null) => {
     if (!isAuthenticated.value || !currentUser.value?.pubkey) {
-      console.log('Not authenticated, cannot fetch RSVPs')
       return
     }
 
-    if (!nostrRelayManager.isInitialized) {
-      console.log('Relay manager not initialized, cannot fetch RSVPs')
-      return
-    }
+    await nostrRelayManager.ready()
 
     try {
-      console.log('Fetching RSVPs...')
 
       // Build filters to get:
       // 1. RSVPs by the current user
@@ -799,45 +704,41 @@ export function useNostrCalendar() {
 
       // If we have events, also fetch RSVPs for those events
       if (events.value.length > 0) {
-        console.log('📅 Building RSVP filters for', events.value.length, 'events')
-        
         // Get all event identifiers (kind:pubkey:d-tag format)
         const eventIdentifiers = events.value
           .filter(e => e.rawEvent)
           .map(e => {
             const dTag = e.rawEvent.tags.find(tag => tag[0] === 'd')?.[1]
             if (dTag) {
-              const identifier = `${e.rawEvent.kind}:${e.rawEvent.pubkey}:${dTag}`
-              console.log('  Event identifier:', identifier)
-              return identifier
+              return `${e.rawEvent.kind}:${e.rawEvent.pubkey}:${dTag}`
             }
-            console.log('  ⚠️ Event missing d-tag:', e.id)
             return null
           })
           .filter(Boolean)
 
         if (eventIdentifiers.length > 0) {
-          console.log('✅ Fetching RSVPs for', eventIdentifiers.length, 'event identifiers')
           filters.push({
             kinds: [CALENDAR_EVENT_KINDS.RSVP],
             '#a': eventIdentifiers,
             limit: 200
           })
-        } else {
-          console.log('⚠️ No valid event identifiers found')
         }
-      } else {
-        console.log('⚠️ No events to fetch RSVPs for')
       }
+
+      // Close previous RSVP subscription before opening a new one
+      if (rsvpSubscription) {
+        rsvpSubscription.close()
+        rsvpSubscription = null
+      }
+
+      const rsvpPubkeysToFetch = new Set()
 
       rsvpSubscription = nostrRelayManager.subscribeToEvents(filters, {
         onevent: async (event) => {
-          console.log('Received RSVP:', event.id.substring(0, 16) + '...')
-          
           if (processedRsvpIds.has(event.id)) {
             return
           }
-          
+
           processedRsvpIds.add(event.id)
           
           // Parse RSVP data
@@ -854,7 +755,6 @@ export function useNostrCalendar() {
             const plektosStatusTag = event.tags.find(tag => tag[0] === 'status')
             if (plektosStatusTag) {
               statusValue = plektosStatusTag[1]
-              console.log('📅 Using Plektos status format:', statusValue)
             }
           }
           
@@ -871,62 +771,49 @@ export function useNostrCalendar() {
           
           if (aTag && statusValue) {
             const [eventKind, eventAuthor, eventId] = aTag[1].split(':')
-            
-            console.log('📅 RSVP Details:', {
-              aTag: aTag[1],
-              eventKind,
-              eventAuthor,
-              eventId,
-              status: statusValue,
-              from: event.pubkey.substring(0, 8)
-            })
-            
-            // Fetch user profile for RSVP author
-            const profile = await fetchUserProfile(event.pubkey)
-            
+
+            // Queue pubkey for batch profile fetch after EOSE
+            rsvpPubkeysToFetch.add(event.pubkey)
+
             const rsvpData = {
               id: event.id,
               eventId,
               eventKind: parseInt(eventKind),
               eventAuthor,
               pubkey: event.pubkey,
-              name: profile?.name,
-              picture: profile?.picture,
-              nip05: profile?.nip05,
+              name: null,
+              picture: null,
+              nip05: null,
               status: statusValue,
               freebusy: freebusyValue,
               note: event.content,
               created_at: event.created_at
             }
-            
-            console.log('✅ RSVP Data:', {
-              eventId: rsvpData.eventId,
-              status: rsvpData.status,
-              name: rsvpData.name || 'No name',
-              note: rsvpData.note || 'No note'
-            })
-            
+
             const existingIndex = rsvps.value.findIndex(r => r.id === event.id)
             if (existingIndex === -1) {
               rsvps.value.push(rsvpData)
-              console.log('✅ Added new RSVP, total RSVPs:', rsvps.value.length)
             } else {
               rsvps.value[existingIndex] = rsvpData
-              console.log('🔄 Updated existing RSVP')
             }
-          } else {
-            console.log('⚠️ RSVP missing required tags (no a-tag or status):', {
-              hasATag: !!aTag,
-              hasStatusValue: !!statusValue,
-              aTagValue: aTag ? aTag[1] : 'missing',
-              statusValue: statusValue || 'missing',
-              allTags: event.tags,
-              eventContent: event.content
-            })
           }
         },
         oneose: () => {
-          console.log('End of stored RSVPs')
+          // Batch fetch all RSVP author profiles, then enrich
+          if (rsvpPubkeysToFetch.size > 0) {
+            const pubkeys = Array.from(rsvpPubkeysToFetch)
+            batchFetchProfiles(pubkeys).then(() => {
+              // Enrich RSVP entries with fetched profiles
+              rsvps.value.forEach((rsvp, i) => {
+                const cached = profileCache.get(rsvp.pubkey)
+                if (cached?.profile) {
+                  rsvps.value[i] = { ...rsvp, name: cached.profile.name, picture: cached.profile.picture, nip05: cached.profile.nip05 }
+                }
+              })
+            }).catch(() => {})
+          }
+          // Close subscription after grace period
+          setTimeout(() => { rsvpSubscription?.close() }, 3000)
         }
       })
 
@@ -944,19 +831,15 @@ export function useNostrCalendar() {
     // We need to find the event and get its d-tag for matching
     const event = events.value.find(e => e.id === eventId)
     if (!event || !event.rawEvent) {
-      console.log('⚠️ Event not found or missing rawEvent:', eventId)
       return []
     }
-    
+
     const dTag = event.rawEvent.tags.find(tag => tag[0] === 'd')?.[1]
     if (!dTag) {
-      console.log('⚠️ Event missing d-tag:', eventId)
       return []
     }
-    
-    const matchingRsvps = rsvps.value.filter(rsvp => rsvp.eventId === dTag)
-    console.log('📅 getEventRSVPs for d-tag:', dTag, '- Found:', matchingRsvps.length, 'RSVPs')
-    return matchingRsvps
+
+    return rsvps.value.filter(rsvp => rsvp.eventId === dTag)
   }
 
   // Get user's RSVP for a specific event
@@ -999,19 +882,14 @@ export function useNostrCalendar() {
         }
         processedEventIds.clear()
         
-        const initializeEvents = () => {
-          if (nostrRelayManager.isInitialized) {
-            fetchCalendarEvents()
-          } else {
-            const handleInitialized = () => {
-              fetchCalendarEvents()
-              nostrRelayManager.removeEventListener('initialized', handleInitialized)
-            }
-            nostrRelayManager.addEventListener('initialized', handleInitialized)
-          }
-        }
-        
-        initializeEvents()
+        // fetchCalendarEvents already awaits ready() internally
+        fetchCalendarEvents()
+
+        registerRefresh('calendar', async () => {
+          if (currentSubscription) { currentSubscription.close(); currentSubscription = null }
+          processedEventIds.clear()
+          await fetchCalendarEvents()
+        })
       }
     } else {
       if (currentSubscription) {
@@ -1020,30 +898,22 @@ export function useNostrCalendar() {
       }
       processedEventIds.clear()
       events.value = []
+      unregisterRefresh('calendar')
     }
   }, { immediate: true })
 
   // Start event monitoring when authenticated
   onMounted(() => {
     if (isAuthenticated.value) {
-      console.log('📅 Starting calendar event monitoring')
       startEventMonitoring(() => events.value)
     }
-  })
-
-  // Stop event monitoring on unmount
-  onUnmounted(() => {
-    console.log('📅 Stopping calendar event monitoring')
-    stopEventMonitoring()
   })
 
   // Watch authentication status to start/stop monitoring
   watch(isAuthenticated, (authenticated) => {
     if (authenticated) {
-      console.log('📅 User authenticated, starting event monitoring')
       startEventMonitoring(() => events.value)
     } else {
-      console.log('📅 User logged out, stopping event monitoring')
       stopEventMonitoring()
     }
   })

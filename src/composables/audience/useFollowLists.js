@@ -1,10 +1,11 @@
-import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { useNostrAuth } from '../auth/useNostrAuth.js'
 import { nostrRelayManager } from '../../utils/network/nostrRelayManager.js'
 import { finalizeEvent, verifyEvent } from 'nostr-tools/pure'
 import * as nip19 from 'nostr-tools/nip19'
 import { fetchProfile, batchFetchProfiles, profileCache } from '../../utils/profile/profileFetcher.js'
 import { generateAvatar } from '../../utils/profile/avatarGenerator.js'
+import { mergeFollowLists } from '../../utils/profile/followMergeUtils.js'
 
 // Global state for follow lists
 const myLists = ref([]) // Lists created by current user
@@ -129,26 +130,13 @@ try {
 
 // Background refresh: once relay manager is initialized, refresh profiles for cached members
 const _startBackgroundRefresh = async () => {
-  // collect all member pubkeys from cached lists
   const memberPubkeys = new Set()
   myLists.value.forEach(list => (list.members || []).forEach(pk => pk && memberPubkeys.add(pk)))
   discoveredLists.value.forEach(list => (list.members || []).forEach(pk => pk && memberPubkeys.add(pk)))
   const pubkeys = Array.from(memberPubkeys)
   if (pubkeys.length === 0) return
 
-  // wait for relay manager init with timeout
-  const waitForInit = () => new Promise(resolve => {
-    if (nostrRelayManager.isInitialized) return resolve()
-    const check = setInterval(() => {
-      if (nostrRelayManager.isInitialized) {
-        clearInterval(check)
-        resolve()
-      }
-    }, 200)
-    setTimeout(() => { clearInterval(check); resolve() }, 15000)
-  })
-
-  await waitForInit()
+  await nostrRelayManager.ready()
   try {
     // batch fetch profiles in background
     batchFetchProfiles(pubkeys)
@@ -179,19 +167,7 @@ export function useFollowLists() {
       return
     }
 
-    if (!nostrRelayManager.isInitialized) {
-      console.log('Relay manager not initialized, waiting...')
-      await new Promise((resolve) => {
-        const checkInit = () => {
-          if (nostrRelayManager.isInitialized) {
-            resolve()
-          } else {
-            setTimeout(checkInit, 100)
-          }
-        }
-        checkInit()
-      })
-    }
+    await nostrRelayManager.ready()
 
     isLoading.value = true
     error.value = ''
@@ -220,7 +196,6 @@ export function useFollowLists() {
       ], {
         onevent: (event) => {
           if (processedEventIds.has(event.id)) return
-            console.log('⚠️ Follow list event already processed, skipping:', event.id.substring(0, 16) + '...')
           processedEventIds.add(event.id)
 
           if (event.kind === FOLLOW_LIST_KIND) {
@@ -283,10 +258,7 @@ export function useFollowLists() {
 
   // Discover public follow lists from the network
   const discoverLists = async (searchQuery = '', limit = 50) => {
-    if (!nostrRelayManager.isInitialized) {
-      console.log('Relay manager not initialized, cannot discover lists')
-      return
-    }
+    await nostrRelayManager.ready()
 
     isLoading.value = true
     error.value = ''
@@ -343,6 +315,14 @@ export function useFollowLists() {
         oneose: () => {
           console.log('End of discovered lists events')
           isLoading.value = false
+          // Close subscription after grace period to avoid indefinite relay connection
+          setTimeout(() => {
+            if (discoveredListsSubscription) {
+              discoveredListsSubscription.close()
+              discoveredListsSubscription = null
+              console.log('Discover subscription closed after grace period')
+            }
+          }, 5000)
         },
         onclose: (reason) => {
           console.log('Discovered lists subscription closed:', reason)
@@ -642,6 +622,11 @@ export function useFollowLists() {
       throw new Error('Pack has no members to follow')
     }
 
+    // Sanity bound: reject absurdly large packs
+    if (list.members.length > 1000) {
+      throw new Error(`Pack has ${list.members.length} members which exceeds the 1000 member safety limit`)
+    }
+
     isLoading.value = true
     error.value = ''
 
@@ -650,14 +635,12 @@ export function useFollowLists() {
 
       // Get current following list from Nostr to ensure we have the latest data
       console.log('Fetching current following list before bulk follow...')
-      const currentFollowingEvent = await nostrRelayManager.getEvent({
-        kinds: [3], // Contact lists
-        authors: [currentUser.value.pubkey],
-        limit: 1
-      })
+      const kind3Filters = { kinds: [3], authors: [currentUser.value.pubkey], limit: 1 }
+      const currentFollowingEvent = await nostrRelayManager.getEvent(kind3Filters)
 
-      // Extract current follows
+      // Extract current follows and preserve content (relay preferences)
       let currentFollows = []
+      const existingContent = currentFollowingEvent?.content || ''
       if (currentFollowingEvent) {
         currentFollows = currentFollowingEvent.tags
           .filter(tag => tag[0] === 'p' && tag[1])
@@ -667,24 +650,19 @@ export function useFollowLists() {
         console.log('No existing following list found, starting fresh')
       }
 
-      // CRITICAL: Merge with new follows using Set to avoid duplicates
-      const normalizedMembers = list.members || []
-      const newFollows = normalizedMembers.filter(pubkey => !currentFollows.includes(pubkey))
-      const mergedFollows = [...new Set([...currentFollows, ...newFollows])]
-      
-      console.log('Follow merge analysis:', {
-        existingFollows: currentFollows.length,
-        packMembers: list.members.length,
-        newFollows: newFollows.length,
-        mergedTotal: mergedFollows.length,
-        duplicatesAvoided: (currentFollows.length + newFollows.length) - mergedFollows.length
-      })
+      // Merge with validation via followMergeUtils
+      const { mergedFollows, stats } = mergeFollowLists(currentFollows, list.members)
 
-      if (newFollows.length === 0) {
+      // Safety check: merged list must not be smaller than current
+      if (mergedFollows.length < currentFollows.length) {
+        throw new Error(`Safety check failed: follow operation would reduce list from ${currentFollows.length} to ${mergedFollows.length}`)
+      }
+
+      if (stats.actuallyNew === 0) {
         console.log('Already following all members of this pack')
-        return { 
+        return {
           success: true,
-          newFollows: 0, 
+          newFollows: 0,
           totalFollows: mergedFollows.length,
           alreadyFollowingAll: true,
           message: `You're already following all ${list.members.length} members of "${list.title}"`,
@@ -694,17 +672,17 @@ export function useFollowLists() {
 
       // Create new contact list event with merged follows
       const contactTags = mergedFollows.map(pubkey => ['p', pubkey])
-      
+
       const eventTemplate = {
-        kind: 3, // Contact list
+        kind: 3,
         created_at: Math.floor(Date.now() / 1000),
         tags: contactTags,
-        content: `Updated via ZapTracker - followed pack: ${list.title}` // Add context
+        content: existingContent
       }
 
       // Sign the event
       const signedEvent = await window.nostr.signEvent(eventTemplate)
-      
+
       // Verify the signed event
       const isValid = verifyEvent(signedEvent)
       if (!isValid) {
@@ -713,12 +691,16 @@ export function useFollowLists() {
 
       // Publish to relays
       const result = await nostrRelayManager.publishEvent(signedEvent)
-      
+
       if (result.successful === 0) {
         throw new Error('Failed to publish to any relays')
       }
 
-      console.log('✅ Successfully followed entire list:', {
+      // Invalidate cached kind 3 so next operation gets fresh data
+      nostrRelayManager.clearEventCache(kind3Filters)
+
+      const newFollows = mergedFollows.filter(pk => !currentFollows.includes(pk))
+      console.log('Successfully followed entire list:', {
         listTitle: list.title,
         newFollows: newFollows.length,
         totalFollows: mergedFollows.length,
@@ -740,7 +722,7 @@ export function useFollowLists() {
 
     } catch (err) {
       error.value = 'Failed to follow pack: ' + err.message
-      console.error('❌ Follow pack error:', err)
+      console.error('Follow pack error:', err)
       throw err
     } finally {
       isLoading.value = false
@@ -757,6 +739,11 @@ export function useFollowLists() {
       throw new Error('No members selected')
     }
 
+    // Sanity bound: reject absurdly large selections
+    if (selectedPubkeys.length > 1000) {
+      throw new Error(`Selection has ${selectedPubkeys.length} members which exceeds the 1000 member safety limit`)
+    }
+
     isLoading.value = true
     error.value = ''
 
@@ -765,14 +752,12 @@ export function useFollowLists() {
 
       // Get current following list from Nostr to ensure we have the latest data
       console.log('Fetching current following list before selective follow...')
-      const currentFollowingEvent = await nostrRelayManager.getEvent({
-        kinds: [3], // Contact lists
-        authors: [currentUser.value.pubkey],
-        limit: 1
-      })
+      const kind3Filters = { kinds: [3], authors: [currentUser.value.pubkey], limit: 1 }
+      const currentFollowingEvent = await nostrRelayManager.getEvent(kind3Filters)
 
-      // Extract current follows
+      // Extract current follows and preserve content (relay preferences)
       let currentFollows = []
+      const existingContent = currentFollowingEvent?.content || ''
       if (currentFollowingEvent) {
         currentFollows = currentFollowingEvent.tags
           .filter(tag => tag[0] === 'p' && tag[1])
@@ -782,24 +767,19 @@ export function useFollowLists() {
         console.log('No existing following list found, starting fresh')
       }
 
-      // CRITICAL: Merge with selected follows using Set to avoid duplicates
-      const normalizedSelected = selectedPubkeys || []
-      const newFollows = normalizedSelected.filter(pubkey => !currentFollows.includes(pubkey))
-      const mergedFollows = [...new Set([...currentFollows, ...newFollows])]
-      
-      console.log('Selective follow merge analysis:', {
-        existingFollows: currentFollows.length,
-        selectedMembers: selectedPubkeys.length,
-        newFollows: newFollows.length,
-        mergedTotal: mergedFollows.length,
-        duplicatesAvoided: (currentFollows.length + newFollows.length) - mergedFollows.length
-      })
+      // Merge with validation via followMergeUtils
+      const { mergedFollows, stats } = mergeFollowLists(currentFollows, selectedPubkeys)
 
-      if (newFollows.length === 0) {
+      // Safety check: merged list must not be smaller than current
+      if (mergedFollows.length < currentFollows.length) {
+        throw new Error(`Safety check failed: follow operation would reduce list from ${currentFollows.length} to ${mergedFollows.length}`)
+      }
+
+      if (stats.actuallyNew === 0) {
         console.log('Already following all selected members')
-        return { 
+        return {
           success: true,
-          newFollows: 0, 
+          newFollows: 0,
           totalFollows: mergedFollows.length,
           alreadyFollowingAll: true,
           message: `You're already following all ${selectedPubkeys.length} selected members`,
@@ -809,17 +789,17 @@ export function useFollowLists() {
 
       // Create new contact list event with merged follows
       const contactTags = mergedFollows.map(pubkey => ['p', pubkey])
-      
+
       const eventTemplate = {
-        kind: 3, // Contact list
+        kind: 3,
         created_at: Math.floor(Date.now() / 1000),
         tags: contactTags,
-        content: `Updated via ZapTracker - followed ${newFollows.length} selected from: ${list.title}`
+        content: existingContent
       }
 
       // Sign the event
       const signedEvent = await window.nostr.signEvent(eventTemplate)
-      
+
       // Verify the signed event
       const isValid = verifyEvent(signedEvent)
       if (!isValid) {
@@ -828,12 +808,16 @@ export function useFollowLists() {
 
       // Publish to relays
       const result = await nostrRelayManager.publishEvent(signedEvent)
-      
+
       if (result.successful === 0) {
         throw new Error('Failed to publish to any relays')
       }
 
-      console.log('✅ Successfully followed selected members:', {
+      // Invalidate cached kind 3 so next operation gets fresh data
+      nostrRelayManager.clearEventCache(kind3Filters)
+
+      const newFollows = mergedFollows.filter(pk => !currentFollows.includes(pk))
+      console.log('Successfully followed selected members:', {
         listTitle: list.title,
         newFollows: newFollows.length,
         totalFollows: mergedFollows.length,
@@ -855,7 +839,7 @@ export function useFollowLists() {
 
     } catch (err) {
       error.value = 'Failed to follow selected members: ' + err.message
-      console.error('❌ Follow selected members error:', err)
+      console.error('Follow selected members error:', err)
       throw err
     } finally {
       isLoading.value = false
@@ -935,13 +919,6 @@ export function useFollowLists() {
       }
     }
   }, { immediate: true })
-
-  // Cleanup on unmount
-  onUnmounted(() => {
-    if (myListsSubscription) myListsSubscription.close()
-    if (discoveredListsSubscription) discoveredListsSubscription.close()
-    profileSubscriptions.forEach(sub => sub.close())
-  })
 
   return {
     // State

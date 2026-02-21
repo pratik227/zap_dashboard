@@ -30,17 +30,7 @@ try {
 const _startEngagementBackgroundRefresh = async () => {
   const eventIds = Array.from(engagementMetrics.keys())
   if (!eventIds.length) return
-  const waitForInit = () => new Promise(resolve => {
-    if (nostrRelayManager.isInitialized) return resolve()
-    const check = setInterval(() => {
-      if (nostrRelayManager.isInitialized) {
-        clearInterval(check)
-        resolve()
-      }
-    }, 200)
-    setTimeout(() => { clearInterval(check); resolve() }, 15000)
-  })
-  await waitForInit()
+  await nostrRelayManager.ready()
   try {
     // Use batch fetch for all cached eventIds
     for (let i = 0; i < eventIds.length; i += MAX_BATCH_SIZE) {
@@ -241,6 +231,8 @@ export function useEngagementMetrics() {
       }
 
       // Rely on relay manager for deduplication
+      const subscriptionId = `engagement-batch-${Date.now()}`
+
       const subscription = nostrRelayManager.subscribeToEvents(filters, {
         onevent: (event) => {
           processEngagementEvent(event)
@@ -253,6 +245,11 @@ export function useEngagementMetrics() {
               metrics.lastFetched = new Date().toISOString()
             }
           })
+          // Close after grace period for late-arriving events
+          setTimeout(() => {
+            subscription?.close()
+            activeSubscriptions.delete(subscriptionId)
+          }, 3000)
         },
         onclose: (reason) => {
           uniqueEventIds.forEach(eventId => {
@@ -261,16 +258,16 @@ export function useEngagementMetrics() {
               metrics.isLoading = false
             }
           })
+          activeSubscriptions.delete(subscriptionId)
         }
       })
 
-      // Only track for UI cleanup, not deduplication
-      const subscriptionId = `engagement-batch-${Date.now()}`
       activeSubscriptions.set(subscriptionId, subscription)
 
+      // Hard timeout fallback in case EOSE never arrives
       setTimeout(() => {
-        if (subscription) {
-          subscription.close()
+        if (activeSubscriptions.has(subscriptionId)) {
+          subscription?.close()
           activeSubscriptions.delete(subscriptionId)
         }
       }, 30000)
@@ -415,20 +412,21 @@ export function useEngagementMetrics() {
 
     const aTagIdentifier = `30023:${pubkey}:${dTag}`
 
-    if (!activeSubscriptions.has(`engagement-a-${aTagIdentifier}`)) {
+    const aSubKey = `engagement-a-${aTagIdentifier}`
+    if (!activeSubscriptions.has(aSubKey)) {
       const aTagFilters = [
         {
-          kinds: [7], 
+          kinds: [7],
           "#a": [aTagIdentifier],
           limit: 200
         },
         {
-          kinds: [6], 
+          kinds: [6],
           "#a": [aTagIdentifier],
           limit: 100
         },
         {
-          kinds: [10001, 10002, 10003, 30001, 30002, 30003], 
+          kinds: [10001, 10002, 10003, 30001, 30002, 30003],
           "#a": [aTagIdentifier],
           limit: 50
         }
@@ -436,17 +434,29 @@ export function useEngagementMetrics() {
 
       const subscription = nostrRelayManager.subscribeToEvents(aTagFilters, {
         onevent: (event) => {
-          processEngagementEvent(event, eventId) 
+          processEngagementEvent(event, eventId)
         },
         oneose: () => {
-          console.log('📡 A-tag subscription EOSE for:', aTagIdentifier)
+          // Close after grace period for late-arriving events
+          setTimeout(() => {
+            subscription?.close()
+            activeSubscriptions.delete(aSubKey)
+          }, 3000)
         },
-        onclose: (reason) => {
-          activeSubscriptions.delete(`engagement-a-${aTagIdentifier}`)
+        onclose: () => {
+          activeSubscriptions.delete(aSubKey)
         }
       })
 
-      activeSubscriptions.set(`engagement-a-${aTagIdentifier}`, subscription)
+      activeSubscriptions.set(aSubKey, subscription)
+
+      // Hard timeout fallback
+      setTimeout(() => {
+        if (activeSubscriptions.has(aSubKey)) {
+          subscription?.close()
+          activeSubscriptions.delete(aSubKey)
+        }
+      }, 30000)
     }
   }
 

@@ -1,131 +1,9 @@
 import { ref, computed } from 'vue'
-import { nostrRelayManager } from '../../utils/network/nostrRelayManager.js'
 import { generateAvatar } from '../../utils/profile/avatarGenerator.js'
-import { getPaymentHashFromInvoice } from '../../utils/wallet/invoiceUtils.js'
-
-// Unique nonce per subscription to bypass relay manager's dedup cache
-let subNonce = 0
-
-// Extract sats from a bolt11 invoice string (simple regex, covers common cases)
-const extractAmountFromBolt11 = (bolt11) => {
-  try {
-    const match = bolt11.match(/lnbc(\d+)([munp]?)/)
-    if (!match) return 0
-    const value = parseInt(match[1])
-    switch (match[2]) {
-      case 'm': return value * 100000
-      case 'u': return value * 100
-      case 'n': return Math.round(value * 0.1)
-      case 'p': return Math.round(value * 0.0001)
-      default:  return Math.floor(value / 1000)
-    }
-  } catch {
-    return 0
-  }
-}
-
-// Parse a zap receipt (kind 9735) into a structured object
-const parseZapReceipt = (zapEvent) => {
-  try {
-    const descriptionTag = zapEvent.tags.find(t => t[0] === 'description')
-    if (!descriptionTag?.[1]) return null
-
-    const zapRequest = JSON.parse(descriptionTag[1])
-    const zapperPubkey = zapRequest.pubkey || zapEvent.pubkey
-
-    // Extract amount: zap request amount tag first, then bolt11 fallback
-    const bolt11Tag = zapEvent.tags.find(t => t[0] === 'bolt11')
-    const bolt11 = bolt11Tag?.[1] || null
-
-    let amount = 0
-    const amountTag = zapRequest.tags?.find(t => t[0] === 'amount')
-    if (amountTag?.[1]) {
-      amount = Math.floor(parseInt(amountTag[1]) / 1000) // msats -> sats
-    } else if (bolt11) {
-      amount = extractAmountFromBolt11(bolt11)
-    }
-
-    // Deduplicate by payment hash when available
-    let id = zapEvent.id
-    if (bolt11) {
-      const paymentHash = getPaymentHashFromInvoice(bolt11)
-      if (paymentHash) id = paymentHash
-    }
-
-    const eventId = zapEvent.tags.find(t => t[0] === 'e')?.[1] ||
-                    zapRequest.tags?.find(t => t[0] === 'e')?.[1] || null
-
-    return {
-      id,
-      zapperPubkey,
-      amount,
-      eventId,
-      message: zapRequest.content || '',
-      timestamp: zapEvent.created_at * 1000
-    }
-  } catch {
-    return null
-  }
-}
-
-// Helper: subscribe with a unique nonce to bypass relay manager dedup cache.
-// Collects all events, resolves after EOSE + grace period or hard timeout.
-const subscribe = (filters, { timeout = 25000, eoseGrace = 3000 } = {}) => {
-  return new Promise((resolve) => {
-    const events = []
-    const seenIds = new Set()
-
-    const hardTimeout = setTimeout(() => {
-      sub?.close()
-      resolve(events)
-    }, timeout)
-
-    // Append a nonce filter so the relay manager hash is always unique
-    const nonce = ++subNonce
-    const sub = nostrRelayManager.subscribeToEvents(filters, {
-      _nonce: nonce, // makes the options hash unique
-      onevent: (event) => {
-        if (!seenIds.has(event.id)) {
-          seenIds.add(event.id)
-          events.push(event)
-        }
-      },
-      oneose: () => {
-        clearTimeout(hardTimeout)
-        // Grace period: some relays send late events after EOSE
-        setTimeout(() => {
-          sub?.close()
-          resolve(events)
-        }, eoseGrace)
-      }
-    })
-  })
-}
-
-// Fetch kind 0 profiles for a list of pubkeys
-const fetchProfiles = async (pubkeys) => {
-  const profiles = new Map()
-  if (!pubkeys.length) return profiles
-
-  const events = await subscribe(
-    [{ kinds: [0], authors: pubkeys, limit: pubkeys.length }],
-    { timeout: 15000, eoseGrace: 1500 }
-  )
-
-  for (const event of events) {
-    try {
-      const data = JSON.parse(event.content)
-      profiles.set(event.pubkey, {
-        pubkey: event.pubkey,
-        name: data.name || data.display_name || `user:${event.pubkey.substring(0, 8)}`,
-        picture: data.picture || generateAvatar(event.pubkey),
-        nip05: data.nip05 || null
-      })
-    } catch { /* skip invalid profiles */ }
-  }
-
-  return profiles
-}
+import { nostrRelayManager } from '../../utils/network/nostrRelayManager.js'
+import { subscribe } from '../../utils/network/subscribe.js'
+import { parseZapReceipt } from '../../utils/zaps/parseZapReceipt.js'
+import { batchFetchProfiles, profileCache } from '../../utils/profile/profileFetcher.js'
 
 export function useZapLeaderboard() {
   const isLoading = ref(false)
@@ -247,11 +125,12 @@ export function useZapLeaderboard() {
 
     progress.value = `Loading ${grouped.size} profiles...`
     const pubkeys = Array.from(grouped.keys())
-    const profiles = await fetchProfiles(pubkeys)
+    await batchFetchProfiles(pubkeys)
 
     const entries = []
     for (const [pubkey, data] of grouped) {
-      const profile = profiles.get(pubkey)
+      const cached = profileCache.get(pubkey)
+      const profile = cached?.profile || null
       entries.push({
         pubkey,
         name: profile?.name || `user:${pubkey.substring(0, 8)}`,
@@ -259,7 +138,7 @@ export function useZapLeaderboard() {
         nip05: profile?.nip05 || null,
         totalSats: data.totalSats,
         zapCount: data.zapCount,
-        zaps: data.zaps.sort((a, b) => b.timestamp - a.timestamp)
+        zaps: data.zaps.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
       })
     }
 

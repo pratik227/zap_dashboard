@@ -1,4 +1,4 @@
-import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { SimplePool } from 'nostr-tools/pool'
 import * as nip19 from 'nostr-tools/nip19'
 import { nostrRelayManager } from '../../utils/network/nostrRelayManager.js'
@@ -503,22 +503,14 @@ const isProfileComplete = (userData) => {
   return userData?.profile?.picture && userData?.profile?.name
 }
 
-// Check if relay manager is ready
-const isRelayManagerReady = () => {
-  return nostrRelayManager.isInitialized === true
-}
-
 // Wait for relay manager to be ready (with timeout)
 const waitForRelayManager = async (timeoutMs = 5000) => {
-  const startTime = Date.now()
-  while (!isRelayManagerReady()) {
-    if (Date.now() - startTime > timeoutMs) {
-      console.warn('⏱️ Timeout waiting for relay manager')
-      return false
-    }
-    await new Promise(resolve => setTimeout(resolve, 100))
-  }
-  return true
+  const result = await Promise.race([
+    nostrRelayManager.ready().then(() => true),
+    new Promise(resolve => setTimeout(() => resolve(false), timeoutMs))
+  ])
+  if (!result) console.warn('Timeout waiting for relay manager')
+  return result
 }
 
 // Login function - NIP-07 browser extension only
@@ -558,7 +550,7 @@ const login = async () => {
           currentUser.value = userData
 
           // Background tasks (don't block)
-          if (isRelayManagerReady()) {
+          if (nostrRelayManager.isInitialized) {
             startUserEventListener(pubkey)
             updateRelaysFromNip65(pubkey).catch(() => {})
           } else {
@@ -576,7 +568,7 @@ const login = async () => {
     }
 
     // Check if relay manager is ready before fetching
-    if (!isRelayManagerReady()) {
+    if (!nostrRelayManager.isInitialized) {
       console.log('⏳ Waiting for relay manager to be ready...')
       const ready = await waitForRelayManager(5000)
       if (!ready) {
@@ -626,23 +618,13 @@ const login = async () => {
 }
 
 // Schedule a profile refresh when relay manager becomes ready
-const scheduleProfileRefresh = (pubkey) => {
-  console.log('📅 Scheduling profile refresh for when relays are ready...')
-  const checkAndRefresh = async () => {
-    if (isRelayManagerReady()) {
-      console.log('🔄 Relay manager ready, refreshing profile...')
-      try {
-        await fetchAndStoreProfile(pubkey)
-        console.log('✅ Scheduled profile refresh complete')
-      } catch (e) {
-        console.warn('Failed scheduled profile refresh:', e)
-      }
-    } else {
-      // Check again in 1 second
-      setTimeout(checkAndRefresh, 1000)
-    }
+const scheduleProfileRefresh = async (pubkey) => {
+  await nostrRelayManager.ready()
+  try {
+    await fetchAndStoreProfile(pubkey)
+  } catch (e) {
+    console.warn('Failed scheduled profile refresh:', e)
   }
-  setTimeout(checkAndRefresh, 1000)
 }
 
 // Logout function
@@ -900,11 +882,6 @@ watch(currentUser, (newUser) => {
 watch(userRelays, (newRelays) => {
   saveRelaysToStorage(newRelays)
 }, { deep: true })
-
-// Cleanup on unmount
-onUnmounted(() => {
-  // Relay manager cleanup is handled by the manager itself
-})
 
 export function useNostrAuth() {
   // Initialize auth and relays when the composable is first used

@@ -3,6 +3,7 @@ import { useNostrAuth } from '../auth/useNostrAuth.js'
 import { nostrRelayManager } from '../../utils/network/nostrRelayManager.js'
 import { useContentZaps } from './useContentZaps.js'
 import { finalizeEvent, verifyEvent } from 'nostr-tools/pure'
+import { registerRefresh, unregisterRefresh } from '../../utils/refreshCycle.js'
 
 // Global state for notes
 const notes = ref([])
@@ -12,6 +13,8 @@ const error = ref('')
 let currentSubscription = null // Track current subscription
 const processedEventIds = new Set() // Track processed event IDs to prevent duplicates
 let fetchTimeout = null // Track fetch timeout
+let notesCleanupInterval = null // Track cleanup interval (module-scoped, not window)
+const trackedZapNoteIds = new Set() // Track which notes already have zap tracking started
 
 // Note form state
 const noteForm = reactive({
@@ -78,12 +81,7 @@ export function useNostrNotes() {
       return
     }
 
-    // Check if relay manager is initialized
-    if (!nostrRelayManager.isInitialized) {
-      console.log('Relay manager not initialized, cannot fetch notes')
-      error.value = 'Relay manager not initialized'
-      return
-    }
+    await nostrRelayManager.ready()
 
     isFetchingNotes.value = true
     error.value = ''
@@ -552,16 +550,18 @@ export function useNostrNotes() {
   }
 
   // Watch for notes changes to track zaps on new notes
-  watch(notes, (newNotes) => {
-    if (isAuthenticated.value && newNotes.length > 0) {
-      // Use setTimeout to ensure this runs after the relay manager is fully initialized
-      setTimeout(() => {
-        newNotes.forEach(note => {
+  // Shallow watch on array length — only fires when notes are added/removed, not on deep property changes
+  watch(() => notes.value.length, () => {
+    if (isAuthenticated.value && notes.value.length > 0) {
+      const untracked = notes.value.filter(note => !trackedZapNoteIds.has(note.id))
+      if (untracked.length > 0) {
+        untracked.forEach(note => {
+          trackedZapNoteIds.add(note.id)
           startZapTracking(note.id)
         })
-      }, 1000)
+      }
     }
-  }, { deep: true })
+  })
 
   // Initialize notes when authenticated
   watch(isAuthenticated, (authenticated) => {
@@ -575,48 +575,24 @@ export function useNostrNotes() {
         }
         processedEventIds.clear() // Clear processed event IDs
         
-        // Wait for relay manager to be initialized
-        const initializeNotes = () => {
-          if (nostrRelayManager.isInitialized) {
-            fetchUserNotes()
-            
-            // Set up periodic cleanup of duplicate notes
-            const cleanupInterval = setInterval(() => {
-              if (isAuthenticated.value) {
-                cleanupDuplicateNotes()
-              } else {
-                clearInterval(cleanupInterval)
-              }
-            }, 30000) // Clean up every 30 seconds
-            
-            // Store interval for cleanup
-            window.notesCleanupInterval = cleanupInterval
+        // fetchUserNotes already awaits ready() internally
+        fetchUserNotes()
+
+        registerRefresh('notes', async () => {
+          if (currentSubscription) { currentSubscription.close(); currentSubscription = null }
+          processedEventIds.clear()
+          await fetchUserNotes()
+        })
+
+        // Set up periodic cleanup of duplicate notes
+        const cleanupInterval = setInterval(() => {
+          if (isAuthenticated.value) {
+            cleanupDuplicateNotes()
           } else {
-            // Listen for initialization event
-            const handleInitialized = () => {
-              fetchUserNotes()
-              
-              // Set up periodic cleanup of duplicate notes
-              const cleanupInterval = setInterval(() => {
-                if (isAuthenticated.value) {
-                  cleanupDuplicateNotes()
-                } else {
-                  clearInterval(cleanupInterval)
-                }
-              }, 30000) // Clean up every 30 seconds
-              
-              // Store interval for cleanup
-              window.notesCleanupInterval = cleanupInterval
-              
-              // Remove the event listener
-              nostrRelayManager.removeEventListener('initialized', handleInitialized)
-            }
-            
-            nostrRelayManager.addEventListener('initialized', handleInitialized)
+            clearInterval(cleanupInterval)
           }
-        }
-        
-        initializeNotes()
+        }, 30000)
+        notesCleanupInterval = cleanupInterval
       }
     } else {
       // Clean up subscription when not authenticated
@@ -624,13 +600,15 @@ export function useNostrNotes() {
         currentSubscription.close()
         currentSubscription = null
       }
-      processedEventIds.clear() // Clear processed event IDs
+      processedEventIds.clear()
+      trackedZapNoteIds.clear()
       notes.value = []
-      
+      unregisterRefresh('notes')
+
       // Clear cleanup interval
-      if (window.notesCleanupInterval) {
-        clearInterval(window.notesCleanupInterval)
-        window.notesCleanupInterval = null
+      if (notesCleanupInterval) {
+        clearInterval(notesCleanupInterval)
+        notesCleanupInterval = null
       }
     }
   }, { immediate: true })
@@ -641,7 +619,8 @@ export function useNostrNotes() {
       currentSubscription.close()
       currentSubscription = null
     }
-    processedEventIds.clear() // Clear processed event IDs
+    processedEventIds.clear()
+    trackedZapNoteIds.clear()
 
     // Clear fetch timeout
     if (fetchTimeout) {
@@ -650,9 +629,9 @@ export function useNostrNotes() {
     }
 
     // Clear cleanup interval
-    if (window.notesCleanupInterval) {
-      clearInterval(window.notesCleanupInterval)
-      window.notesCleanupInterval = null
+    if (notesCleanupInterval) {
+      clearInterval(notesCleanupInterval)
+      notesCleanupInterval = null
     }
   }
 

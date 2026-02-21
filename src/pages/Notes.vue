@@ -97,6 +97,13 @@ const { satsToUSD, formatUSD } = useBtcPrice()
 // Use mentions composable
 const { extractPTags, parseMentions } = useMentions()
 
+// Display limit for note list to avoid rendering 100+ DOM nodes at once
+const displayLimit = ref(50)
+const visibleNotes = computed(() => {
+  const list = Array.isArray(notes.value) ? notes.value : []
+  return list.slice(0, displayLimit.value)
+})
+
 // UI State
 const showViewModal = ref(false)
 const showRawDataModal = ref(false)
@@ -108,50 +115,40 @@ const showSuccessModal = ref(false)
 const lastPublishResult = ref(null)
 const showPreview = ref(false)
 
-// Enhanced computed properties
-const noteStats = computed(() => {
-  const list = Array.isArray(notes.value) ? notes.value : []
-  
-  const totalZapRevenue = list.reduce((sum, note) => {
-    return sum + getTotalZapAmount(note.id)
-  }, 0)
-  
-  const totalLikes = list.reduce((sum, note) => {
-    const { likes = 0 } = getEngagementCounts(note.id) || {}
-    return sum + likes
-  }, 0)
-  
-  const totalReposts = list.reduce((sum, note) => {
-    const { reposts = 0 } = getEngagementCounts(note.id) || {}
-    return sum + reposts
-  }, 0)
-  
-  const totalBookmarks = list.reduce((sum, note) => {
-    const { bookmarks = 0 } = getEngagementCounts(note.id) || {}
-    return sum + bookmarks
-  }, 0)
-  
-  const totalZapCount = list.reduce((sum, note) => {
-    return sum + getZapCount(note.id)
-  }, 0)
-  
-  const totalEngagement = totalLikes + totalReposts + totalBookmarks
-  
-  return {
-    total: list.length,
-    thisWeek: list.filter(note => {
-      const noteDate = new Date(note.created_at * 1000)
-      const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
-      return noteDate > weekAgo
-    }).length,
-    totalZapRevenue,
-    totalLikes,
-    totalReposts,
-    totalBookmarks,
-    totalZapCount,
-    totalEngagement: totalLikes + totalReposts + totalBookmarks + totalZapCount
-  }
+// Debounced note stats — avoids recomputing on every single zap/engagement event
+const noteStats = ref({
+  total: 0, thisWeek: 0, totalZapRevenue: 0, totalLikes: 0,
+  totalReposts: 0, totalBookmarks: 0, totalZapCount: 0, totalEngagement: 0
 })
+
+let _noteStatsTimer = null
+function recalcNoteStats() {
+  clearTimeout(_noteStatsTimer)
+  _noteStatsTimer = setTimeout(() => {
+    const list = Array.isArray(notes.value) ? notes.value : []
+    let totalZapRevenue = 0, totalLikes = 0, totalReposts = 0, totalBookmarks = 0, totalZapCount = 0
+
+    for (const note of list) {
+      totalZapRevenue += getTotalZapAmount(note.id)
+      totalZapCount += getZapCount(note.id)
+      const ec = getEngagementCounts(note.id) || {}
+      totalLikes += ec.likes || 0
+      totalReposts += ec.reposts || 0
+      totalBookmarks += ec.bookmarks || 0
+    }
+
+    const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000
+    noteStats.value = {
+      total: list.length,
+      thisWeek: list.filter(n => n.created_at * 1000 > weekAgo).length,
+      totalZapRevenue, totalLikes, totalReposts, totalBookmarks, totalZapCount,
+      totalEngagement: totalLikes + totalReposts + totalBookmarks + totalZapCount
+    }
+  }, 2000)
+}
+
+// Recalc stats when notes list changes (not deep)
+watch(() => notes.value.length, recalcNoteStats, { immediate: true })
 
 // Calculate total zap revenue in USD
 const revenueInUSD = computed(() => {
@@ -434,6 +431,7 @@ watch(isAuthenticated, (authed) => {
 })
 
 onUnmounted(() => {
+  clearTimeout(_noteStatsTimer)
   document.removeEventListener('click', handleClickOutside)
   document.removeEventListener('show-note-details', handleShowNoteDetails)
   cleanup()
@@ -757,7 +755,7 @@ const handleMentionClick = ({ pubkey, profile }) => {
           <!-- Notes List -->
           <div v-else class="divide-y divide-orange-100/50">
             <div
-              v-for="note in notes"
+              v-for="note in visibleNotes"
               :key="note.id"
               class="p-4 sm:p-6 hover:bg-orange-25/50 transition-colors cursor-pointer"
               @click="openDetailedView(note)"
@@ -820,8 +818,8 @@ const handleMentionClick = ({ pubkey, profile }) => {
                   <div class="flex items-center justify-between">
                     <div class="flex items-center space-x-2 text-sm">
                       <!-- Engagement Metrics -->
-                      <EngagementMetrics 
-                        :key="`note-engagement-${note.id}-${getEngagementCounts(note.id).totalEngagement}-${getZapCount(note.id)}`"
+                      <EngagementMetrics
+                        :key="`note-engagement-${note.id}`"
                         :engagement-counts="getEngagementCounts(note.id)"
                         :zap-count="getZapCount(note.id)"
                         size="default"
@@ -866,6 +864,15 @@ const handleMentionClick = ({ pubkey, profile }) => {
                   </div>
                 </div>
               </div>
+            </div>
+            <!-- Show more button -->
+            <div v-if="notes.length > displayLimit" class="p-4 text-center">
+              <button
+                @click="displayLimit += 50"
+                class="text-sm text-orange-600 hover:text-orange-700 font-medium px-4 py-2 rounded-lg hover:bg-orange-50 transition-colors"
+              >
+                Show more ({{ notes.length - displayLimit }} remaining)
+              </button>
             </div>
           </div>
         </div>

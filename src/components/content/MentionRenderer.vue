@@ -1,6 +1,9 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useMentions } from '../../composables/content/useMentions.js'
+import { useAudience } from '../../composables/audience/useAudience.js'
+import { generateAvatar } from '../../utils/profile/avatarGenerator.js'
+import ProfileHoverCard from '../profile/ProfileHoverCard.vue'
 import * as nip19 from 'nostr-tools/nip19'
 
 const props = defineProps({
@@ -26,48 +29,53 @@ const {
   formatDisplayName
 } = useMentions()
 
+const { isFollowing, followUser, unfollowUser } = useAudience()
+
 // Cache for user profiles
 const userProfiles = ref(new Map())
+
+// Hover card state
+const hoveredPubkey = ref(null)
+const hoverAnchorEl = ref(null)
+let hoverShowTimer = null
+let hoverHideTimer = null
 
 // Parse content into segments (text and mentions)
 const contentSegments = computed(() => {
   const segments = []
   const mentions = parseMentions(props.content)
-  
+
   if (mentions.length === 0) {
     return [{ type: 'text', content: props.content }]
   }
-  
+
   let lastIndex = 0
-  
+
   mentions.forEach((mention, index) => {
-    // Add text before mention
     if (mention.startIndex > lastIndex) {
       segments.push({
         type: 'text',
         content: props.content.substring(lastIndex, mention.startIndex)
       })
     }
-    
-    // Add mention
+
     segments.push({
       type: 'mention',
       pubkey: mention.pubkey,
       raw: mention.raw,
       index: index
     })
-    
+
     lastIndex = mention.endIndex
   })
-  
-  // Add remaining text
+
   if (lastIndex < props.content.length) {
     segments.push({
       type: 'text',
       content: props.content.substring(lastIndex)
     })
   }
-  
+
   return segments
 })
 
@@ -80,21 +88,73 @@ const getMentionDisplay = (pubkey) => {
   return '@' + pubkey.substring(0, 8) + '...'
 }
 
+// Get mini avatar for inline mention display
+const getMentionAvatar = (pubkey) => {
+  const profile = userProfiles.value.get(pubkey)
+  return profile?.picture || generateAvatar(pubkey)
+}
+
 // Handle mention click
 const handleMentionClick = (pubkey) => {
   emit('mention-click', { pubkey, profile: userProfiles.value.get(pubkey) })
-  
+
   if (props.showProfileOnClick) {
-    // Open profile in new tab (using primal.net as default)
     const npub = nip19.npubEncode(pubkey)
     window.open(`https://primal.net/p/${npub}`, '_blank')
+  }
+}
+
+// Hover card handlers
+const handleMentionMouseEnter = (pubkey, event) => {
+  clearTimeout(hoverHideTimer)
+  hoverShowTimer = setTimeout(() => {
+    hoveredPubkey.value = pubkey
+    hoverAnchorEl.value = event.target
+  }, 300) // 300ms delay to prevent accidental triggers
+}
+
+const handleMentionMouseLeave = () => {
+  clearTimeout(hoverShowTimer)
+  hoverHideTimer = setTimeout(() => {
+    hoveredPubkey.value = null
+    hoverAnchorEl.value = null
+  }, 200) // 200ms grace period to move mouse into card
+}
+
+const handleHoverCardClose = (shouldClose) => {
+  if (shouldClose) {
+    // Mouse left the card — start hide timer
+    hoverHideTimer = setTimeout(() => {
+      hoveredPubkey.value = null
+      hoverAnchorEl.value = null
+    }, 200)
+  } else {
+    // Mouse entered the card — cancel hide timer
+    clearTimeout(hoverHideTimer)
+  }
+}
+
+// Follow/unfollow from hover card
+const handleFollow = async (pubkey) => {
+  try {
+    await followUser(pubkey)
+  } catch (err) {
+    console.warn('Follow failed:', err)
+  }
+}
+
+const handleUnfollow = async (pubkey) => {
+  try {
+    await unfollowUser(pubkey)
+  } catch (err) {
+    console.warn('Unfollow failed:', err)
   }
 }
 
 // Fetch profiles for all mentions
 const loadMentionProfiles = async () => {
   const mentions = parseMentions(props.content)
-  
+
   for (const mention of mentions) {
     if (!userProfiles.value.has(mention.pubkey)) {
       try {
@@ -110,6 +170,11 @@ const loadMentionProfiles = async () => {
 onMounted(() => {
   loadMentionProfiles()
 })
+
+onUnmounted(() => {
+  clearTimeout(hoverShowTimer)
+  clearTimeout(hoverHideTimer)
+})
 </script>
 
 <template>
@@ -117,17 +182,36 @@ onMounted(() => {
     <template v-for="(segment, index) in contentSegments" :key="index">
       <!-- Regular text -->
       <span v-if="segment.type === 'text'">{{ segment.content }}</span>
-      
-      <!-- Mention -->
+
+      <!-- Mention with inline mini-avatar -->
       <span
         v-else-if="segment.type === 'mention'"
         :class="mentionClass"
+        class="inline-flex items-center gap-0.5 align-baseline"
         :title="`View profile: ${getMentionDisplay(segment.pubkey)}`"
         @click.stop="handleMentionClick(segment.pubkey)"
+        @mouseenter="handleMentionMouseEnter(segment.pubkey, $event)"
+        @mouseleave="handleMentionMouseLeave"
       >
+        <img
+          :src="getMentionAvatar(segment.pubkey)"
+          class="w-4 h-4 rounded-full inline-block align-text-bottom"
+          @error="$event.target.src = generateAvatar(segment.pubkey)"
+        />
         {{ getMentionDisplay(segment.pubkey) }}
       </span>
     </template>
+
+    <!-- Profile hover card -->
+    <ProfileHoverCard
+      v-if="hoveredPubkey"
+      :pubkey="hoveredPubkey"
+      :anchor-el="hoverAnchorEl"
+      :is-following="isFollowing(hoveredPubkey)"
+      @follow="handleFollow"
+      @unfollow="handleUnfollow"
+      @close="handleHoverCardClose"
+    />
   </span>
 </template>
 

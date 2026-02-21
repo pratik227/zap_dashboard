@@ -24,6 +24,7 @@ import {
 } from '@iconify-prerendered/vue-tabler'
 import EngagementMetrics from '../analytics/EngagementMetrics.vue'
 import { useEngagementMetrics } from '../../composables/analytics/useEngagementMetrics.js'
+import { useContentZaps } from '../../composables/content/useContentZaps.js'
 
 const props = defineProps({
   items: {
@@ -32,11 +33,13 @@ const props = defineProps({
   }
 })
 
-const { 
-  getEngagementCounts, 
+const {
+  getEngagementCounts,
   startEngagementTracking,
   startLongFormContentTracking
 } = useEngagementMetrics()
+
+const { startZapTracking } = useContentZaps()
 
 // Track which dropdown is currently open
 const openDropdownId = ref(null)
@@ -49,35 +52,32 @@ const handleClickOutside = (event) => {
 }
 
 // Add/remove event listener
+const tracked = new Set()
+
+function ensureTrackingFor(item) {
+  if (!item.nostrEventId || tracked.has(item.nostrEventId)) return
+  tracked.add(item.nostrEventId)
+  startZapTracking(item.nostrEventId)
+  if (item.creatorPubkey && item.id) {
+    startLongFormContentTracking(item.nostrEventId, item.creatorPubkey, item.id)
+  } else {
+    startEngagementTracking(item.nostrEventId)
+  }
+}
+
 onMounted(() => {
   document.addEventListener('click', handleClickOutside)
-  
-      props.items.forEach(item => {
-      if (item.nostrEventId) {
-        if (item.creatorPubkey && item.id) {
-          startLongFormContentTracking(item.nostrEventId, item.creatorPubkey, item.id)
-        } else {
-          startEngagementTracking(item.nostrEventId)
-        }
-      }
-    })
+  props.items.forEach(ensureTrackingFor)
 })
 
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
 })
 
-watch(() => props.items, (newItems) => {
-  newItems.forEach(item => {
-    if (item.nostrEventId) {
-      if (item.creatorPubkey && item.id) {
-        startLongFormContentTracking(item.nostrEventId, item.creatorPubkey, item.id)
-      } else {
-        startEngagementTracking(item.nostrEventId)
-      }
-    }
-  })
-}, { deep: true })
+// Shallow watch — only react when items array length changes
+watch(() => props.items.length, () => {
+  props.items.forEach(ensureTrackingFor)
+})
 
 const emit = defineEmits(['edit', 'delete', 'preview', 'duplicate', 'share', 'publish-nostr'])
 

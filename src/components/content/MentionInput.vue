@@ -1,7 +1,8 @@
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useMentions } from '../../composables/content/useMentions.js'
-import { IconUser, IconCheck, IconLoader } from '@iconify-prerendered/vue-tabler'
+import { generateAvatar } from '../../utils/profile/avatarGenerator.js'
+import { IconUser, IconLoader, IconShield } from '@iconify-prerendered/vue-tabler'
 
 const props = defineProps({
   modelValue: {
@@ -48,37 +49,42 @@ const showSuggestions = ref(false)
 const selectedIndex = ref(0)
 const searchQuery = ref('')
 const cursorPosition = ref(0)
+const mentionActive = ref(false) // tracks whether we're in a mention context
 
 // Auto-resize functionality
 const autoResize = () => {
   const textarea = textareaRef.value
   if (!textarea) return
-  
-  // Reset height to auto to get the correct scrollHeight
+
   textarea.style.height = 'auto'
-  
-  // Calculate new height based on content
   const minHeightPx = parseInt(props.minHeight)
   const maxHeightPx = parseInt(props.maxHeight)
   const newHeight = Math.max(minHeightPx, Math.min(textarea.scrollHeight, maxHeightPx))
-  
-  // Set the new height
   textarea.style.height = newHeight + 'px'
 }
 
 // Computed
 const filteredSuggestions = computed(() => {
-  return searchResults.value.slice(0, 8) // Limit to 8 suggestions
+  return searchResults.value.slice(0, 8)
 })
 
 const hasSuggestions = computed(() => {
   return filteredSuggestions.value.length > 0
 })
 
+// Keep dropdown open while mention is active (searching or has results)
+const dropdownVisible = computed(() => {
+  return showSuggestions.value && (hasSuggestions.value || isSearching.value)
+})
+
+// Get avatar for a user — DiceBear fallback
+const getAvatar = (user) => {
+  return user.picture || generateAvatar(user.pubkey)
+}
+
 // Methods
 const updateValue = (value) => {
   emit('update:modelValue', value)
-  // Auto-resize after value update
   nextTick(() => {
     autoResize()
   })
@@ -87,38 +93,32 @@ const updateValue = (value) => {
 const handleInput = async (event) => {
   const value = event.target.value
   cursorPosition.value = event.target.selectionStart
-  
+
   updateValue(value)
-  
-  // Check if user is typing a mention
   await checkForMention(value, cursorPosition.value)
 }
 
 const checkForMention = async (content, cursor) => {
-  // Find @ symbol before cursor
   const beforeCursor = content.substring(0, cursor)
   const lastAtIndex = beforeCursor.lastIndexOf('@')
-  
-  // Check if @ is found and is either at start or preceded by whitespace
+
   if (lastAtIndex !== -1) {
     const charBeforeAt = lastAtIndex > 0 ? beforeCursor[lastAtIndex - 1] : ' '
     const isValidMention = /\s/.test(charBeforeAt) || lastAtIndex === 0
-    
+
     if (isValidMention) {
-      // Extract query after @
       const query = beforeCursor.substring(lastAtIndex + 1)
-      
-      // Check if query doesn't contain spaces (mentions can't have spaces)
+
       if (!query.includes(' ') && query.length >= 0) {
         searchQuery.value = query
-        
+        mentionActive.value = true
+
         if (query.length >= 1) {
-          // Search for users
-          await searchUsers(query, { debounce: 300 })
+          // Show dropdown immediately — isSearching set by useMentions debounce
           showSuggestions.value = true
+          await searchUsers(query, { debounce: 300 })
           selectedIndex.value = 0
         } else {
-          // Show contact list when just @ is typed
           if (contactList.value.length === 0) {
             await fetchContactList()
           }
@@ -130,28 +130,27 @@ const checkForMention = async (content, cursor) => {
       }
     }
   }
-  
-  // Hide suggestions if no valid mention context
+
+  mentionActive.value = false
   showSuggestions.value = false
 }
 
 const selectUser = async (user) => {
   if (!textareaRef.value) return
-  
+
   const { newContent, newCursorPosition } = insertMention(
     props.modelValue,
     cursorPosition.value,
     user
   )
-  
+
   updateValue(newContent)
   showSuggestions.value = false
+  mentionActive.value = false
   searchQuery.value = ''
-  
-  // Emit mention-added event
+
   emit('mention-added', user)
-  
-  // Focus and set cursor position
+
   await nextTick()
   textareaRef.value.focus()
   textareaRef.value.setSelectionRange(newCursorPosition, newCursorPosition)
@@ -159,37 +158,38 @@ const selectUser = async (user) => {
 }
 
 const handleKeyDown = (event) => {
-  if (!showSuggestions.value || !hasSuggestions.value) return
-  
+  if (!dropdownVisible.value || !hasSuggestions.value) return
+
   switch (event.key) {
     case 'ArrowDown':
       event.preventDefault()
       selectedIndex.value = (selectedIndex.value + 1) % filteredSuggestions.value.length
       scrollToSelected()
       break
-      
+
     case 'ArrowUp':
       event.preventDefault()
-      selectedIndex.value = selectedIndex.value === 0 
-        ? filteredSuggestions.value.length - 1 
+      selectedIndex.value = selectedIndex.value === 0
+        ? filteredSuggestions.value.length - 1
         : selectedIndex.value - 1
       scrollToSelected()
       break
-      
+
     case 'Enter':
-      if (showSuggestions.value && hasSuggestions.value) {
+      if (dropdownVisible.value && hasSuggestions.value) {
         event.preventDefault()
         selectUser(filteredSuggestions.value[selectedIndex.value])
       }
       break
-      
+
     case 'Escape':
       event.preventDefault()
       showSuggestions.value = false
+      mentionActive.value = false
       break
-      
+
     case 'Tab':
-      if (showSuggestions.value && hasSuggestions.value) {
+      if (dropdownVisible.value && hasSuggestions.value) {
         event.preventDefault()
         selectUser(filteredSuggestions.value[selectedIndex.value])
       }
@@ -214,21 +214,19 @@ const scrollToSelected = () => {
 const handleClickOutside = (event) => {
   if (!event.target.closest('.mention-input-container')) {
     showSuggestions.value = false
+    mentionActive.value = false
   }
 }
 
 // Lifecycle
 onMounted(async () => {
   document.addEventListener('click', handleClickOutside)
-
-  // Pre-fetch contact list for faster suggestions
   await fetchContactList()
 
   if (props.autoFocus && textareaRef.value) {
     textareaRef.value.focus()
   }
 
-  // Initial auto-resize
   nextTick(() => {
     autoResize()
   })
@@ -242,14 +240,12 @@ onUnmounted(() => {
 watch(() => props.modelValue, (newValue) => {
   if (textareaRef.value && textareaRef.value.value !== newValue) {
     textareaRef.value.value = newValue
-    // Auto-resize when external value changes
     nextTick(() => {
       autoResize()
     })
   }
 })
 
-// Watch for prop changes that might affect sizing
 watch([() => props.minHeight, () => props.maxHeight], () => {
   nextTick(() => {
     autoResize()
@@ -262,18 +258,15 @@ const getSuggestionsPosition = () => {
   const textarea = textareaRef.value
   const rect = textarea.getBoundingClientRect()
 
-  // Try to position near cursor
-  const cursorPosition = textarea.selectionStart
-  const textBeforeCursor = textarea.value.substring(0, cursorPosition)
+  const cp = textarea.selectionStart
+  const textBeforeCursor = textarea.value.substring(0, cp)
   const lines = textBeforeCursor.split('\n')
   const currentLineIndex = lines.length - 1
 
-  // Estimate position based on line height
-  const lineHeight = 28 // approximate line height
+  const lineHeight = 28
   const estimatedTop = rect.top + (currentLineIndex * lineHeight) + lineHeight
 
-  // Check if dropdown would go off bottom of screen
-  const dropdownHeight = 320 // max-h-80 = 320px
+  const dropdownHeight = 320
   const spaceBelow = window.innerHeight - estimatedTop
   const shouldPositionAbove = spaceBelow < dropdownHeight && estimatedTop > dropdownHeight
 
@@ -309,92 +302,90 @@ const getSuggestionsPosition = () => {
       @keydown="handleKeyDown"
       @click="handleClick"
     ></textarea>
-    
+
     <!-- Suggestions Dropdown -->
     <Teleport to="body">
       <div
-        v-if="showSuggestions && (hasSuggestions || isSearching)"
+        v-if="dropdownVisible"
         class="mention-suggestions-dropdown fixed bg-white rounded-lg shadow-2xl border border-gray-200 overflow-hidden z-[10000]"
         :style="getSuggestionsPosition()"
       >
-        <!-- Loading State -->
-        <div v-if="isSearching && !hasSuggestions" class="p-4 text-center">
-          <IconLoader class="w-5 h-5 animate-spin text-orange-500 mx-auto mb-2" />
-          <p class="text-sm text-gray-600">Searching users...</p>
-        </div>
-        
-        <!-- No Results -->
-        <div v-else-if="!hasSuggestions && searchQuery.length > 0" class="p-4 text-center">
-          <IconUser class="w-8 h-8 text-gray-300 mx-auto mb-2" />
-          <p class="text-sm text-gray-600">No users found</p>
-          <p class="text-xs text-gray-400 mt-1">Try searching by name, npub, or nip-05</p>
-        </div>
-        
         <!-- Suggestions List -->
-        <div v-else class="max-h-80 overflow-y-auto">
+        <div v-if="hasSuggestions" class="max-h-80 overflow-y-auto">
+          <!-- Inline searching indicator -->
+          <div v-if="isSearching" class="px-3 py-1.5 bg-orange-50/60 border-b border-orange-100 flex items-center space-x-2">
+            <IconLoader class="w-3.5 h-3.5 animate-spin text-orange-500" />
+            <span class="text-xs text-orange-600">Searching "{{ searchQuery }}"...</span>
+          </div>
+
           <div
             v-for="(user, index) in filteredSuggestions"
             :key="user.pubkey"
-            class="mention-suggestion flex items-center space-x-3 p-3 cursor-pointer transition-colors"
+            class="mention-suggestion flex items-center space-x-3 px-3 py-2.5 cursor-pointer transition-colors"
             :class="{
-              'mention-suggestion-selected bg-orange-50': index === selectedIndex,
-              'hover:bg-gray-50': index !== selectedIndex
+              'mention-suggestion-selected bg-orange-50/80 border-l-2 border-l-orange-400': index === selectedIndex,
+              'hover:bg-gray-50 border-l-2 border-l-transparent': index !== selectedIndex
             }"
             @click="selectUser(user)"
             @mouseenter="selectedIndex = index"
           >
-            <!-- Avatar -->
-            <div class="w-10 h-10 rounded-full overflow-hidden bg-gray-200 flex-shrink-0">
+            <!-- Avatar with DiceBear fallback -->
+            <div class="w-9 h-9 rounded-full overflow-hidden flex-shrink-0 ring-1 ring-gray-200">
               <img
-                v-if="user.picture"
-                :src="user.picture"
+                :src="getAvatar(user)"
                 :alt="formatDisplayName(user)"
                 class="w-full h-full object-cover"
-                @error="(e) => e.target.style.display = 'none'"
+                @error="(e) => e.target.src = generateAvatar(user.pubkey)"
               />
-              <div v-else class="w-full h-full flex items-center justify-center">
-                <IconUser class="w-6 h-6 text-gray-400" />
-              </div>
             </div>
-            
+
             <!-- User Info -->
             <div class="flex-1 min-w-0">
-              <div class="flex items-center space-x-2">
-                <p class="font-medium text-gray-900 truncate">
+              <div class="flex items-center space-x-1.5">
+                <p class="font-medium text-sm text-gray-900 truncate">
                   {{ formatDisplayName(user) }}
                 </p>
-                
-                <!-- Badges -->
-                <span v-if="user.isContact" class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+
+                <!-- NIP-05 verified indicator -->
+                <IconShield
+                  v-if="user.nip05 || user.isNip05Match"
+                  class="w-3.5 h-3.5 text-blue-500 flex-shrink-0"
+                  title="NIP-05 verified"
+                />
+
+                <!-- Contact pill -->
+                <span v-if="user.isContact" class="text-[10px] bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded-full leading-none font-medium">
                   Contact
                 </span>
-                <span v-if="user.isDirectMatch" class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
-                  Exact
-                </span>
               </div>
-              
-              <p v-if="user.nip05" class="text-sm text-gray-500 truncate">
+
+              <p v-if="user.nip05" class="text-xs text-gray-400 truncate">
                 {{ user.nip05 }}
               </p>
               <p v-else class="text-xs text-gray-400 truncate font-mono">
                 {{ user.pubkey.substring(0, 16) }}...
               </p>
             </div>
-            
-            <!-- Selected Indicator -->
-            <IconCheck
-              v-if="index === selectedIndex"
-              class="w-5 h-5 text-orange-500 flex-shrink-0"
-            />
           </div>
         </div>
-        
+
+        <!-- Loading (no results yet) -->
+        <div v-else-if="isSearching" class="px-4 py-3 flex items-center space-x-3">
+          <IconLoader class="w-4 h-4 animate-spin text-orange-500 flex-shrink-0" />
+          <span class="text-sm text-gray-500">Searching for "{{ searchQuery }}"...</span>
+        </div>
+
+        <!-- No Results -->
+        <div v-else-if="!hasSuggestions && searchQuery.length > 0" class="px-4 py-3">
+          <p class="text-sm text-gray-500">No users found for "{{ searchQuery }}"</p>
+        </div>
+
         <!-- Footer Hint -->
-        <div class="border-t border-gray-100 px-3 py-2 bg-gray-50">
-          <p class="text-xs text-gray-500">
-            <kbd class="px-1.5 py-0.5 bg-white border border-gray-300 rounded text-xs">↑↓</kbd> navigate
-            <kbd class="px-1.5 py-0.5 bg-white border border-gray-300 rounded text-xs ml-2">Enter</kbd> select
-            <kbd class="px-1.5 py-0.5 bg-white border border-gray-300 rounded text-xs ml-2">Esc</kbd> close
+        <div class="border-t border-gray-100 px-3 py-1.5 bg-gray-50/80">
+          <p class="text-[10px] text-gray-400">
+            <kbd class="px-1 py-0.5 bg-white border border-gray-200 rounded text-[10px]">↑↓</kbd> navigate
+            <kbd class="px-1 py-0.5 bg-white border border-gray-200 rounded text-[10px] ml-1.5">Enter</kbd> select
+            <kbd class="px-1 py-0.5 bg-white border border-gray-200 rounded text-[10px] ml-1.5">Esc</kbd> close
           </p>
         </div>
       </div>
@@ -408,13 +399,13 @@ const getSuggestionsPosition = () => {
 }
 
 .mention-suggestions-dropdown {
-  animation: slideDown 0.15s ease-out;
+  animation: mentionSlideDown 0.12s ease-out;
 }
 
-@keyframes slideDown {
+@keyframes mentionSlideDown {
   from {
     opacity: 0;
-    transform: translateY(-8px);
+    transform: translateY(-4px);
   }
   to {
     opacity: 1;

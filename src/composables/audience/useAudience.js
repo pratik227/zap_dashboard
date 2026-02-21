@@ -1,8 +1,9 @@
-import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { useNostrAuth } from '../auth/useNostrAuth.js'
 import { useFollowLists } from './useFollowLists.js'
 import { nostrRelayManager } from '../../utils/network/nostrRelayManager.js'
 import { finalizeEvent, verifyEvent } from 'nostr-tools/pure'
+import { registerRefresh, unregisterRefresh } from '../../utils/refreshCycle.js'
 import * as nip19 from 'nostr-tools/nip19'
 import { fetchProfile, batchFetchProfiles, profileCache } from '../../utils/profile/profileFetcher.js'
 import { generateAvatar } from '../../utils/profile/avatarGenerator.js'
@@ -93,26 +94,13 @@ try {
 
 // Background refresh: once relay manager is initialized, refresh profiles for cached following/followers
 const _startAudienceBackgroundRefresh = async () => {
-  // collect all pubkeys from cached following and followers
   const pubkeys = Array.from(new Set([
     ...(Array.isArray(following.value) ? following.value : []),
     ...(Array.isArray(followers.value) ? followers.value : [])
   ]))
   if (pubkeys.length === 0) return
 
-  // wait for relay manager init
-  const waitForInit = () => new Promise(resolve => {
-    if (nostrRelayManager.isInitialized) return resolve()
-    const check = setInterval(() => {
-      if (nostrRelayManager.isInitialized) {
-        clearInterval(check)
-        resolve()
-      }
-    }, 200)
-    setTimeout(() => { clearInterval(check); resolve() }, 15000)
-  })
-
-  await waitForInit()
+  await nostrRelayManager.ready()
   try {
     batchFetchProfiles(pubkeys)
   } catch (err) {
@@ -150,20 +138,7 @@ export function useAudience() {
       return
     }
 
-    // Check if relay manager is initialized
-    if (!nostrRelayManager.isInitialized) {
-      console.log('Relay manager not initialized, waiting...')
-      await new Promise((resolve) => {
-        const checkInit = () => {
-          if (nostrRelayManager.isInitialized) {
-            resolve()
-          } else {
-            setTimeout(checkInit, 100)
-          }
-        }
-        checkInit()
-      })
-    }
+    await nostrRelayManager.ready()
 
     isLoading.value = true
     error.value = ''
@@ -193,8 +168,7 @@ export function useAudience() {
 
           following.value = followingPubkeys
           
-          // Fetch profiles for all following users (use shared fetch + batch)
-          followingPubkeys.forEach(pk => fetchProfileSynced(pk).catch(() => {}))
+          // Fetch profiles for all following users in batch
           batchFetchProfiles(followingPubkeys)
 
           syncStatus.value = 'idle'
@@ -229,17 +203,7 @@ export function useAudience() {
       return
     }
 
-    // Check if relay manager is initialized
-    if (!nostrRelayManager.isInitialized) {
-      console.log('Relay manager not initialized, waiting...')
-      await new Promise((resolve) => {
-        const checkInit = () => {
-          if (nostrRelayManager.isInitialized) resolve()
-          else setTimeout(checkInit, 100)
-        }
-        checkInit()
-      })
-    }
+    await nostrRelayManager.ready()
 
     isLoading.value = true
     error.value = ''
@@ -476,22 +440,26 @@ export function useAudience() {
     if (authenticated) {
       loadFromStorage()
       setTimeout(() => { refreshFollowing() }, 1000)
+      registerRefresh('audience', async () => {
+        await refreshFollowing()
+        await refreshFollowers()
+      })
     } else {
       following.value = []
       followers.value = []
       profiles.clear()
       profileCache.clear()
+      unregisterRefresh('audience')
     }
   }, { immediate: true })
 
-  // Cleanup on unmount
-  onUnmounted(() => { if (followingSubscription) followingSubscription.close(); if (followersSubscription) followersSubscription.close(); profileSubscriptions.forEach(sub => sub.close()) })
-
   return {
+    // Spread followLists first so our wrappers below override followEntirePack/followSelectedMembers
+    ...followLists,
     following, followers, profiles, isLoading, error, syncStatus,
     followUser, unfollowUser, searchProfiles, searchLists, refreshFollowing, refreshFollowers,
     getProfile, isFollowing, getMutualFollows, getFollowersCount, getFollowingCount,
     fetchProfile: fetchProfileSynced, generateAvatar,
-    ...followLists
+    followEntirePack, followSelectedMembers
   }
 }

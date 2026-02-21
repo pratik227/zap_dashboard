@@ -49,7 +49,7 @@ const {
 const { isAuthenticated } = useNostrAuth()
 
 // UI state
-const activeTab = ref('my-lists') // 'my-lists', 'discover'
+const activeTab = ref('discover') // 'my-lists', 'discover'
 const searchQuery = ref('')
 const showCreateModal = ref(false)
 const showViewModal = ref(false)
@@ -57,6 +57,18 @@ const showDeleteModal = ref(false)
 const selectedList = ref(null)
 const viewMode = ref('grid') // 'grid', 'list'
 const sortOption = ref('recent') // 'recent', 'alphabetical', 'members'
+const processingListId = ref(null) // track which list is being followed
+const isDeletingList = ref(false)
+
+// Inline status banner
+const statusMessage = ref(null) // { type: 'success'|'error', text: '' }
+let statusTimer = null
+
+const showStatus = (type, text, duration = 5000) => {
+  clearTimeout(statusTimer)
+  statusMessage.value = { type, text }
+  statusTimer = setTimeout(() => { statusMessage.value = null }, duration)
+}
 
 // Tabs configuration
 const tabs = [
@@ -146,13 +158,16 @@ const handleDeleteList = (list) => {
 // Confirm list deletion
 const confirmDeleteList = async () => {
   if (!selectedList.value) return
-  
+
+  isDeletingList.value = true
   try {
     await deleteFollowPack(selectedList.value.id)
     showDeleteModal.value = false
     selectedList.value = null
   } catch (error) {
     console.error('Failed to delete list:', error)
+  } finally {
+    isDeletingList.value = false
   }
 }
 
@@ -174,24 +189,43 @@ const handleSaveList = async (listId, listData) => {
 
 // Handle follow entire list
 const handleFollowEntireList = async (list) => {
+  processingListId.value = list.id
   try {
     const result = await followEntirePack(list)
-    
-    // Enhanced success feedback with detailed information
+
     if (result.success) {
       if (result.alreadyFollowingAll) {
-        // User-friendly message for when already following everyone
-        alert(`✅ ${result.message}\n\nYour follow list remains unchanged.`)
+        showStatus('success', result.message)
       } else {
-        // Success message with details
-        alert(`🎉 ${result.message}\n\nTotal people you're now following: ${result.totalFollows.toLocaleString()}`)
+        showStatus('success', `${result.message} — now following ${result.totalFollows.toLocaleString()} people`)
       }
-    } else {
-      alert('❌ Failed to follow pack members. Please try again.')
     }
-  } catch (error) {
-    console.error('Failed to follow list:', error)
-    alert(`❌ Failed to follow pack: ${error.message}\n\nYour existing follows remain safe.`)
+  } catch (err) {
+    console.error('Failed to follow list:', err)
+    showStatus('error', `Failed to follow pack: ${err.message}`)
+  } finally {
+    processingListId.value = null
+  }
+}
+
+// Handle follow selected members from modal
+const handleFollowSelectedMembers = async (list, selectedPubkeys) => {
+  processingListId.value = list.id
+  try {
+    const result = await followSelectedMembers(list, selectedPubkeys)
+
+    if (result.success) {
+      if (result.alreadyFollowingAll) {
+        showStatus('success', result.message)
+      } else {
+        showStatus('success', `${result.message} — now following ${result.totalFollows.toLocaleString()} people`)
+      }
+    }
+  } catch (err) {
+    console.error('Failed to follow selected members:', err)
+    showStatus('error', `Failed to follow selected members: ${err.message}`)
+  } finally {
+    processingListId.value = null
   }
 }
 
@@ -209,6 +243,7 @@ const handleSearch = (query) => {
 onMounted(() => {
   if (isAuthenticated.value) {
     fetchMyLists()
+    discoverLists()
   }
 })
 </script>
@@ -327,6 +362,29 @@ onMounted(() => {
       </div>
     </div>
 
+    <!-- Status Banner -->
+    <transition name="status-banner">
+      <div
+        v-if="statusMessage"
+        :class="[
+          'rounded-lg px-4 py-3 flex items-center gap-3',
+          statusMessage.type === 'success'
+            ? 'bg-green-50 border border-green-300 text-green-800'
+            : 'bg-red-50 border border-red-300 text-red-800'
+        ]"
+      >
+        <IconCheck v-if="statusMessage.type === 'success'" class="w-5 h-5 flex-shrink-0" />
+        <IconAlertCircle v-else class="w-5 h-5 flex-shrink-0" />
+        <span class="text-sm font-medium flex-1">{{ statusMessage.text }}</span>
+        <button
+          @click="statusMessage = null"
+          class="p-1 rounded hover:bg-black/5 flex-shrink-0"
+        >
+          <IconX class="w-4 h-4" />
+        </button>
+      </div>
+    </transition>
+
     <!-- Error Message -->
     <div v-if="error" class="bg-red-50 border border-red-200 rounded-lg p-4">
       <div class="flex items-center space-x-2">
@@ -402,6 +460,7 @@ onMounted(() => {
           :key="list.id"
           :list="list"
           :is-owner="isMyListsTab"
+          :is-processing="processingListId === list.id"
           @view="handleViewList"
           @edit="handleEditList"
           @delete="handleDeleteList"
@@ -467,10 +526,12 @@ onMounted(() => {
               <button
                 v-else
                 @click="handleFollowEntireList(list)"
+                :disabled="processingListId === list.id"
                 class="btn-primary text-sm"
               >
-                <IconUserPlus class="w-4 h-4" />
-                <span class="hidden sm:inline">Follow All</span>
+                <IconLoader v-if="processingListId === list.id" class="w-4 h-4 animate-spin" />
+                <IconUserPlus v-else class="w-4 h-4" />
+                <span class="hidden sm:inline">{{ processingListId === list.id ? 'Following...' : 'Follow All' }}</span>
               </button>
               
               <button
@@ -499,9 +560,10 @@ onMounted(() => {
   <FollowListViewModal
     :show="showViewModal"
     :list="selectedList"
+    :is-processing="processingListId !== null"
     @close="showViewModal = false; selectedList = null"
     @follow-all="handleFollowEntireList"
-    @follow-selected="followSelectedMembers"
+    @follow-selected="handleFollowSelectedMembers"
   />
 
   <!-- Delete Confirmation Modal -->
@@ -527,17 +589,20 @@ onMounted(() => {
           </div>
           
           <div class="flex space-x-3">
-            <button 
-              @click="showDeleteModal = false; selectedList = null" 
+            <button
+              @click="showDeleteModal = false; selectedList = null"
+              :disabled="isDeletingList"
               class="btn-secondary flex-1"
             >
               Cancel
             </button>
-            <button 
-              @click="confirmDeleteList" 
-              class="bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded-lg font-medium transition-colors flex-1"
+            <button
+              @click="confirmDeleteList"
+              :disabled="isDeletingList"
+              class="bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded-lg font-medium transition-colors flex-1 flex items-center justify-center gap-2 disabled:opacity-50"
             >
-              Delete
+              <IconLoader v-if="isDeletingList" class="w-4 h-4 animate-spin" />
+              {{ isDeletingList ? 'Deleting...' : 'Delete' }}
             </button>
           </div>
         </div>
@@ -551,6 +616,19 @@ onMounted(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Status banner */
+.status-banner-enter-active {
+  transition: all 0.25s ease-out;
+}
+.status-banner-leave-active {
+  transition: all 0.2s ease-in;
+}
+.status-banner-enter-from,
+.status-banner-leave-to {
+  opacity: 0;
+  transform: translateY(-8px);
 }
 
 /* Modal transitions */

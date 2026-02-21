@@ -15,16 +15,63 @@
         </button>
       </div>
 
-      <!-- Success State -->
-      <div v-if="shareSuccess" class="p-6 text-center">
-        <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
-          <IconCheck class="w-6 h-6 text-green-600" />
+      <!-- ── Success State ────────────────────────────────────────────── -->
+      <div v-if="shareSuccess" class="p-6 space-y-4">
+        <div class="text-center">
+          <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
+            <IconCheck class="w-6 h-6 text-green-600" />
+          </div>
+          <h4 class="text-lg font-semibold text-gray-900 mb-1">Posted to Nostr!</h4>
+          <p class="text-sm text-gray-600">Your campaign is now visible on the Nostr network</p>
         </div>
-        <h4 class="text-lg font-semibold text-gray-900 mb-2">Posted Successfully!</h4>
-        <p class="text-sm text-gray-600">Your campaign is now shared on Nostr</p>
+
+        <!-- View on Nostr -->
+        <a
+          v-if="viewUrl"
+          :href="viewUrl"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="flex items-center justify-center gap-2 w-full bg-gray-100 hover:bg-gray-200 text-gray-700 py-2.5 rounded-lg text-sm font-medium transition-colors"
+        >
+          View on Nostr
+          <IconExternalLink class="w-4 h-4" />
+        </a>
+
+        <!-- Remove post -->
+        <div class="text-center">
+          <template v-if="!postDeleted">
+            <button
+              @click="deleteSharedPost"
+              :disabled="isDeleting"
+              class="text-sm text-gray-400 hover:text-red-500 transition-colors inline-flex items-center gap-1"
+            >
+              <IconLoader v-if="isDeleting" class="w-3.5 h-3.5 animate-spin" />
+              <IconTrash v-else class="w-3.5 h-3.5" />
+              {{ isDeleting ? 'Removing...' : 'Remove this post' }}
+            </button>
+          </template>
+          <p v-else class="text-sm text-green-600 inline-flex items-center gap-1">
+            <IconCheck class="w-4 h-4" />
+            Post removed
+          </p>
+        </div>
+
+        <!-- Error in success state -->
+        <div v-if="shareError" class="bg-red-50 border border-red-200 rounded-lg p-3 flex items-center gap-2">
+          <IconAlertCircle class="w-4 h-4 text-red-600 flex-shrink-0" />
+          <span class="text-sm text-red-700">{{ shareError }}</span>
+        </div>
+
+        <!-- Done button -->
+        <button
+          @click="$emit('close')"
+          class="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 rounded-lg font-medium transition-colors"
+        >
+          Done
+        </button>
       </div>
 
-      <!-- Main Content -->
+      <!-- ── Compose State ────────────────────────────────────────────── -->
       <div v-else class="p-6 space-y-4">
 
         <!-- Campaign Preview -->
@@ -47,7 +94,28 @@
           </div>
         </div>
 
-        <!-- Share on Nostr -->
+        <!-- Recently shared warning -->
+        <div v-if="recentShareInfo" class="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-start gap-2">
+          <IconAlertCircle class="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+          <p class="text-sm text-amber-700">
+            You posted this campaign {{ timeAgoText }}. Posting again creates a duplicate.
+          </p>
+        </div>
+
+        <!-- Message -->
+        <div class="space-y-1.5">
+          <label class="text-sm font-medium text-gray-700">Message</label>
+          <MentionInput
+            v-model="composedMessage"
+            placeholder="Write your message..."
+            min-height="100px"
+            max-height="200px"
+            @mention-added="handleMentionAdded"
+          />
+          <p class="text-xs text-gray-500">Type @ to mention someone. #hashtags are included as tags.</p>
+        </div>
+
+        <!-- Post to Nostr -->
         <button
           @click="shareOnNostr"
           :disabled="!isAuthenticated || isSharing"
@@ -55,13 +123,13 @@
         >
           <IconLoader v-if="isSharing" class="w-5 h-5 animate-spin" />
           <IconBolt v-else class="w-5 h-5" />
-          <span>{{ isSharing ? 'Posting...' : 'Share on Nostr' }}</span>
+          <span>{{ isSharing ? 'Posting...' : 'Post to Nostr' }}</span>
         </button>
 
         <!-- Auth Warning -->
         <div v-if="!isAuthenticated" class="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-center gap-2">
           <IconAlertCircle class="w-4 h-4 text-amber-600 flex-shrink-0" />
-          <p class="text-sm text-amber-800">Connect your Nostr identity to share</p>
+          <p class="text-sm text-amber-800">Sign in with Nostr to post</p>
         </div>
 
         <!-- Copy Link -->
@@ -83,35 +151,12 @@
           </div>
         </div>
 
-        <!-- Custom Message -->
-        <details class="border rounded-lg">
-          <summary class="p-3 cursor-pointer hover:bg-gray-50 flex items-center justify-between">
-            <div class="flex items-center gap-2">
-              <IconEdit class="w-4 h-4 text-gray-500" />
-              <span class="text-sm font-medium text-gray-700">Customize Message</span>
-              <span v-if="mentionCount > 0" class="bg-orange-100 text-orange-700 text-xs px-2 py-0.5 rounded-full">
-                {{ mentionCount }}
-              </span>
-            </div>
-          </summary>
-          <div class="p-3 pt-0 space-y-2">
-            <MentionInput
-              v-model="customMessage"
-              placeholder="Add your personal message... Type @ to mention"
-              min-height="80px"
-              max-height="160px"
-              @mention-added="handleMentionAdded"
-            />
-            <p class="text-xs text-gray-500">Leave empty for default message</p>
-          </div>
-        </details>
-
         <!-- Info -->
         <div class="bg-orange-50 border border-orange-200 rounded-lg p-3 flex gap-2">
           <IconBolt class="w-4 h-4 text-orange-600 flex-shrink-0 mt-0.5" />
           <div>
             <p class="text-xs font-medium text-gray-900">Automatic Zap Tracking</p>
-            <p class="text-xs text-gray-600">Zaps to your shared post count towards your goal</p>
+            <p class="text-xs text-gray-600">Zaps to your shared post count towards your campaign goal</p>
           </div>
         </div>
 
@@ -125,23 +170,39 @@
   </div>
 </template>
 
+<!-- Module-scope: persists across component instances -->
+<script>
+// Track recent shares for cooldown warning (resets on page refresh)
+const recentShares = new Map() // campaignId -> { eventId, timestamp }
+const SHARE_COOLDOWN_MS = 5 * 60 * 1000 // 5 minutes
+
+// Extract #hashtags from content for t-tags
+const extractHashtags = (content) => {
+  const tags = new Set()
+  for (const match of content.matchAll(/#(\w+)/g)) {
+    tags.add(match[1].toLowerCase())
+  }
+  return [...tags]
+}
+</script>
+
 <script setup>
 import { ref, computed } from 'vue'
 import {
-  IconShare,
   IconX,
   IconCopy,
   IconCheck,
   IconBolt,
   IconLoader,
   IconAlertCircle,
-  IconEdit,
   IconTarget,
+  IconExternalLink,
+  IconTrash,
 } from '@iconify-prerendered/vue-tabler'
-import { useCampaigns } from '../../composables/campaigns/useCampaigns.js'
 import { useNostrAuth } from '../../composables/auth/useNostrAuth.js'
 import { useMentions } from '../../composables/content/useMentions.js'
 import { verifyEvent } from 'nostr-tools/pure'
+import * as nip19 from 'nostr-tools/nip19'
 import { nostrRelayManager } from '../../utils/network/nostrRelayManager.js'
 import MentionInput from '../content/MentionInput.vue'
 
@@ -158,28 +219,61 @@ const props = defineProps({
 
 const emit = defineEmits(['close'])
 
-const { shareCampaignOnNostr } = useCampaigns()
 const { currentUser } = useNostrAuth()
-const { extractPTags, parseMentions } = useMentions()
+const { extractPTags } = useMentions()
 
-const shareUrl = ref('')
-const customMessage = ref('')
+// ── State ──────────────────────────────────────────────────────────────────
+
+const shareUrl = computed(() =>
+  `${window.location.origin}?page=campaign-view&eventId=${props.campaign.id}`
+)
+
+const composedMessage = ref(
+  `Support my campaign: ${props.campaign.title}\n\n${window.location.origin}?page=campaign-view&eventId=${props.campaign.id}\n\n#ZapTracker #Bitcoin #Lightning #Nostr`
+)
+
 const copySuccess = ref(false)
 const isSharing = ref(false)
 const shareSuccess = ref(false)
 const shareError = ref('')
 
-const defaultTags = ['ZapTracker', 'Bitcoin', 'Lightning', 'Nostr']
+// Post-share state
+const publishedEventId = ref(null)
+const isDeleting = ref(false)
+const postDeleted = ref(false)
 
-const generateShareUrl = () => {
-  return `${window.location.origin}?page=campaign-view&eventId=${props.campaign.id}`
+// ── Recent share check (evaluated once at mount) ───────────────────────────
+
+const recentShareInfo = ref(null)
+{
+  const recent = recentShares.get(props.campaign.id)
+  if (recent && Date.now() - recent.timestamp < SHARE_COOLDOWN_MS) {
+    recentShareInfo.value = recent
+  }
 }
 
-shareUrl.value = generateShareUrl()
-
-const mentionCount = computed(() => {
-  return parseMentions(customMessage.value || '').length
+const timeAgoText = computed(() => {
+  if (!recentShareInfo.value) return ''
+  const minutes = Math.floor((Date.now() - recentShareInfo.value.timestamp) / 60000)
+  if (minutes < 1) return 'just now'
+  if (minutes === 1) return '1 minute ago'
+  return `${minutes} minutes ago`
 })
+
+// ── View URL (njump.me with nevent encoding) ───────────────────────────────
+
+const viewUrl = computed(() => {
+  if (!publishedEventId.value) return ''
+  try {
+    const relays = nostrRelayManager.getReadRelays().map(r => r.url).slice(0, 3)
+    const nevent = nip19.neventEncode({ id: publishedEventId.value, relays })
+    return `https://njump.me/${nevent}`
+  } catch {
+    return ''
+  }
+})
+
+// ── Actions ────────────────────────────────────────────────────────────────
 
 const handleMentionAdded = (user) => {
   console.log('Mention added to campaign share:', user)
@@ -224,7 +318,13 @@ const copyToClipboard = async (text) => {
 
 const shareOnNostr = async () => {
   if (!props.isAuthenticated) {
-    shareError.value = 'Please connect your Nostr identity to share'
+    shareError.value = 'Sign in with Nostr to post'
+    return
+  }
+
+  const content = composedMessage.value.trim()
+  if (!content) {
+    shareError.value = 'Please enter a message'
     return
   }
 
@@ -232,13 +332,10 @@ const shareOnNostr = async () => {
   shareError.value = ''
 
   try {
-    console.log('🔗 Sharing campaign on Nostr with goal tag...')
+    // Extract hashtags from the actual content for t-tags
+    const hashtags = extractHashtags(content)
 
-    const hashtagString = defaultTags.map(tag => `#${tag}`).join(' ')
-
-    const content = customMessage.value.trim() ||
-      `Support my campaign: ${props.campaign.title}\n\n${shareUrl.value}\n\n${hashtagString}`
-
+    // Extract @mention p-tags from NIP-21 URIs in content
     const mentionPTags = extractPTags(content)
 
     const eventTemplate = {
@@ -249,7 +346,7 @@ const shareOnNostr = async () => {
         ['e', props.campaign.id],
         ['p', props.campaign.pubkey],
         ...mentionPTags,
-        ...defaultTags.map(tag => ['t', tag])
+        ...hashtags.map(tag => ['t', tag])
       ],
       content
     }
@@ -258,7 +355,7 @@ const shareOnNostr = async () => {
     if (window.nostr?.signEvent) {
       signedEvent = await window.nostr.signEvent(eventTemplate)
     } else {
-      throw new Error('Nostr extension not available for signing')
+      throw new Error('Nostr signer not available')
     }
 
     const isValid = verifyEvent(signedEvent)
@@ -269,22 +366,62 @@ const shareOnNostr = async () => {
     const result = await nostrRelayManager.publishEvent(signedEvent)
 
     if (result.successful === 0) {
-      throw new Error('Failed to publish to any relays')
+      throw new Error('Failed to publish to any relay')
     }
 
-    console.log('✅ Campaign shared successfully')
+    console.log('Campaign shared successfully:', signedEvent.id)
+
+    // Track for cooldown and post-share actions
+    publishedEventId.value = signedEvent.id
+    recentShares.set(props.campaign.id, {
+      eventId: signedEvent.id,
+      timestamp: Date.now()
+    })
 
     shareSuccess.value = true
-
-    setTimeout(() => {
-      emit('close')
-    }, 3000)
-
   } catch (error) {
     console.error('Failed to share campaign:', error)
-    shareError.value = error.message || 'Failed to share campaign'
+    shareError.value = error.message || 'Failed to post'
   } finally {
     isSharing.value = false
+  }
+}
+
+const deleteSharedPost = async () => {
+  if (!publishedEventId.value) return
+
+  isDeleting.value = true
+  shareError.value = ''
+
+  try {
+    const eventTemplate = {
+      kind: 5, // NIP-09 deletion
+      created_at: Math.floor(Date.now() / 1000),
+      tags: [['e', publishedEventId.value]],
+      content: ''
+    }
+
+    const signedEvent = await window.nostr.signEvent(eventTemplate)
+
+    const isValid = verifyEvent(signedEvent)
+    if (!isValid) {
+      throw new Error('Signature verification failed')
+    }
+
+    const result = await nostrRelayManager.publishEvent(signedEvent)
+
+    if (result.successful === 0) {
+      throw new Error('Failed to publish deletion')
+    }
+
+    postDeleted.value = true
+    recentShares.delete(props.campaign.id)
+    console.log('Shared post deleted:', publishedEventId.value)
+  } catch (error) {
+    console.error('Failed to delete shared post:', error)
+    shareError.value = error.message || 'Failed to remove post'
+  } finally {
+    isDeleting.value = false
   }
 }
 
@@ -307,13 +444,5 @@ const handleBackdropClick = (e) => {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-}
-
-details summary::-webkit-details-marker {
-  display: none;
-}
-
-details[open] summary {
-  border-bottom: 1px solid #e5e7eb;
 }
 </style>

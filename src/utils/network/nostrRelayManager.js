@@ -1,22 +1,6 @@
 import { SimplePool } from 'nostr-tools/pool'
 import { finalizeEvent, verifyEvent } from 'nostr-tools/pure'
 
-// Debug WebSocket sends to see what's actually being transmitted
-if (typeof window !== 'undefined' && typeof WebSocket !== 'undefined') {
-  const OriginalWebSocket = window.WebSocket
-  window.WebSocket = function(...args) {
-    const ws = new OriginalWebSocket(...args)
-    const originalSend = ws.send
-    ws.send = function(data) {
-      if (typeof data === 'string' && data.includes('"REQ"')) {
-        console.log('🔍 WebSocket sending:', data)
-      }
-      return originalSend.call(this, data)
-    }
-    return ws
-  }
-}
-
 // Relay connection manager following nostr-tools best practices
 class NostrRelayManager {
   constructor() {
@@ -26,6 +10,7 @@ class NostrRelayManager {
     this.connectionPromises = new Map() // Map of URL -> connection promise
     this.eventListeners = new Set()
     this.isInitialized = false
+    this._createReadyGate()
     
     // Default reliable relays
     this.defaultRelays = [
@@ -41,16 +26,28 @@ class NostrRelayManager {
     this.connectionTimeout = 10000 // 10 seconds
     this.maxRetries = 3
     this.retryDelay = 2000 // 2 seconds
-    this.healthCheckInterval = 30000 // 30 seconds
+    this.healthCheckInterval = 300000 // 5 minutes
     this.healthCheckTimer = null
 
-    // Memoization and deduplication
+    // Memoization
     this._eventCache = new Map() // key: JSON.stringify(filters), value: {event, timestamp}
     this._eventCacheTTL = 60 * 1000 // 1 minute default TTL
-    this._activeSubscriptions = new Map() // key: hash(filters+options), value: subscription
-    this._subscriptionTTL = 30 * 1000 // 30 seconds for deduped subs
     this._relayBackoff = new Map() // url -> {backoffMs, lastFail}
     this._maxBackoff = 5 * 60 * 1000 // 5 min
+  }
+
+  // Create the ready gate (Promise that resolves when initialized)
+  _createReadyGate() {
+    this._readyPromise = new Promise((resolve) => {
+      this._readyResolve = resolve
+    })
+  }
+
+  // Returns a Promise that resolves when the relay manager is initialized.
+  // Safe to call multiple times; returns immediately if already initialized.
+  ready() {
+    if (this.isInitialized) return Promise.resolve()
+    return this._readyPromise
   }
 
   // Initialize the relay manager
@@ -73,12 +70,13 @@ class NostrRelayManager {
       this.startHealthCheck()
       
       this.isInitialized = true
+      this._readyResolve()
       console.log('✅ Nostr Relay Manager initialized successfully')
-      
+
       // Emit initialization event
-      this.emitEvent('initialized', { 
+      this.emitEvent('initialized', {
         connectedRelays: this.getConnectedRelays().length,
-        totalRelays: allRelays.length 
+        totalRelays: allRelays.length
       })
       
     } catch (error) {
@@ -305,9 +303,7 @@ class NostrRelayManager {
 
   // Publish event to write relays using the correct pool.publish API
   async publishEvent(event, targetRelays = null) {
-    if (!this.isInitialized) {
-      throw new Error('Relay manager not initialized')
-    }
+    await this.ready()
 
     // Verify event before publishing
     const isValid = verifyEvent(event)
@@ -401,11 +397,6 @@ class NostrRelayManager {
     }
   }
 
-  // Utility: hash filters+options for deduplication
-  _hashSub(filters, options) {
-    return JSON.stringify({filters, options})
-  }
-
   // Utility: check if relay is in backoff
   _isRelayBackedOff(url) {
     const entry = this._relayBackoff.get(url)
@@ -452,10 +443,25 @@ class NostrRelayManager {
     return validFilters
   }
 
-  // Subscribe to events from read relays with deduplication
+  // Subscribe to events from read relays with deduplication.
+  // If called before initialization, defers until ready.
   subscribeToEvents(filters, options = {}) {
     if (!this.isInitialized) {
-      throw new Error('Relay manager not initialized')
+      // Deferred subscription: queue until relay manager is ready
+      let realSub = null
+      let closed = false
+
+      this._readyPromise.then(() => {
+        if (!closed) {
+          try {
+            realSub = this.subscribeToEvents(filters, options)
+          } catch (e) {
+            console.warn('Deferred subscription failed:', e.message)
+          }
+        }
+      })
+
+      return { close: () => { closed = true; realSub?.close() } }
     }
     
     const validFilters = this._validateFilters(filters)
@@ -473,18 +479,6 @@ class NostrRelayManager {
       throw new Error('No read-enabled relays available (all may be rate-limited or unhealthy)')
     }
     const relayUrls = readRelays.map(relay => relay.url)
-    const hash = this._hashSub(validFilters, options)
-    // Deduplicate: if already active, return the same subscription
-    if (this._activeSubscriptions.has(hash)) {
-      const {sub, timeout} = this._activeSubscriptions.get(hash)
-      // Refresh TTL
-      clearTimeout(timeout)
-      this._activeSubscriptions.get(hash).timeout = setTimeout(() => {
-        sub.close()
-        this._activeSubscriptions.delete(hash)
-      }, this._subscriptionTTL)
-      return sub
-    }
     // Wrap callbacks to handle relay failures
     const wrappedOptions = {...options}
     wrappedOptions.onclose = (reason) => {
@@ -498,19 +492,7 @@ class NostrRelayManager {
       if (options.onclose) options.onclose(reason)
     }
 
-    // Debug log the filters being sent
-    console.log('📡 Subscribing to relays with filters:', JSON.stringify(validFilters))
-    console.log('📡 Filter type check:', {
-      isArray: Array.isArray(validFilters),
-      length: validFilters?.length,
-      firstFilter: validFilters?.[0],
-      relayUrls: relayUrls
-    })
-
-    // Subscribe using subscribeMap instead of subscribeMany
-    // This is the correct way to send multiple filters to multiple relays
-    // subscribeMap expects: [{ url: string, filter: Filter }]
-    // where Filter is a SINGLE filter object, not an array
+    // Build per-relay per-filter request list for subscribeMap
     const requests = []
     for (const url of relayUrls) {
       for (const filter of validFilters) {
@@ -518,27 +500,16 @@ class NostrRelayManager {
       }
     }
 
-    console.log('📡 Creating subscribeMap with', requests.length, 'requests')
     const sub = this.pool.subscribeMap(requests, {
       ...wrappedOptions,
       maxWait: options.maxWait || 10000
     })
-
-    console.log('📡 Subscription created successfully')
-    // Store for deduplication
-    const timeout = setTimeout(() => {
-      sub.close()
-      this._activeSubscriptions.delete(hash)
-    }, this._subscriptionTTL)
-    this._activeSubscriptions.set(hash, {sub, timeout})
     return sub
   }
 
   // Memoized getEvent (in-memory, TTL)
   async getEvent(filters, options = {}) {
-    if (!this.isInitialized) {
-      throw new Error('Relay manager not initialized')
-    }
+    await this.ready()
     
     // Validate filters - must be a single filter object
     if (!filters || typeof filters !== 'object' || Array.isArray(filters)) {
@@ -580,6 +551,12 @@ class NostrRelayManager {
     }
   }
 
+  // Clear cached getEvent result for given filters
+  clearEventCache(filters) {
+    const cacheKey = JSON.stringify(filters)
+    this._eventCache.delete(cacheKey)
+  }
+
   // Start health check monitoring
   startHealthCheck() {
     if (this.healthCheckTimer) {
@@ -607,14 +584,13 @@ class NostrRelayManager {
           return
         }
 
-        // Check if relay is still responsive by doing a simple query
-        const testFilters = { kinds: [0], limit: 1 }
-        const timeout = new Promise((_, reject) => 
+        // Check if relay is still responsive via WebSocket connection
+        const timeout = new Promise((_, reject) =>
           setTimeout(() => reject(new Error('Health check timeout')), 5000)
         )
 
         await Promise.race([
-          this.pool.get([relayStatus.url], testFilters),
+          this.pool.ensureRelay(relayStatus.url),
           timeout
         ])
 
@@ -745,6 +721,7 @@ class NostrRelayManager {
     this.eventListeners.clear()
     
     this.isInitialized = false
+    this._createReadyGate() // Reset for next initialization cycle
     console.log('✅ Nostr Relay Manager cleanup complete')
   }
 }
