@@ -21,6 +21,7 @@ The platform serves as a central hub for Lightning Network payment management, o
 | [use_cases.md](use_cases.md) | Real-world scenarios for creators, merchants, communities |
 | [STRUCTURE.md](STRUCTURE.md) | Technical codebase organization for contributors |
 | [nip07.md](nip07.md) | NIP-07 browser extension specification |
+| [Docs](https://docs-zaptracker.netlify.app) | Documentation for ZapTracker |
 
 ### Getting Started
 A modern, real-time dashboard for managing and analyzing Lightning Network zaps (tips) with Nostr Wallet Connect integration.

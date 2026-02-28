@@ -174,24 +174,6 @@ See [GUIDE.md - Growing Your Audience](GUIDE.md#growing-your-audience) for step-
 
 ---
 
-### MiniPoS for In-Person Sales
-
-**Scenario:** You're at a market, conference, or event and need quick point-of-sale.
-
-**How ZapTracker Helps:**
-
-1. **Use the MiniPoS feature** for quick invoice generation
-2. **Display QR codes** for customer scanning
-3. **Confirm payments instantly** with real-time notifications
-4. **Track event sales** in Analytics
-
-**Setup:**
-1. Open ZapTracker on a tablet or phone
-2. Navigate to MiniPoS
-3. Enter sale amount → Generate QR → Customer pays → Done
-
----
-
 ## Event Organizers
 
 ### Funding an Event

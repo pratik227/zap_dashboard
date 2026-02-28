@@ -20,7 +20,8 @@ import {
   IconUsers,
   IconEdit,
   IconCalendar,
-  IconHelp
+  IconHelp,
+  IconBook
 } from '@iconify-prerendered/vue-tabler'
 import NotificationDropdown from '../shared/NotificationDropdown.vue'
 import ThreadsPromo from '../shared/ThreadsPromo.vue'
@@ -40,6 +41,7 @@ const { isAuthenticated, userProfile, currentUser, logout, login, authError } = 
 
 const showProfileDropdown = ref(false)
 const profileDropdownRef = ref(null)
+const showDocsConfirm = ref(false)
 
 // Page title, description, and icon mapping
 const pageInfo = computed(() => {
@@ -199,13 +201,16 @@ const toggleProfileDropdown = () => {
 
 const handleProfileAction = (action) => {
   showProfileDropdown.value = false
-  
+
   switch (action) {
     case 'profile':
       emit('change-page', 'settings', 'nostr')
       break
     case 'settings':
       emit('change-page', 'settings', 'alerts')
+      break
+    case 'docs':
+      window.open('https://docs-zaptracker.netlify.app', '_blank', 'noopener,noreferrer')
       break
     case 'account':
       console.log('Navigate to account')
@@ -214,6 +219,19 @@ const handleProfileAction = (action) => {
       logout()
       break
   }
+}
+
+const handleDocsClick = () => {
+  showDocsConfirm.value = true
+}
+
+const confirmDocs = () => {
+  showDocsConfirm.value = false
+  window.open('https://docs-zaptracker.netlify.app', '_blank', 'noopener,noreferrer')
+}
+
+const cancelDocs = () => {
+  showDocsConfirm.value = false
 }
 
 const handleRefresh = () => {
@@ -261,6 +279,15 @@ const handleLoginClick = async () => {
       
       <!-- Right Side Actions -->
       <div class="flex items-center space-x-2 sm:space-x-3">
+        <!-- Docs Button - Desktop - Always Visible -->
+        <button
+          @click="handleDocsClick"
+          class="hidden md:flex items-center space-x-2 p-2 text-gray-500 hover:text-orange-600 rounded-lg transition-all duration-200 hover:bg-orange-50 group touch-target"
+          title="Documentation"
+        >
+          <IconBook class="w-5 h-5" />
+        </button>
+
         <!-- How to Start Button - Desktop - Always Visible -->
         <button
           @click="emit('show-help')"
@@ -382,24 +409,32 @@ const handleLoginClick = async () => {
                 <div class="px-4 py-2">
                   <div class="text-xs font-medium text-gray-500 uppercase tracking-wider">My Account</div>
                 </div>
-                
-                <button 
+
+                <button
                   @click="handleProfileAction('profile')"
                   class="w-full flex items-center space-x-3 px-4 py-2 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-700 transition-colors duration-200"
                 >
                   <IconUser class="w-4 h-4" />
                   <span>Profile</span>
                 </button>
-                
-                <button 
+
+                <button
                   @click="handleProfileAction('settings')"
                   class="w-full flex items-center space-x-3 px-4 py-2 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-700 transition-colors duration-200"
                 >
                   <IconSettings class="w-4 h-4" />
                   <span>Settings</span>
                 </button>
+
+                <button
+                  @click="handleProfileAction('docs')"
+                  class="w-full flex items-center space-x-3 px-4 py-2 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-700 transition-colors duration-200"
+                >
+                  <IconBook class="w-4 h-4" />
+                  <span>Documentation</span>
+                </button>
               </div>
-              
+
               <!-- Divider -->
               <div class="border-t border-gray-100 my-1"></div>
               
@@ -423,6 +458,42 @@ const handleLoginClick = async () => {
         </template>
       </div>
     </div>
+
+    <!-- Documentation Confirmation Modal -->
+    <Teleport to="body">
+      <transition name="modal-fade">
+        <div v-if="showDocsConfirm" class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">
+          <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-scale-in">
+            <div class="flex items-start space-x-4 mb-6">
+              <div class="w-12 h-12 bg-gradient-to-br from-orange-100 to-amber-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                <IconBook class="w-6 h-6 text-orange-600" />
+              </div>
+              <div class="flex-1">
+                <h3 class="text-lg font-semibold text-gray-900 mb-2">Visit Documentation?</h3>
+                <p class="text-sm text-gray-600 leading-relaxed">
+                  You're about to visit the ZapTracker documentation. Learn about features, use cases, and get help with common questions.
+                </p>
+              </div>
+            </div>
+
+            <div class="flex gap-3">
+              <button
+                @click="cancelDocs"
+                class="flex-1 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium transition-all duration-200"
+              >
+                Cancel
+              </button>
+              <button
+                @click="confirmDocs"
+                class="flex-1 px-4 py-2.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white rounded-xl font-medium shadow-md hover:shadow-lg transition-all duration-200"
+              >
+                Open Docs
+              </button>
+            </div>
+          </div>
+        </div>
+      </transition>
+    </Teleport>
   </div>
 </template>
 
@@ -441,5 +512,31 @@ const handleLoginClick = async () => {
 .dropdown-leave-to {
   opacity: 0;
   transform: translateY(-10px) scale(0.95);
+}
+
+/* Modal transitions */
+.modal-fade-enter-active,
+.modal-fade-leave-active {
+  transition: opacity 0.2s ease-out;
+}
+
+.modal-fade-enter-from,
+.modal-fade-leave-to {
+  opacity: 0;
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-scale-in {
+  animation: scale-in 0.2s ease-out;
 }
 </style>
