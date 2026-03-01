@@ -664,16 +664,15 @@ onUnmounted(() => {
                   {{ selectedContent.title }}
                 </h1>
                 
-                <!-- Hashtags (moved after title) -->
-                <div v-if="selectedContent.tags && selectedContent.tags.length > 0" class="mb-6">
-                  <div class="flex flex-wrap gap-2">
+                <!-- Hashtags -->
+                <div v-if="selectedContent.tags && selectedContent.tags.length > 0" class="mb-5">
+                  <div class="flex flex-wrap gap-1.5">
                     <span
                       v-for="tag in selectedContent.tags"
                       :key="tag"
-                      class="inline-flex items-center space-x-1 bg-gradient-to-r from-orange-100 to-amber-100 text-orange-700 px-3 py-2 rounded-full text-sm font-medium hover:from-orange-200 hover:to-amber-200 transition-all duration-200 cursor-pointer"
+                      class="inline-flex items-center text-[11px] text-orange-600/80 bg-orange-50 px-2 py-0.5 rounded-md font-medium"
                     >
-                      <IconHash class="w-3 h-3" />
-                      <span>{{ tag }}</span>
+                      #{{ tag }}
                     </span>
                   </div>
                 </div>

@@ -14,14 +14,14 @@ const label = computed(() => {
 
   if (msgDate.getTime() === today.getTime()) return 'Today'
   if (msgDate.getTime() === yesterday.getTime()) return 'Yesterday'
-  return props.date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+  return props.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 })
 </script>
 
 <template>
-  <div class="flex items-center gap-4 my-4 px-4">
-    <div class="flex-1 h-px bg-gray-200"></div>
-    <span class="text-[11px] text-gray-400 font-medium select-none">{{ label }}</span>
-    <div class="flex-1 h-px bg-gray-200"></div>
+  <div class="flex items-center justify-center my-4">
+    <span class="text-[11px] text-gray-400 font-medium bg-gray-100/80 px-3 py-1 rounded-full select-none">
+      {{ label }}
+    </span>
   </div>
 </template>

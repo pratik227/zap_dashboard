@@ -251,13 +251,16 @@ export function useCampaigns() {
       return
     }
 
-    const campaignIds = userCampaigns.value.map(c => c.id)
+    // Only aggregate active campaigns — expired/completed ones serve from cached localStorage
+    const activeCampaigns = userCampaigns.value.filter(c => !isCampaignExpired(c) && !isCampaignCompleted(c.id))
+    const campaignIds = activeCampaigns.map(c => c.id)
+
+    // Abort any previous run before checking empty (cleans up stale live subscriptions)
+    stopCampaignZapAggregation()
+
     if (campaignIds.length === 0) {
       return
     }
-
-    // Abort any previous run
-    stopCampaignZapAggregation()
 
     const controller = new AbortController()
     aggregationAbortController = controller
@@ -808,8 +811,11 @@ export function useCampaigns() {
 
   // ── campaignIdSignature computed (replaces deep watcher) ─────────────────
 
+  // Only track active (non-expired) campaign IDs — avoid isCampaignCompleted here
+  // because it reads campaignAggregatedZaps (reactive Map), which would recompute
+  // this signature on every zap change. Completed filtering happens in startCampaignZapAggregation.
   const campaignIdSignature = computed(() =>
-    userCampaigns.value.map(c => c.id).sort().join(',')
+    userCampaigns.value.filter(c => !isCampaignExpired(c)).map(c => c.id).sort().join(',')
   )
 
   // ── Initialization ───────────────────────────────────────────────────────

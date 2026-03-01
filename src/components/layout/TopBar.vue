@@ -15,7 +15,6 @@ import {
   IconWallet,
   IconMessageCircle,
   IconFileText,
-  IconGift,
   IconShoppingCart,
   IconUsers,
   IconEdit,
@@ -73,11 +72,6 @@ const pageInfo = computed(() => {
       title: 'Content',
       description: 'Manage and analyze your content performance',
       icon: IconFileText
-    },
-    'donations': {
-      title: 'Donations',
-      description: 'Manage donation campaigns and goals',
-      icon: IconGift
     },
     'mini-pos': {
       title: 'Mini PoS',

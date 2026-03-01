@@ -78,7 +78,7 @@
         <div class="bg-gray-50 rounded-lg p-3 border">
           <div class="flex items-start gap-3">
             <div v-if="campaign.image" class="w-12 h-12 rounded overflow-hidden flex-shrink-0">
-              <img :src="campaign.image" :alt="campaign.title" class="w-full h-full object-cover" />
+              <img :src="campaign.image" :alt="campaign.title" class="w-full h-full object-cover" @error="$event.target.parentElement.style.display = 'none'" />
             </div>
             <div v-else class="w-12 h-12 bg-orange-100 rounded flex items-center justify-center flex-shrink-0">
               <IconTarget class="w-6 h-6 text-orange-600" />

@@ -18,6 +18,7 @@ src/
 │   ├── badges/          # Badge display and management
 │   ├── campaigns/       # Campaign/fundraising components
 │   ├── content/         # Content creation and management
+│   ├── media/           # Media library (Blossom upload, grid/list views)
 │   ├── layout/          # Layout components (Sidebar, TopBar)
 │   ├── modals/          # Modal dialogs
 │   ├── profile/         # Profile-related components
@@ -32,6 +33,7 @@ src/
 │   ├── auth/            # Authentication composables
 │   ├── campaigns/       # Campaign management composables
 │   ├── content/         # Content creation and publishing
+│   ├── media/           # Media state and Blossom server composables
 │   ├── core/            # Core app composables (BTC price, connections, notifications)
 │   ├── social/          # Social features (badges, chat)
 │   └── wallet/          # Lightning wallet composables
@@ -130,6 +132,23 @@ Components and composables for creating and managing Nostr content (long-form ar
 **Utils:**
 - `contentEncryption.js` - Content encryption/decryption
 - `contentService.js` - Content processing service
+
+### Media (`media/`)
+Media library for uploading, browsing, and managing files via Blossom servers.
+
+**Components:**
+- `MediaLibrary.vue` - Main orchestrator with grid/list toggle, search, bulk actions
+- `MediaGrid.vue` - Card-based grid view
+- `MediaList.vue` - Table-style list view with sortable columns
+- `MediaItem.vue` - Individual media card (thumbnail, overlay actions, action bar)
+- `MediaFilters.vue` - Type filter chips (all/image/video/audio) and sort dropdown
+- `MediaPreview.vue` - Fullscreen lightbox with keyboard navigation
+- `MediaUploader.vue` - Drag-and-drop upload zone
+- `ServerIndicator.vue` - Blossom server status indicator
+
+**Composables:**
+- `useMediaState.js` - Shared media state (files, filters, counts)
+- `useBlossom.js` - Blossom server upload/delete operations
 
 ### Layout (`layout/`)
 Core layout components.

@@ -52,8 +52,6 @@ import ContentRenderer from '../components/content/ContentRenderer.vue'
 import MentionInput from '../components/content/MentionInput.vue'
 import MentionRenderer from '../components/content/MentionRenderer.vue'
 import ThreadsPromo from '../components/shared/ThreadsPromo.vue'
-import BadgeList from '../components/badges/BadgeList.vue'
-import BadgeDetailModal from '../components/badges/BadgeDetailModal.vue'
 
 const { isAuthenticated, currentUser, userProfile, login } = useNostrAuth()
 
@@ -81,11 +79,12 @@ const {
 } = useNostrNotes()
 
 // Use content zaps composable to track zaps on notes
-const { 
-  startZapTracking, 
-  getZapsForContent, 
+const {
+  startZapTracking,
+  getZapsForContent,
   getTotalZapAmount,
-  getZapCount
+  getZapCount,
+  contentZaps
 } = useContentZaps()
 
 const {
@@ -118,13 +117,6 @@ const showSuccessModal = ref(false)
 const lastPublishResult = ref(null)
 const showPreview = ref(false)
 
-// Badge detail modal state
-const showBadgeDetailModal = ref(false)
-const selectedBadge = ref(null)
-const handleBadgeClick = (badge) => {
-  selectedBadge.value = badge
-  showBadgeDetailModal.value = true
-}
 
 // Debounced note stats — avoids recomputing on every single zap/engagement event
 const noteStats = ref({
@@ -158,8 +150,9 @@ function recalcNoteStats() {
   }, 2000)
 }
 
-// Recalc stats when notes list changes (not deep)
+// Recalc stats when notes list changes or zaps arrive
 watch(() => notes.value.length, recalcNoteStats, { immediate: true })
+watch(contentZaps, recalcNoteStats)
 
 // Calculate total zap revenue in USD
 const revenueInUSD = computed(() => {
@@ -766,28 +759,19 @@ const handleMentionClick = ({ pubkey, profile }) => {
               <div class="flex items-start space-x-4">
                 <!-- User Avatar -->
                 <div class="w-10 h-10 rounded-full overflow-hidden border-2 border-orange-200 flex-shrink-0">
-                  <img 
-                    :src="userProfile?.picture || generateAvatar(currentUser?.pubkey)" 
+                  <img
+                    :src="userProfile?.picture || generateAvatar(currentUser?.pubkey)"
                     :alt="userProfile?.name || 'You'"
                     class="w-full h-full object-cover"
+                    @error="$event.target.src = generateAvatar(currentUser?.pubkey)"
                   />
                 </div>
-                
+
                 <!-- Note Content -->
                 <div class="flex-1 min-w-0">
                   <!-- Header -->
                   <div class="flex items-center space-x-2 mb-2">
                     <span class="font-medium text-gray-900">{{ userProfile?.name || 'You' }}</span>
-                    <BadgeList
-                      v-if="currentUser?.pubkey"
-                      :pubkey="currentUser.pubkey"
-                      size="small"
-                      :max-display="3"
-                      :show-count="false"
-                      :show-view-all="false"
-                      layout="horizontal"
-                      @badge-click="handleBadgeClick"
-                    />
                     <span class="text-sm text-gray-500">{{ getTimeAgo(note.created_at) }}</span>
                     <span class="text-xs text-gray-400">•</span>
                     <span class="text-xs text-purple-600 bg-purple-100 px-2 py-0.5 rounded-full">On Nostr</span>
@@ -924,13 +908,14 @@ const handleMentionClick = ({ pubkey, profile }) => {
             <div class="flex space-x-3">
               <!-- User Avatar -->
               <div class="w-12 h-12 rounded-full overflow-hidden border-2 border-orange-200 flex-shrink-0">
-                <img 
-                  :src="userProfile?.picture || generateAvatar(currentUser?.pubkey)" 
+                <img
+                  :src="userProfile?.picture || generateAvatar(currentUser?.pubkey)"
                   :alt="userProfile?.name || 'You'"
                   class="w-full h-full object-cover"
+                  @error="$event.target.src = generateAvatar(currentUser?.pubkey)"
                 />
               </div>
-              
+
               <!-- Text Input Area -->
               <div class="flex-1">
                 <!-- Edit Mode -->
@@ -1031,25 +1016,16 @@ const handleMentionClick = ({ pubkey, profile }) => {
               <div class="flex items-center justify-between p-6 border-b border-gray-200">
                 <div class="flex items-center space-x-3">
                   <div class="w-10 h-10 rounded-full overflow-hidden border-2 border-orange-200">
-                    <img 
-                      :src="userProfile?.picture || generateAvatar(currentUser?.pubkey)" 
+                    <img
+                      :src="userProfile?.picture || generateAvatar(currentUser?.pubkey)"
                       :alt="userProfile?.name || 'You'"
                       class="w-full h-full object-cover"
+                      @error="$event.target.src = generateAvatar(currentUser?.pubkey)"
                     />
                   </div>
                   <div>
                     <div class="flex items-center space-x-2">
                       <h3 class="font-semibold text-gray-900">{{ userProfile?.name || 'Your Note' }}</h3>
-                      <BadgeList
-                        v-if="currentUser?.pubkey"
-                        :pubkey="currentUser.pubkey"
-                        size="small"
-                        :max-display="3"
-                        :show-count="false"
-                        :show-view-all="false"
-                        layout="horizontal"
-                        @badge-click="handleBadgeClick"
-                      />
                     </div>
                     <p class="text-sm text-gray-500">{{ enhancedSelectedNote.formattedDate }}</p>
                   </div>
@@ -1246,9 +1222,4 @@ const handleMentionClick = ({ pubkey, profile }) => {
     @close="closeSuccessModal"
   />
 
-  <BadgeDetailModal
-    :show="showBadgeDetailModal"
-    :badge="selectedBadge"
-    @close="showBadgeDetailModal = false; selectedBadge = null"
-  />
 </template>

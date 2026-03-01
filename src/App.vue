@@ -1,5 +1,5 @@
 <script setup>
-import { ref, provide, watch, onMounted, nextTick,computed, onUnmounted } from 'vue'
+import { ref, provide, watch, onMounted, nextTick, computed, onUnmounted, defineAsyncComponent } from 'vue'
 import { IconAlertTriangle, IconX } from '@iconify-prerendered/vue-tabler'
 import Sidebar from './components/layout/Sidebar.vue'
 import { useContentZaps } from './composables/content/useContentZaps.js'
@@ -12,19 +12,11 @@ import { useNostrLongForm } from './composables/content/useNostrLongForm.js'
 import { useNostrAuth } from './composables/auth/useNostrAuth.js'
 import ZapFeed from './pages/ZapFeed.vue'
 import Analytics from './pages/Analytics.vue'
-import ChatZaps from './pages/ChatZaps.vue'
 import Content from './pages/Content.vue'
-import ContentUnlock from './pages/ContentUnlock.vue'
 import Campaigns from './pages/Campaigns.vue'
-import CampaignView from './pages/CampaignView.vue'
-import CampaignNotFound from './pages/CampaignNotFound.vue'
-import Audience from './pages/Audience.vue'
-import MiniPoS from './pages/MiniPoS.vue'
-import Wallet from './pages/Wallet.vue'
-import Finances from './pages/Finances.vue'
-import Settings from './pages/Settings.vue'
-import InvoiceShare from './pages/InvoiceShare.vue'
 import Notes from './pages/Notes.vue'
+import Wallet from './pages/Wallet.vue'
+import Settings from './pages/Settings.vue'
 import NWCConnection from './components/wallet/NWCConnection.vue'
 import ErrorBoundary from './components/shared/ErrorBoundary.vue'
 import { useNostrConnections } from './composables/core/useNostrConnections.js'
@@ -33,12 +25,23 @@ import { nostrRelayManager } from './utils/network/nostrRelayManager.js'
 import { useNostrNotes } from './composables/content/useNostrNotes.js'
 import { startRefreshCycle, stopRefreshCycle, setActiveGroup } from './utils/refreshCycle.js'
 import { APP_HARD_TIMEOUT, RELAY_READY_TIMEOUT } from './utils/constants.js'
-import Calendar from './pages/Calendar.vue'
-import ContestResolver from './pages/ContestResolver.vue'
-import Media from './pages/Media.vue'
-import WelcomeModal from './components/modals/WelcomeModal.vue'
-import HelpModal from './components/modals/HelpModal.vue'
 import AppLoader from './components/layout/AppLoader.vue'
+import PwaInstallBanner from './components/pwa/PwaInstallBanner.vue'
+
+// Lazy-loaded pages (not needed for initial dashboard data)
+const ChatZaps = defineAsyncComponent(() => import('./pages/ChatZaps.vue'))
+const ContentUnlock = defineAsyncComponent(() => import('./pages/ContentUnlock.vue'))
+const CampaignView = defineAsyncComponent(() => import('./pages/CampaignView.vue'))
+const CampaignNotFound = defineAsyncComponent(() => import('./pages/CampaignNotFound.vue'))
+const Audience = defineAsyncComponent(() => import('./pages/Audience.vue'))
+const MiniPoS = defineAsyncComponent(() => import('./pages/MiniPoS.vue'))
+const Finances = defineAsyncComponent(() => import('./pages/Finances.vue'))
+const InvoiceShare = defineAsyncComponent(() => import('./pages/InvoiceShare.vue'))
+const Calendar = defineAsyncComponent(() => import('./pages/Calendar.vue'))
+const ContestResolver = defineAsyncComponent(() => import('./pages/ContestResolver.vue'))
+const Media = defineAsyncComponent(() => import('./pages/Media.vue'))
+const WelcomeModal = defineAsyncComponent(() => import('./components/modals/WelcomeModal.vue'))
+const HelpModal = defineAsyncComponent(() => import('./components/modals/HelpModal.vue'))
 
 // App loading gate
 const appReady = ref(false)
@@ -132,10 +135,10 @@ const { getAllContentZaps } = useContentZaps()
 // Content zaps now self-initialize via watch(isAuthenticated)
 
 // Use the user zaps composable for #p-based zap subscription
-const { userZaps } = useUserZaps()
+const { userZaps, isLoading: isUserZapsLoading } = useUserZaps()
 
 // Initialize notes tracking early (composable self-registers with refresh cycle)
-const { notes } = useNostrNotes()
+const { notes, isFetchingNotes } = useNostrNotes()
 useNostrLongForm() // triggers composable initialization + refresh registration
 
 // Global state
@@ -749,23 +752,41 @@ const runLoadingSequence = async () => {
   loadingPhase.value = 'profile'
   await new Promise(r => setTimeout(r, 800))
 
-  // Phase: syncing — wait for actual data instead of a fake sleep
+  // Phase: syncing — wait for composables to finish their initial fetch
   loadingPhase.value = 'syncing'
   await Promise.race([
     new Promise(resolve => {
-      // Check if we already have data
-      if (notes.value.length > 0 || userZaps.value.length > 0) {
-        resolve()
-        return
+      // Track whether each loader has started (gone true at least once).
+      // isFetchingNotes starts false, awaits relay ready, then flips true.
+      // We must not resolve before it even starts.
+      let zapsStarted = isUserZapsLoading.value
+      let notesStarted = isFetchingNotes.value
+
+      const isDone = () => {
+        // Both must have started and finished, OR have data already
+        const zapsReady = zapsStarted && !isUserZapsLoading.value
+        const notesReady = notesStarted && !isFetchingNotes.value
+        const hasData = notes.value.length > 0 || userZaps.value.length > 0
+        return (zapsReady && notesReady) || hasData
       }
-      // Watch for data to arrive
+
+      if (isDone()) { resolve(); return }
+
       const unwatch = watch(
-        () => notes.value.length + userZaps.value.length,
-        (total) => { if (total > 0) { unwatch(); resolve() } }
+        () => ({
+          zapsLoading: isUserZapsLoading.value,
+          notesLoading: isFetchingNotes.value,
+          dataLen: notes.value.length + userZaps.value.length
+        }),
+        ({ zapsLoading, notesLoading }) => {
+          if (zapsLoading) zapsStarted = true
+          if (notesLoading) notesStarted = true
+          if (isDone()) { unwatch(); resolve() }
+        }
       )
-      // Also resolve after a short time if no data arrives (new user)
     }),
-    new Promise(r => setTimeout(r, 3000))
+    // Safety net: don't block forever (new user with no data, or slow relays)
+    new Promise(r => setTimeout(r, 12000))
   ])
 
   // Phase: ready
@@ -836,6 +857,10 @@ const handleChecklistTaskAction = async (action) => {
       :user-name="storedUserName"
       :user-avatar="storedUserAvatar"
       :timed-out="loadingTimedOut"
+      :zap-count="userZaps.length"
+      :note-count="notes.length"
+      :zaps-loading="isUserZapsLoading"
+      :notes-loading="isFetchingNotes"
     />
   </Transition>
 
@@ -1110,6 +1135,9 @@ const handleChecklistTaskAction = async (action) => {
         </div>
       </transition>
     </Teleport>
+
+    <!-- PWA Install Banner -->
+    <PwaInstallBanner />
   </div>
 </template>
 

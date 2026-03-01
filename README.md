@@ -140,6 +140,14 @@ npm run preview
 
 [See Blog Post on Geyser](https://geyser.fund/project/zaptracker/posts/view/4860?hero=drshift)
 
+### Media Library
+- Upload and manage media via decentralized Blossom servers
+- Grid and list views with type filtering (images, video, audio)
+- Fullscreen preview with keyboard navigation
+- Copy URL, download, and bulk delete operations
+- Drag-and-drop upload with multi-server support
+
+> See [GUIDE.md - Media Management](GUIDE.md#media-management) for details.
 
 ### Analytics
 - Live zap tracking and statistics

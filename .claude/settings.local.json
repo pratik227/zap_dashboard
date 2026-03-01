@@ -17,7 +17,8 @@
       "WebFetch(domain:nips.nostr.com)",
       "WebFetch(domain:thebitcoinmanual.com)",
       "Bash(ls:*)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(node:*)"
     ]
   }
 }

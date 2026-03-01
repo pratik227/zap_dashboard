@@ -4,7 +4,6 @@
       v-for="file in files"
       :key="file.hash"
       :file="file"
-      :selectable="selectable"
       :is-selected="selectedFiles.has(file.hash)"
       @preview="$emit('preview', $event)"
       @delete="$emit('delete', $event)"
@@ -19,7 +18,6 @@ import MediaItem from './MediaItem.vue'
 
 defineProps({
   files: { type: Array, required: true },
-  selectable: { type: Boolean, default: false },
   selectedFiles: { type: Set, default: () => new Set() }
 })
 

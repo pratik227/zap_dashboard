@@ -31,7 +31,8 @@ import {
   fetchTransactions,
   makeInvoice,
   payInvoice,
-  lookupInvoice
+  lookupInvoice,
+  getUserFriendlyError
 } from '../utils/wallet/nwcClient.js'
 import { QrcodeStream } from 'vue-qrcode-reader'
 const { isWalletConnected, activeConnection } = useNostrConnections()
@@ -110,24 +111,21 @@ onMounted(() => {
   checkCameraPermission()
 })
 
-// Watch for new payment notifications and refresh wallet data
-watch(notifications, (newNotifications, oldNotifications) => {
-  if (!isWalletConnected.value) return
-  
-  // Check if there are new payment-related notifications
-  const hasNewPaymentNotification = newNotifications.length > (oldNotifications?.length || 0) &&
-    newNotifications.some(notification => 
-      (notification.type === 'zap_received' || notification.type === 'payment_success') &&
-      !notification.read
-    )
-  
+// Watch for new payment notifications and refresh wallet data (track length, not deep)
+watch(() => notifications.value.length, (newLen, oldLen) => {
+  if (!isWalletConnected.value || !newLen || newLen <= (oldLen || 0)) return
+
+  const hasNewPaymentNotification = notifications.value.some(notification =>
+    (notification.type === 'zap_received' || notification.type === 'payment_success') &&
+    !notification.read
+  )
+
   if (hasNewPaymentNotification) {
-    console.log('New payment notification detected, refreshing wallet data...')
     setTimeout(() => {
       refreshData()
-    }, 1000) // Small delay to ensure transaction is fully processed
+    }, 1000)
   }
-}, { deep: true })
+})
 
 onUnmounted(() => {
   if (invoicePolling.value) {
@@ -157,26 +155,39 @@ const loadWalletData = async () => {
   error.value = ''
   
   try {
-    const [balanceData, infoData, transactionData] = await Promise.all([
+    const [balanceResult, infoResult, transactionResult] = await Promise.allSettled([
       getBalance(),
       getWalletInfo(),
       fetchTransactions()
     ])
-    
-    if (balanceData) {
-      balance.value = balanceData.balance || 0
+
+    if (balanceResult.status === 'fulfilled' && balanceResult.value) {
+      balance.value = balanceResult.value.balance || 0
+    } else if (balanceResult.status === 'rejected') {
+      console.warn('Balance fetch failed:', balanceResult.reason?.message)
     }
-    
-    if (infoData) {
-      walletInfo.value = infoData
+
+    if (infoResult.status === 'fulfilled' && infoResult.value) {
+      walletInfo.value = infoResult.value
+    } else if (infoResult.status === 'rejected') {
+      console.warn('Wallet info fetch failed:', infoResult.reason?.message)
     }
-    
-    if (transactionData) {
-      transactions.value = transactionData
+
+    if (transactionResult.status === 'fulfilled' && transactionResult.value) {
+      transactions.value = transactionResult.value
+    } else if (transactionResult.status === 'rejected') {
+      console.warn('Transaction fetch failed:', transactionResult.reason?.message)
+    }
+
+    // Show error only if all requests failed
+    const failures = [balanceResult, infoResult, transactionResult].filter(r => r.status === 'rejected')
+    if (failures.length === 3) {
+      error.value = getUserFriendlyError(failures[0].reason)
+    } else if (failures.length > 0) {
+      error.value = `Some data unavailable. ${getUserFriendlyError(failures[0].reason)}`
     }
   } catch (err) {
-    error.value = 'Failed to load wallet data: ' + err.message
-    console.error('Wallet data loading error:', err)
+    error.value = getUserFriendlyError(err)
   } finally {
     isLoading.value = false
   }
@@ -224,8 +235,7 @@ const createInvoice = async () => {
     startInvoicePolling(invoice.payment_hash)
     
   } catch (err) {
-    error.value = 'Failed to create invoice: ' + err.message
-    console.error('Invoice creation error:', err)
+    error.value = getUserFriendlyError(err)
   } finally {
     isLoading.value = false
   }
@@ -340,10 +350,9 @@ const sendPayment = async () => {
     }, 3000)
     
   } catch (err) {
-    error.value = 'Payment failed: ' + err.message
+    error.value = getUserFriendlyError(err)
     paymentStatus.value = 'error'
     handlePaymentError(err)
-    console.error('Payment error:', err)
   } finally {
     isLoading.value = false
   }

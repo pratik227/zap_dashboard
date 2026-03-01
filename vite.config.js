@@ -43,39 +43,42 @@ export default defineConfig({
                 ],
                 screenshots: [
                     {
-                        src: 'dashboard.png',
+                        src: 'Onboarding-Pictures/dashboard.png',
                         sizes: '1280x720',
                         type: 'image/png',
                         label: 'Main dashboard view'
                     },
                     {
-                        src: 'wallet.png',
-                        sizes: '1280x720',
-                        type: 'image/png',
-                        label: 'Wallet overview'
-                    },
-                    {
-                        src: 'analytics.png',
+                        src: 'Onboarding-Pictures/analytics.png',
                         sizes: '1280x720',
                         type: 'image/png',
                         label: 'Analytics dashboard'
                     },
                     {
-                        src: 'zaps.png',
+                        src: 'Onboarding-Pictures/campaigns.png',
+                        sizes: '1280x720',
+                        type: 'image/png',
+                        label: 'Campaigns overview'
+                    },
+                    {
+                        src: 'Onboarding-Pictures/zapfeed.png',
                         sizes: '1280x720',
                         type: 'image/png',
                         label: 'Zap feed view'
                     },
                     {
-                        src: 'chat_zap_2.png',
+                        src: 'Onboarding-Pictures/chat.png',
                         sizes: '1280x720',
                         type: 'image/png',
-                        label: 'Zap feed view'
+                        label: 'Chat messaging'
                     }
                 ]
             }
         })
     ],
+    esbuild: {
+        drop: ['console', 'debugger']
+    },
     build: {
         rollupOptions: {
             output: {

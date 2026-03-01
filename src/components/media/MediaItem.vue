@@ -25,13 +25,13 @@
         <span v-if="file.created" class="scrim-date">{{ relativeDate(file.created) }}</span>
       </div>
 
-      <!-- Server count indicator -->
+      <!-- Server count indicator (top-left, offset to clear checkbox) -->
       <span v-if="file.servers?.length > 1" class="server-badge" :title="`On ${file.servers.length} servers`">
         <IconServer2 class="server-badge-icon" />
         {{ file.servers.length }}
       </span>
 
-      <!-- Hover overlay -->
+      <!-- Hover overlay (desktop) -->
       <div class="media-overlay" @click.stop>
         <button class="overlay-btn" title="Copy URL" @click="copyUrl">
           <IconCheck v-if="copied" class="overlay-btn-icon" />
@@ -49,9 +49,23 @@
       </div>
 
       <!-- Selection checkbox -->
-      <label v-if="selectable" class="media-checkbox" @click.stop>
+      <label class="media-checkbox" :class="{ 'media-checkbox--visible': isSelected }" @click.stop>
         <input type="checkbox" :checked="isSelected" @change="$emit('toggle', file.hash)" />
       </label>
+    </div>
+
+    <!-- Action bar (always visible, used on touch + provides clean row below thumb) -->
+    <div class="media-actions-bar">
+      <button class="bar-btn" title="Copy URL" @click.stop="copyUrl">
+        <IconCheck v-if="copied" class="bar-btn-icon" />
+        <IconCopy v-else class="bar-btn-icon" />
+      </button>
+      <button class="bar-btn" title="Download" @click.stop="$emit('download', file)">
+        <IconDownload class="bar-btn-icon" />
+      </button>
+      <button class="bar-btn bar-btn--danger" title="Delete" @click.stop="$emit('delete', file.hash)">
+        <IconTrash class="bar-btn-icon" />
+      </button>
     </div>
   </div>
 </template>
@@ -71,7 +85,6 @@ import {
 
 const props = defineProps({
   file: { type: Object, required: true },
-  selectable: { type: Boolean, default: false },
   isSelected: { type: Boolean, default: false }
 })
 
@@ -131,7 +144,8 @@ function relativeDate(timestamp) {
   box-shadow: var(--shadow-md);
 }
 
-.media-item--selected {
+.media-item--selected,
+.media-item--selected:hover {
   border-color: var(--color-primary);
   box-shadow: 0 0 0 1px var(--color-primary);
 }
@@ -187,11 +201,11 @@ function relativeDate(timestamp) {
   z-index: 2;
 }
 
-/* Server count (top-left) */
+/* Server count (top-left, offset right to clear checkbox) */
 .server-badge {
   position: absolute;
   top: 0.375rem;
-  left: 0.375rem;
+  left: 1.75rem;
   display: flex;
   align-items: center;
   gap: 0.2rem;
@@ -289,16 +303,81 @@ function relativeDate(timestamp) {
   left: 0.375rem;
   cursor: pointer;
   z-index: 4;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.media-item:hover .media-checkbox,
+.media-checkbox--visible {
+  opacity: 1;
 }
 
 .media-checkbox input {
   width: 1rem;
   height: 1rem;
   accent-color: var(--color-primary);
+  cursor: pointer;
 }
 
-/* On mobile: always show scrim, never show hover overlay */
+/* ===================================================================
+   Action bar (below thumbnail)
+   =================================================================== */
+.media-actions-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.125rem;
+  padding: 0.25rem 0.375rem;
+  border-top: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.bar-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-subtle);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.bar-btn:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-text);
+}
+
+.bar-btn--danger:hover {
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+}
+
+.bar-btn-icon {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+
+/* Touch devices: disable hover effects, always show controls */
 @media (hover: none) {
+  .media-item:hover {
+    transform: none;
+    box-shadow: none;
+    border-color: var(--color-border);
+  }
+
+  .media-item--selected:hover {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 1px var(--color-primary);
+  }
+
+  .media-item:hover .media-thumb img {
+    transform: none;
+  }
+
   .media-scrim {
     opacity: 1;
   }
@@ -306,6 +385,20 @@ function relativeDate(timestamp) {
   .media-overlay {
     opacity: 0;
     pointer-events: none;
+  }
+
+  .media-checkbox {
+    opacity: 1;
+  }
+
+  .bar-btn {
+    width: 2rem;
+    height: 2rem;
+  }
+
+  .bar-btn-icon {
+    width: 1rem;
+    height: 1rem;
   }
 }
 </style>

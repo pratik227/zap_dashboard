@@ -1,29 +1,78 @@
-import { ref, reactive, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useNostrAuth } from '../auth/useNostrAuth.js'
-import { useNostrConnections } from '../core/useNostrConnections.js'
-import { useNotifications } from '../core/useNotifications.js'
 import { nostrRelayManager } from '../../utils/network/nostrRelayManager.js'
 import { nip04, nip44, hexToBytes } from 'nostr-core'
 import { finalizeEvent, verifyEvent } from 'nostr-tools/pure'
-import { payInvoice, makeInvoice } from '../../utils/wallet/nwcClient.js'
 import * as nip19 from 'nostr-tools/nip19'
 import { fetchProfile } from '../../utils/profile/profileFetcher.js'
 import { generateAvatar } from '../../utils/profile/avatarGenerator.js'
 
+/**
+ * Map chat/encryption errors to user-friendly messages.
+ */
+export function getUserFriendlyChatError(error) {
+  const msg = error.message?.toLowerCase() || ''
+
+  // Encryption/decryption failures
+  if (msg.includes('no encryption method') || msg.includes('no decryption method')) {
+    return 'No encryption key available. Please log in with a Nostr extension or private key.'
+  }
+  if (msg.includes('decrypt') || msg.includes('bad mac') || msg.includes('invalid ciphertext')) {
+    return 'Could not decrypt this message. It may use a different encryption protocol.'
+  }
+  if (msg.includes('encrypt')) {
+    return 'Failed to encrypt message. Please check your connection and try again.'
+  }
+
+  // Signing failures
+  if (msg.includes('no signing method')) {
+    return 'Cannot sign messages. Please connect a Nostr extension or provide a private key.'
+  }
+  if (msg.includes('signature verification failed')) {
+    return 'Message signature verification failed. Please try again.'
+  }
+
+  // Relay/network failures
+  if (msg.includes('publish') || msg.includes('relay')) {
+    return 'Could not deliver message. Relays may be unreachable — try again shortly.'
+  }
+
+  // Identity errors
+  if (msg.includes('cannot message yourself')) {
+    return 'You cannot send messages to yourself.'
+  }
+  if (msg.includes('invalid npub') || msg.includes('invalid pubkey')) {
+    return 'Invalid user address. Please check the npub or pubkey format.'
+  }
+  if (msg.includes('not authenticated')) {
+    return 'You need to log in before sending messages.'
+  }
+  if (msg.includes('empty') || msg.includes('cannot be empty')) {
+    return 'Please enter a message before sending.'
+  }
+
+  return error.message || 'Something went wrong. Please try again.'
+}
+
 // Global state for chat
-const conversations = ref(new Map()) // Map<pubkey, conversation>
-const messages = ref(new Map()) // Map<conversationId, message[]>
+const conversations = ref(new Map())
+const messages = ref(new Map())
 const activeConversation = ref(null)
 const isLoading = ref(false)
+const isSending = ref(false)
 const error = ref('')
 
 // Chat subscription management
 let chatSubscription = null
-let profileSubscriptions = new Map()
 const processedEventIds = new Set()
+const MAX_PROCESSED_IDS = 2000
 
 // NIP-44 conversation key cache
 const conversationKeyCache = new Map()
+
+// Reactivity version counter — incremented to force computed re-evaluation
+const _version = ref(0)
+const triggerUpdate = () => { _version.value++ }
 
 const getOrCreateConversationKey = (privkeyHex, pubkeyHex) => {
   if (conversationKeyCache.has(pubkeyHex)) {
@@ -45,8 +94,8 @@ const createMessage = (event, decryptedContent, isOutgoing = false) => {
     sender: event.pubkey,
     recipient: event.tags.find(tag => tag[0] === 'p')?.[1],
     rawEvent: event,
-    status: 'sent', // sent, delivered, failed
-    zap: null // Will contain zap info if message has attached zap
+    status: 'sent',
+    zap: null
   }
 }
 
@@ -63,19 +112,13 @@ const createConversation = (pubkey, profile = null) => {
     },
     lastMessage: null,
     lastMessageTime: 0,
-    unreadCount: 0,
-    isPaidDM: false,
-    paidDMAmount: 0,
-    isBlocked: false
+    unreadCount: 0
   }
 }
-
-// generateAvatar imported from avatarGenerator.js
 
 // Fetch user profile using centralized profileFetcher
 const fetchUserProfile = async (pubkey) => {
   const profile = await fetchProfile(pubkey, { ttl: 3600000 })
-  // Fallback avatar if missing
   if (profile && !profile.picture) {
     profile.picture = generateAvatar(pubkey)
   }
@@ -84,61 +127,80 @@ const fetchUserProfile = async (pubkey) => {
 
 // Unified encrypt helper — prefers NIP-44, falls back to NIP-04
 const encryptMessage = async (content, recipientPubkey, currentUser) => {
-  // NIP-07 extension with NIP-44
   if (window.nostr?.nip44?.encrypt) {
-    return await window.nostr.nip44.encrypt(recipientPubkey, content)
+    try {
+      return await window.nostr.nip44.encrypt(recipientPubkey, content)
+    } catch (e) {
+      console.warn('NIP-44 extension encrypt failed, trying fallback:', e.message)
+    }
   }
-  // Local privkey with NIP-44
   if (currentUser.privkey) {
-    const convKey = getOrCreateConversationKey(currentUser.privkey, recipientPubkey)
-    return nip44.encrypt(content, convKey)
+    try {
+      const convKey = getOrCreateConversationKey(currentUser.privkey, recipientPubkey)
+      return nip44.encrypt(content, convKey)
+    } catch (e) {
+      console.warn('NIP-44 local encrypt failed, trying NIP-04:', e.message)
+    }
   }
-  // NIP-07 extension NIP-04 fallback
   if (window.nostr?.nip04?.encrypt) {
-    console.warn('Extension does not support NIP-44, falling back to NIP-04')
     return await window.nostr.nip04.encrypt(recipientPubkey, content)
+  }
+  if (currentUser.privkey) {
+    return nip04.encrypt(currentUser.privkey, recipientPubkey, content)
   }
   throw new Error('No encryption method available')
 }
 
 // Unified decrypt helper — tries NIP-44 first, falls back to NIP-04
 const decryptMessage = async (content, counterpartyPubkey, currentUser) => {
-  // NIP-07 extension with NIP-44
   if (window.nostr?.nip44?.decrypt) {
     try {
       return await window.nostr.nip44.decrypt(counterpartyPubkey, content)
-    } catch (e) { /* NIP-44 failed, try NIP-04 */ }
+    } catch (e) {
+      console.warn('NIP-44 extension decrypt failed, trying fallback:', e.message)
+    }
   }
-  // Local privkey with NIP-44
   if (currentUser.privkey) {
     try {
       const convKey = getOrCreateConversationKey(currentUser.privkey, counterpartyPubkey)
       return nip44.decrypt(content, convKey)
-    } catch (e) { /* NIP-44 failed, try NIP-04 */ }
+    } catch (e) {
+      console.warn('NIP-44 local decrypt failed, trying NIP-04:', e.message)
+    }
   }
-  // NIP-07 extension NIP-04 fallback
   if (window.nostr?.nip04?.decrypt) {
     return await window.nostr.nip04.decrypt(counterpartyPubkey, content)
   }
-  // Local privkey NIP-04 fallback
   if (currentUser.privkey) {
     return nip04.decrypt(currentUser.privkey, counterpartyPubkey, content)
   }
   throw new Error('No decryption method available')
 }
 
+// Helper to add a message to a conversation (with reactivity fix)
+const addMessageToConversation = (pubkey, message) => {
+  const existing = messages.value.get(pubkey) || []
+  // Deduplicate
+  if (existing.some(m => m.id === message.id)) return false
+  const updated = [...existing, message].sort((a, b) => a.timestamp - b.timestamp)
+  messages.value.set(pubkey, updated)
+  triggerUpdate()
+  return true
+}
+
 export function useNostrChat() {
   const { currentUser, isAuthenticated } = useNostrAuth()
-  const { isWalletConnected } = useNostrConnections()
-  const { handleZapSent, handleZapReceived } = useNotifications()
 
-  // Computed properties
+
+  // Computed properties — depend on _version for forced re-evaluation
   const sortedConversations = computed(() => {
+    _version.value // dependency
     return Array.from(conversations.value.values())
       .sort((a, b) => b.lastMessageTime - a.lastMessageTime)
   })
 
   const activeMessages = computed(() => {
+    _version.value // dependency
     if (!activeConversation.value) return []
     return messages.value.get(activeConversation.value.id) || []
   })
@@ -149,24 +211,16 @@ export function useNostrChat() {
 
   // Initialize chat system
   const initializeChat = async () => {
-    if (!isAuthenticated.value || !currentUser.value?.pubkey) {
-      console.log('Not authenticated, cannot initialize chat')
-      return
-    }
+    if (!isAuthenticated.value || !currentUser.value?.pubkey) return
 
     isLoading.value = true
     error.value = ''
 
     try {
-      console.log('🚀 Initializing Nostr chat system...')
-      
-      // Subscribe to incoming DMs (kind 4 events)
       await subscribeToMessages()
-      
-      console.log('✅ Chat system initialized successfully')
     } catch (err) {
-      console.error('❌ Failed to initialize chat:', err)
-      error.value = 'Failed to initialize chat: ' + err.message
+      console.error('Failed to initialize chat:', err)
+      error.value = getUserFriendlyChatError(err)
     } finally {
       isLoading.value = false
     }
@@ -179,17 +233,15 @@ export function useNostrChat() {
     }
 
     try {
-      console.log('📥 Subscribing to incoming DMs...')
-      
       chatSubscription = nostrRelayManager.subscribeToEvents([
         {
-          kinds: [4], // Encrypted DMs
-          '#p': [currentUser.value.pubkey], // Messages to us
+          kinds: [4],
+          '#p': [currentUser.value.pubkey],
           limit: 100
         },
         {
-          kinds: [4], // Encrypted DMs
-          authors: [currentUser.value.pubkey], // Messages from us
+          kinds: [4],
+          authors: [currentUser.value.pubkey],
           limit: 100
         }
       ], {
@@ -197,55 +249,49 @@ export function useNostrChat() {
           handleIncomingMessage(event)
         },
         oneose: () => {
-          console.log('📡 End of stored DM events')
+          console.log('End of stored DM events')
         },
         onclose: (reason) => {
-          console.log('🔌 DM subscription closed:', reason)
+          console.log('DM subscription closed:', reason)
         }
       })
-
-      console.log('✅ Subscribed to DMs successfully')
     } catch (error) {
-      console.error('❌ Failed to subscribe to messages:', error)
+      console.error('Failed to subscribe to messages:', error)
       throw error
     }
   }
 
   // Handle incoming message events
   const handleIncomingMessage = async (event) => {
-    // Prevent duplicate processing
-    if (processedEventIds.has(event.id)) {
-      return
-    }
+    if (processedEventIds.has(event.id)) return
     processedEventIds.add(event.id)
+    if (processedEventIds.size > MAX_PROCESSED_IDS) {
+      // Keep newest half by deleting oldest entries (Set iterates in insertion order)
+      const toDelete = processedEventIds.size - Math.floor(MAX_PROCESSED_IDS / 2)
+      let count = 0
+      for (const id of processedEventIds) {
+        if (count++ >= toDelete) break
+        processedEventIds.delete(id)
+      }
+    }
 
     try {
-      console.log('📨 Processing incoming message:', event.id.substring(0, 16) + '...')
-      
-      // Determine if this is an outgoing or incoming message
       const isOutgoing = event.pubkey === currentUser.value.pubkey
-      const otherPartyPubkey = isOutgoing 
+      const otherPartyPubkey = isOutgoing
         ? event.tags.find(tag => tag[0] === 'p')?.[1]
         : event.pubkey
 
-      if (!otherPartyPubkey) {
-        return
-      }
+      if (!otherPartyPubkey) return
 
-      // Decrypt the message content (tries NIP-44 first, falls back to NIP-04)
+      // Decrypt
       let decryptedContent
-      const counterpartyPubkey = isOutgoing
-        ? event.tags.find(tag => tag[0] === 'p')?.[1]
-        : event.pubkey
-
       try {
-        decryptedContent = await decryptMessage(event.content, counterpartyPubkey, currentUser.value)
+        decryptedContent = await decryptMessage(event.content, otherPartyPubkey, currentUser.value)
       } catch (decryptError) {
         console.warn('Failed to decrypt message:', decryptError)
         decryptedContent = '[Encrypted message - unable to decrypt]'
       }
 
-      // Create message object
       const message = createMessage(event, decryptedContent, isOutgoing)
 
       // Get or create conversation
@@ -253,53 +299,47 @@ export function useNostrChat() {
       if (!conversation) {
         conversation = createConversation(otherPartyPubkey)
         conversations.value.set(otherPartyPubkey, conversation)
-        // Fetch profile for new conversation using centralized fetcher
         fetchUserProfile(otherPartyPubkey).then(profile => {
-          if (conversation) {
-            conversation.profile = profile
+          if (profile && conversations.value.has(otherPartyPubkey)) {
+            const conv = conversations.value.get(otherPartyPubkey)
+            conv.profile = profile
+            conversations.value.set(otherPartyPubkey, { ...conv })
+            triggerUpdate()
           }
         })
       }
 
-      // Add message to conversation
-      const conversationMessages = messages.value.get(otherPartyPubkey) || []
-      
-      // Check for duplicates
-      const existingMessage = conversationMessages.find(m => m.id === message.id)
-      if (!existingMessage) {
-        conversationMessages.push(message)
-        conversationMessages.sort((a, b) => a.timestamp - b.timestamp)
-        messages.value.set(otherPartyPubkey, conversationMessages)
-
-        // Update conversation metadata
+      // Add message
+      const added = addMessageToConversation(otherPartyPubkey, message)
+      if (added) {
         conversation.lastMessage = message.content
         conversation.lastMessageTime = message.timestamp
-        
-        if (!isOutgoing && (!activeConversation.value || activeConversation.value.id !== otherPartyPubkey)) {
-          conversation.unreadCount++
+
+        if (!isOutgoing && activeConversation.value?.id !== otherPartyPubkey) {
+          conversation.unreadCount = (conversation.unreadCount || 0) + 1
         }
 
-        console.log('✅ Added message to conversation:', otherPartyPubkey.substring(0, 8) + '...')
+        // Re-set conversation to trigger reactivity
+        conversations.value.set(otherPartyPubkey, { ...conversation })
+        triggerUpdate()
       }
-
     } catch (error) {
-      console.error('❌ Failed to process incoming message:', error)
+      console.error('Failed to process incoming message:', error)
     }
   }
 
   // Send a message
-  const sendMessage = async (recipientPubkey, content, zapAmount = 0) => {
+  const sendMessage = async (recipientPubkey, content) => {
     if (!canSendMessages.value) {
       throw new Error('Cannot send messages: not authenticated')
     }
-
     if (!content.trim()) {
       throw new Error('Message content cannot be empty')
     }
 
+    isSending.value = true
+
     try {
-      console.log('📤 Sending message to:', recipientPubkey.substring(0, 8) + '...')
-      
       // Encrypt the message (NIP-44 preferred, NIP-04 fallback)
       const encryptedContent = await encryptMessage(content, recipientPubkey, currentUser.value)
 
@@ -321,63 +361,51 @@ export function useNostrChat() {
         throw new Error('No signing method available')
       }
 
-      // Verify the event
       if (!verifyEvent(signedEvent)) {
         throw new Error('Event signature verification failed')
       }
 
+      // Optimistic: show message immediately before relay confirms
+      const optimisticMessage = createMessage(signedEvent, content, true)
+      optimisticMessage.status = 'sending'
+      addMessageToConversation(recipientPubkey, optimisticMessage)
+
+      // Update conversation metadata immediately
+      const conversation = conversations.value.get(recipientPubkey)
+      if (conversation) {
+        conversation.lastMessage = content
+        conversation.lastMessageTime = optimisticMessage.timestamp
+        conversations.value.set(recipientPubkey, { ...conversation })
+        triggerUpdate()
+      }
+
       // Publish the event
       const result = await nostrRelayManager.publishEvent(signedEvent)
-      
+
       if (result.successful === 0) {
+        // Mark as failed
+        const msgs = messages.value.get(recipientPubkey) || []
+        const msg = msgs.find(m => m.id === signedEvent.id)
+        if (msg) msg.status = 'failed'
+        triggerUpdate()
         throw new Error('Failed to publish message to any relays')
       }
 
-      console.log('✅ Message sent successfully to', result.successful, 'relays')
-
-      // Send zap if amount specified
-      if (zapAmount > 0 && isWalletConnected.value) {
-        try {
-          await sendZap(recipientPubkey, zapAmount, `Zap with message: ${content.substring(0, 50)}...`)
-        } catch (zapError) {
-          console.warn('⚠️ Message sent but zap failed:', zapError)
-        }
-      }
+      // Mark as sent
+      const msgs = messages.value.get(recipientPubkey) || []
+      const msg = msgs.find(m => m.id === signedEvent.id)
+      if (msg) msg.status = 'sent'
+      triggerUpdate()
 
       return signedEvent
-
-    } catch (error) {
-      console.error('❌ Failed to send message:', error)
-      throw error
-    }
-  }
-
-  // Send a zap
-  const sendZap = async (recipientPubkey, amountSats, comment = '') => {
-    if (!isWalletConnected.value) {
-      throw new Error('Wallet not connected')
-    }
-
-    try {
-      console.log('⚡ Sending zap:', amountSats, 'sats to', recipientPubkey.substring(0, 8) + '...')
-      
-      // For now, we'll use a simple invoice creation and payment
-      // In a full implementation, you'd create a proper zap request following NIP-57
-      
-      const invoice = await makeInvoice({
-        amount: amountSats * 1000, // Convert to msats
-        description: comment || `Zap from ${currentUser.value.profile?.name || 'Anonymous'}`
-      })
-
-      const payment = await payInvoice({ invoice: invoice.invoice })
-      
-      handleZapSent({ amount: amountSats })
-      console.log('✅ Zap sent successfully')
-      
-      return payment
-    } catch (error) {
-      console.error('❌ Failed to send zap:', error)
-      throw error
+    } catch (err) {
+      console.error('Failed to send message:', err)
+      // Re-throw with user-friendly message while preserving original for logging
+      const friendly = new Error(getUserFriendlyChatError(err))
+      friendly.cause = err
+      throw friendly
+    } finally {
+      isSending.value = false
     }
   }
 
@@ -385,8 +413,7 @@ export function useNostrChat() {
   const startConversation = async (pubkeyOrNpub) => {
     try {
       let pubkey = pubkeyOrNpub
-      
-      // Convert npub to pubkey if needed
+
       if (pubkeyOrNpub.startsWith('npub1')) {
         const decoded = nip19.decode(pubkeyOrNpub)
         if (decoded.type === 'npub') {
@@ -396,47 +423,38 @@ export function useNostrChat() {
         }
       }
 
-      // Validate pubkey format (64 character hex string)
       if (!/^[a-f0-9]{64}$/i.test(pubkey)) {
         throw new Error('Invalid pubkey format')
       }
 
-      // Don't allow messaging yourself
       if (pubkey === currentUser.value.pubkey) {
         throw new Error('Cannot message yourself')
       }
 
-      // Get or create conversation
       let conversation = conversations.value.get(pubkey)
       if (!conversation) {
         conversation = createConversation(pubkey)
         conversations.value.set(pubkey, conversation)
-        
-        // Initialize empty message array
         messages.value.set(pubkey, [])
-        
-        // Fetch profile with enhanced fetching
+        triggerUpdate()
+
         fetchUserProfile(pubkey).then(profile => {
-          if (conversation) {
-            conversation.profile = profile
-            console.log('✅ Updated new conversation profile for:', profile.name)
+          if (profile && conversations.value.has(pubkey)) {
+            const conv = conversations.value.get(pubkey)
+            conv.profile = profile
+            conversations.value.set(pubkey, { ...conv })
+            triggerUpdate()
           }
-        }).catch(error => {
-          console.warn('Failed to update new conversation profile:', error)
-        })
+        }).catch(err => console.warn('Profile fetch failed for', pubkey.substring(0, 8), err.message))
       }
 
-      // Set as active conversation
       activeConversation.value = conversation
-      
-      // Mark as read
       conversation.unreadCount = 0
+      triggerUpdate()
 
-      console.log('✅ Started conversation with:', pubkey.substring(0, 8) + '...')
       return conversation
-
     } catch (error) {
-      console.error('❌ Failed to start conversation:', error)
+      console.error('Failed to start conversation:', error)
       throw error
     }
   }
@@ -446,6 +464,8 @@ export function useNostrChat() {
     activeConversation.value = conversation
     if (conversation) {
       conversation.unreadCount = 0
+      conversations.value.set(conversation.pubkey, { ...conversation })
+      triggerUpdate()
     }
   }
 
@@ -458,62 +478,27 @@ export function useNostrChat() {
   const deleteConversation = (pubkey) => {
     conversations.value.delete(pubkey)
     messages.value.delete(pubkey)
-    
     if (activeConversation.value?.id === pubkey) {
       activeConversation.value = null
     }
-    
-    console.log('🗑️ Deleted conversation with:', pubkey.substring(0, 8) + '...')
+    triggerUpdate()
   }
 
   // Refresh profile for a conversation
   const refreshConversationProfile = async (pubkey) => {
     try {
       const profile = await fetchUserProfile(pubkey)
-      const conversation = conversations.value.get(pubkey)
-      
-      if (conversation) {
-        conversation.profile = profile
-        console.log('🔄 Refreshed profile for:', profile.name)
+      if (profile && conversations.value.has(pubkey)) {
+        const conv = conversations.value.get(pubkey)
+        conv.profile = profile
+        conversations.value.set(pubkey, { ...conv })
+        triggerUpdate()
       }
-      
       return profile
     } catch (error) {
       console.error('Failed to refresh conversation profile:', error)
       throw error
     }
-  }
-
-  // Block user
-  const blockUser = (pubkey) => {
-    const conversation = conversations.value.get(pubkey)
-    if (conversation) {
-      conversation.isBlocked = true
-      console.log('🚫 Blocked user:', pubkey.substring(0, 8) + '...')
-    }
-  }
-
-  // Unblock user
-  const unblockUser = (pubkey) => {
-    const conversation = conversations.value.get(pubkey)
-    if (conversation) {
-      conversation.isBlocked = false
-      console.log('✅ Unblocked user:', pubkey.substring(0, 8) + '...')
-    }
-  }
-
-  // Format timestamp for display
-  const formatMessageTime = (timestamp) => {
-    const date = new Date(timestamp)
-    const now = new Date()
-    const diff = now - date
-
-    if (diff < 60000) return 'now'
-    if (diff < 3600000) return `${Math.floor(diff / 60000)}m`
-    if (diff < 86400000) return `${Math.floor(diff / 3600000)}h`
-    if (diff < 604800000) return `${Math.floor(diff / 86400000)}d`
-    
-    return date.toLocaleDateString()
   }
 
   // Cleanup function
@@ -522,56 +507,45 @@ export function useNostrChat() {
       chatSubscription.close()
       chatSubscription = null
     }
-    
-    profileSubscriptions.forEach(sub => sub.close())
-    profileSubscriptions.clear()
-    
     processedEventIds.clear()
     conversationKeyCache.clear()
-    console.log('Chat cleanup completed')
   }
 
   // Initialize when authenticated
   watch(isAuthenticated, (authenticated) => {
     if (authenticated) {
-      setTimeout(() => {
-        initializeChat()
-      }, 1000)
+      setTimeout(() => { initializeChat() }, 1000)
     } else {
       cleanup()
       conversations.value.clear()
       messages.value.clear()
       activeConversation.value = null
+      triggerUpdate()
     }
   }, { immediate: true })
 
   return {
     // State
-    conversations: computed(() => conversations.value),
-    messages: computed(() => messages.value),
     activeConversation: computed(() => activeConversation.value),
     isLoading: computed(() => isLoading.value),
+    isSending: computed(() => isSending.value),
     error: computed(() => error.value),
-    
+
     // Computed
     sortedConversations,
     activeMessages,
     canSendMessages,
-    
+
     // Actions
     initializeChat,
     sendMessage,
-    sendZap,
     startConversation,
     setActiveConversation,
     clearActiveConversation,
     deleteConversation,
-    blockUser,
-    unblockUser,
     refreshConversationProfile,
-    
+
     // Utilities
-    formatMessageTime,
     cleanup
   }
 }

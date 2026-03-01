@@ -828,7 +828,9 @@ export function useNostrCalendar() {
                   rsvps.value[i] = { ...rsvp, name: cached.profile.name, picture: cached.profile.picture, nip05: cached.profile.nip05 }
                 }
               })
-            }).catch(() => {})
+            }).catch(e => {
+              console.warn('RSVP profile batch fetch failed:', e.message)
+            })
           }
           // Close subscription after grace period
           setTimeout(() => { if (rsvpSubscription) { rsvpSubscription.close(); rsvpSubscription = null } }, 3000)

@@ -228,6 +228,39 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
 .lightbox-nav--prev { left: 1rem; }
 .lightbox-nav--next { right: 1rem; }
 
+/* Mobile: larger touch targets, tighter padding */
+@media (max-width: 480px) {
+  .lightbox-btn {
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+
+  .lightbox-btn-icon {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+
+  .lightbox-nav {
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+
+  .lightbox-nav--prev { left: 0.5rem; }
+  .lightbox-nav--next { right: 0.5rem; }
+
+  .lightbox-media {
+    padding: 0.5rem;
+  }
+
+  .lightbox-header {
+    padding: 0.5rem 0.75rem;
+  }
+
+  .lightbox-info {
+    font-size: 0.75rem;
+  }
+}
+
 /* Transitions */
 .lightbox-enter-active,
 .lightbox-leave-active {

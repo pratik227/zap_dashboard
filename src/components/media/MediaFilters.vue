@@ -35,6 +35,7 @@ import {
   IconLayoutGrid,
   IconPhoto,
   IconPlayerPlay,
+  IconMusic,
   IconSortDescending
 } from '@iconify-prerendered/vue-tabler'
 
@@ -44,7 +45,7 @@ const chips = computed(() => [
   { value: 'all', icon: IconLayoutGrid, label: 'All', count: mediaState.fileCount.value },
   { value: 'image', icon: IconPhoto, label: 'Images', count: mediaState.imageCount.value },
   { value: 'video', icon: IconPlayerPlay, label: 'Video', count: mediaState.videoCount.value },
-  { value: 'audio', icon: IconPlayerPlay, label: 'Audio', count: mediaState.audioCount.value }
+  { value: 'audio', icon: IconMusic, label: 'Audio', count: mediaState.audioCount.value }
 ])
 </script>
 
@@ -135,14 +136,20 @@ const chips = computed(() => [
   color: var(--color-text);
 }
 
-/* Mobile: hide labels, show only counts */
+/* Mobile: hide labels, show only counts, ensure touch targets */
 @media (max-width: 480px) {
   .stat-chip-label {
     display: none;
   }
 
   .stat-chip {
+    padding: 0.5rem 0.625rem;
+    min-height: 2.25rem;
+  }
+
+  .sort-control {
     padding: 0.375rem 0.5rem;
+    min-height: 2.25rem;
   }
 }
 </style>

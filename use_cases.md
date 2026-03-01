@@ -15,6 +15,7 @@ Real-world scenarios showing how different users can leverage ZapTracker to achi
 5. [Event Organizers](#event-organizers)
 6. [Educators & Researchers](#educators--researchers)
 7. [Open Source Developers](#open-source-developers)
+8. [Photographers & Visual Artists](#photographers--visual-artists)
 
 ---
 
@@ -313,6 +314,32 @@ Recognize Top Contributors → Build Community
 2. **Community funds the bounty** through zaps
 3. **Award to contributor** who completes the work
 4. **Track all bounties** in one place
+
+---
+
+## Photographers & Visual Artists
+
+### Managing a Media Portfolio
+
+**Scenario:** You create visual content and need a decentralized media library to host and share your work.
+
+**How ZapTracker Helps:**
+
+1. **Upload media** via drag-and-drop to Blossom servers
+2. **Browse your library** in grid (visual) or list (detailed) view
+3. **Copy Blossom URLs** to embed in notes and long-form articles
+4. **Multi-server hosting** for redundancy — your files aren't locked to one provider
+5. **Filter by type** — quickly find images, video, or audio
+
+**Workflow:**
+
+```
+Upload Photos → Browse in Grid View → Copy URL
+     ↓
+Embed in Nostr Note → Track Zaps on Content
+     ↓
+Manage Library → Delete Old Files → Upload New Work
+```
 
 ---
 

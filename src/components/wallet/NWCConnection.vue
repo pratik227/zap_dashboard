@@ -111,7 +111,7 @@ const displayError = computed(() => {
   <div class="space-y-4">
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
       <div class="flex items-center space-x-3">
-        <img :src="nwcLogo" alt="NWC Logo" class="w-8 h-8" />
+        <img :src="nwcLogo" alt="NWC Logo" class="w-8 h-8" @error="$event.target.style.display = 'none'" />
         <div>
           <h3 class="text-lg font-semibold text-gray-800 flex items-center space-x-2">
             <IconBolt class="w-5 h-5 text-orange-600" />

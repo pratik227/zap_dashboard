@@ -11,6 +11,24 @@
             <IconTrash class="btn-sm-icon" />
             <span>Delete {{ mediaState.selectedCount.value }}</span>
           </button>
+          <div class="view-toggle">
+            <button
+              class="view-toggle-btn"
+              :class="{ 'view-toggle-btn--active': viewMode === 'grid' }"
+              title="Grid view"
+              @click="viewMode = 'grid'"
+            >
+              <IconLayoutGrid class="btn-sm-icon" />
+            </button>
+            <button
+              class="view-toggle-btn"
+              :class="{ 'view-toggle-btn--active': viewMode === 'list' }"
+              title="List view"
+              @click="viewMode = 'list'"
+            >
+              <IconList class="btn-sm-icon" />
+            </button>
+          </div>
           <button class="btn-sm" title="Refresh" @click="blossom.refresh()">
             <IconRefresh class="btn-sm-icon" />
           </button>
@@ -80,8 +98,18 @@
       <p>No files match the current filter.</p>
     </div>
 
-    <!-- ===== Media grid ===== -->
+    <!-- ===== Media grid / list ===== -->
     <MediaGrid
+      v-else-if="viewMode === 'grid'"
+      :files="mediaState.sortedFiles.value"
+      :selected-files="mediaState.selectedFiles.value"
+      @preview="onPreview"
+      @delete="onDelete"
+      @download="onDownload"
+      @toggle="mediaState.toggleSelection"
+    />
+
+    <MediaList
       v-else
       :files="mediaState.sortedFiles.value"
       :selected-files="mediaState.selectedFiles.value"
@@ -141,17 +169,21 @@ import {
   IconLoader2,
   IconUpload,
   IconFilter,
-  IconX
+  IconX,
+  IconLayoutGrid,
+  IconList
 } from '@iconify-prerendered/vue-tabler'
 import MediaFilters from './MediaFilters.vue'
 import MediaUploader from './MediaUploader.vue'
 import MediaGrid from './MediaGrid.vue'
+import MediaList from './MediaList.vue'
 import MediaPreview from './MediaPreview.vue'
 import ServerIndicator from './ServerIndicator.vue'
 
 const mediaState = useMediaState()
 const blossom = useBlossom()
 
+const viewMode = ref('grid')
 const previewFile = ref(null)
 const confirmAction = ref(null)
 const isDownloading = ref(false)
@@ -311,7 +343,9 @@ function formatSize(bytes) {
 
 .header-actions {
   display: flex;
+  align-items: center;
   gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
 .header-right {
@@ -348,6 +382,47 @@ function formatSize(bytes) {
 .btn-sm-icon {
   width: 1rem;
   height: 1rem;
+}
+
+/* ===================================================================
+   View toggle
+   =================================================================== */
+.view-toggle {
+  display: flex;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.view-toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.375rem 0.5rem;
+  background: var(--color-surface);
+  color: var(--color-text-subtle);
+  border: none;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.view-toggle-btn:first-child {
+  border-right: 1px solid var(--color-border);
+}
+
+.view-toggle-btn:hover {
+  color: var(--color-text);
+  background: var(--color-surface-hover);
+}
+
+.view-toggle-btn--active {
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+
+.view-toggle-btn--active:hover {
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
 }
 
 .btn-sm--danger {

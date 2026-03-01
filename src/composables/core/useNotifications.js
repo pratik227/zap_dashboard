@@ -101,8 +101,11 @@ const saveNotificationSettings = () => {
   }
 }
 
-// Watch for settings changes and save
-watch(notificationSettings, saveNotificationSettings, { deep: true })
+// Watch specific settings properties (avoid deep watch)
+watch(
+  () => JSON.stringify(notificationSettings.value),
+  saveNotificationSettings
+)
 
 // Debounced watch for notification changes (2s delay)
 let saveTimeout = null

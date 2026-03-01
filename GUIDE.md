@@ -12,11 +12,12 @@ Welcome to ZapTracker! This guide will help you unlock the full potential of you
 2. [Understanding Your Dashboard](#understanding-your-dashboard)
 3. [Wallet Operations](#wallet-operations)
 4. [Content Creation](#content-creation)
-5. [Growing Your Audience](#growing-your-audience)
-6. [Running Campaigns](#running-campaigns)
-7. [Analytics Deep Dive](#analytics-deep-dive)
-8. [Tips & Best Practices](#tips--best-practices)
-9. [Troubleshooting](#troubleshooting)
+5. [Media Management](#media-management)
+6. [Growing Your Audience](#growing-your-audience)
+7. [Running Campaigns](#running-campaigns)
+8. [Analytics Deep Dive](#analytics-deep-dive)
+9. [Tips & Best Practices](#tips--best-practices)
+10. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -141,6 +142,39 @@ After publishing, track how your content performs:
 - **Engagement patterns** over time
 
 See [use_cases.md](use_cases.md) for real-world content strategies.
+
+---
+
+## Media Management
+
+ZapTracker includes a built-in media library powered by [Blossom](https://github.com/hzrd149/blossom) — a decentralized file storage protocol for Nostr.
+
+### Uploading Files
+
+1. Go to **Media** in the sidebar
+2. Drag files onto the upload zone, or click to browse
+3. Supported types: images, video, audio
+4. Files upload to your configured Blossom servers
+
+### Browsing Your Library
+
+Switch between two views:
+- **Grid view** — visual cards with thumbnails, hover actions, and selection checkboxes
+- **List view** — compact table with columns for type, size, date, and server count
+
+Filter by type (All, Images, Video, Audio) and sort by date or size.
+
+### Actions
+
+- **Preview** — click any file to open a fullscreen lightbox (keyboard nav: arrow keys, Esc to close)
+- **Copy URL** — grab the Blossom URL for embedding in notes or articles
+- **Download** — save the file locally
+- **Delete** — remove from your Blossom servers
+- **Bulk select** — check multiple files, then delete in batch
+
+### Multi-Server Support
+
+Files can be stored on multiple Blossom servers. A server badge shows how many servers host each file. Manage your server list in **Settings**.
 
 ---
 

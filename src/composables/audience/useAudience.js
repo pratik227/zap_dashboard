@@ -249,7 +249,9 @@ export function useAudience() {
                 if (cached?.profile) profiles.set(pub, cached.profile)
               })
               saveToStorage()
-            }).catch(() => {})
+            }).catch(e => {
+              console.warn('Follower profile batch fetch failed:', e.message)
+            })
           }
         },
         onclose: (reason) => {

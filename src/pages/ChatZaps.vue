@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
+import { ref, computed, nextTick, watch } from 'vue'
 import {
   IconPlus,
   IconX,
@@ -7,12 +7,15 @@ import {
   IconBolt,
   IconArrowLeft,
   IconAlertCircle,
-  IconLoader,
+  IconLoader2,
   IconRefresh,
-  IconMessageCircle
+  IconMessageCircle,
+  IconLock
 } from '@iconify-prerendered/vue-tabler'
 import { useNostrChat } from '../composables/social/useNostrChat.js'
 import { useNostrAuth } from '../composables/auth/useNostrAuth.js'
+import { useNostrConnections } from '../composables/core/useNostrConnections.js'
+import { makeInvoice, getUserFriendlyError } from '../utils/wallet/nwcClient.js'
 import * as nip19 from 'nostr-tools/nip19'
 import UserProfileModal from '../components/modals/UserProfileModal.vue'
 import ChatConversationList from '../components/chat/ChatConversationList.vue'
@@ -22,21 +25,22 @@ import ChatEmptyState from '../components/chat/ChatEmptyState.vue'
 
 // Auth
 const { isAuthenticated, currentUser, login } = useNostrAuth()
+const { isWalletConnected } = useNostrConnections()
 
 // Chat
 const {
-  conversations,
+  sortedConversations,
   activeMessages: messages,
   activeConversation,
   sendMessage: sendChatMessage,
-  isLoading: isSending,
+  isLoading,
+  isSending,
+  error: chatError,
   setActiveConversation,
   clearActiveConversation,
   startConversation,
   refreshConversationProfile
 } = useNostrChat()
-
-const connectionsList = computed(() => Array.from(conversations.value.values()))
 
 // Local state
 const searchQuery = ref('')
@@ -48,6 +52,7 @@ const connectionError = ref('')
 const isAddingConnection = ref(false)
 const messageAreaRef = ref(null)
 const inputBarRef = ref(null)
+const sendError = ref('')
 
 // Methods
 const handleNostrLogin = async () => {
@@ -64,6 +69,7 @@ const handleNostrLogin = async () => {
 }
 
 const selectConversation = (conversation) => {
+  sendError.value = ''
   setActiveConversation(conversation)
   nextTick(() => {
     messageAreaRef.value?.scrollToBottom()
@@ -72,15 +78,38 @@ const selectConversation = (conversation) => {
 }
 
 const goBackToList = () => {
+  sendError.value = ''
   clearActiveConversation()
 }
 
 const handleSend = async (content) => {
   if (!activeConversation.value || !content.trim()) return
+  sendError.value = ''
   try {
     await sendChatMessage(activeConversation.value.pubkey, content)
   } catch (error) {
     console.error('Failed to send message:', error)
+    sendError.value = error.message || 'Failed to send message'
+    setTimeout(() => { sendError.value = '' }, 5000)
+  }
+}
+
+const handleSendInvoice = async (amountSats) => {
+  if (!activeConversation.value || !isWalletConnected.value) return
+  sendError.value = ''
+  try {
+    const result = await makeInvoice({
+      amount: amountSats * 1000, // Convert sats to millisats
+      description: `Payment request from ${currentUser.value?.profile?.name || 'Anonymous'}`,
+      expiry: 3600
+    })
+    if (result?.invoice) {
+      await sendChatMessage(activeConversation.value.pubkey, result.invoice)
+    }
+  } catch (error) {
+    console.error('Failed to create invoice:', error)
+    sendError.value = getUserFriendlyError(error)
+    setTimeout(() => { sendError.value = '' }, 5000)
   }
 }
 
@@ -124,22 +153,40 @@ const openUserProfile = () => {
     showProfileModal.value = true
   }
 }
+
+const displayName = computed(() => {
+  if (!activeConversation.value) return ''
+  return activeConversation.value.profile?.name ||
+    activeConversation.value.pubkey?.substring(0, 12) + '...'
+})
+
+// Focus input when conversation changes
+watch(activeConversation, (conv) => {
+  if (conv) {
+    nextTick(() => {
+      inputBarRef.value?.focus()
+    })
+  }
+})
 </script>
 
 <template>
-  <div class="h-[calc(100vh-160px)] sm:h-[calc(100vh-180px)] lg:h-[calc(100vh-200px)] flex bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm overflow-hidden">
+  <div class="h-[calc(100vh-160px)] sm:h-[calc(100vh-180px)] lg:h-[calc(100vh-200px)] flex bg-white rounded-xl border border-orange-100/50 shadow-sm overflow-hidden">
 
     <!-- Auth Banner -->
     <div v-if="!isAuthenticated" class="flex-1 flex items-center justify-center p-4 sm:p-6">
-      <div class="bg-gradient-to-r from-purple-400 to-pink-400 text-white p-6 sm:p-8 rounded-2xl shadow-lg max-w-md w-full text-center">
-        <div class="w-14 h-14 bg-white/20 rounded-xl flex items-center justify-center mx-auto mb-4">
-          <IconUser class="w-7 h-7" />
+      <div class="bg-gradient-to-br from-orange-400 to-amber-500 text-white p-8 sm:p-10 rounded-2xl shadow-xl max-w-sm w-full text-center">
+        <div class="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center mx-auto mb-5">
+          <IconMessageCircle class="w-8 h-8" />
         </div>
-        <h2 class="text-xl font-bold mb-2">Nostr Login Required</h2>
-        <p class="text-purple-100 text-sm mb-5 leading-relaxed">
-          Connect your Nostr identity to send and receive encrypted messages.
+        <h2 class="text-xl font-bold mb-2">Private Messages</h2>
+        <p class="text-orange-100 text-sm mb-6 leading-relaxed">
+          End-to-end encrypted messaging powered by Nostr. Connect your identity to get started.
         </p>
-        <button @click="handleNostrLogin" class="bg-white/20 hover:bg-white/30 px-6 py-3 rounded-lg font-medium transition-colors inline-flex items-center gap-2">
+        <button
+          @click="handleNostrLogin"
+          class="bg-white text-orange-600 hover:bg-orange-50 px-6 py-3 rounded-xl font-semibold transition-all duration-200 inline-flex items-center gap-2 shadow-md hover:shadow-lg"
+        >
           <IconBolt class="w-4 h-4" />
           Connect with Nostr
         </button>
@@ -151,17 +198,23 @@ const openUserProfile = () => {
       <!-- Sidebar: conversation list -->
       <div
         :class="[
-          'flex flex-col border-r border-gray-100 bg-white transition-all duration-200',
+          'flex flex-col border-r border-gray-100 bg-white',
           'lg:w-[320px] md:w-[280px]',
           activeConversation ? 'hidden md:flex' : 'w-full md:w-[280px]'
         ]"
       >
         <!-- Sidebar header -->
-        <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
-          <h2 class="text-lg font-semibold text-gray-900">Messages</h2>
+        <div class="h-[57px] px-4 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
+          <div class="flex items-center gap-2">
+            <h2 class="text-[17px] font-semibold text-gray-900">Messages</h2>
+            <div v-if="isLoading" class="flex items-center gap-1.5 text-orange-500">
+              <IconLoader2 class="w-3.5 h-3.5 animate-spin" />
+              <span class="text-[11px] font-medium">Syncing</span>
+            </div>
+          </div>
           <button
             @click="showNewConnectionModal = true"
-            class="p-2 text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
+            class="w-9 h-9 flex items-center justify-center text-orange-600 hover:bg-orange-50 rounded-xl transition-colors"
             title="New conversation"
           >
             <IconPlus class="w-5 h-5" />
@@ -169,7 +222,7 @@ const openUserProfile = () => {
         </div>
 
         <ChatConversationList
-          :conversations="connectionsList"
+          :conversations="sortedConversations"
           :active-conversation-id="activeConversation?.pubkey"
           v-model:search-query="searchQuery"
           @select="selectConversation"
@@ -180,22 +233,25 @@ const openUserProfile = () => {
       <!-- Chat panel -->
       <div
         :class="[
-          'flex-1 flex flex-col min-w-0 bg-gray-50/30',
+          'flex-1 flex flex-col min-w-0',
           !activeConversation ? 'hidden md:flex' : 'w-full'
         ]"
       >
         <!-- Chat header -->
-        <div v-if="activeConversation" class="px-3 py-2.5 sm:px-4 border-b border-gray-100 bg-white flex items-center gap-3 flex-shrink-0">
+        <div v-if="activeConversation" class="h-[57px] px-3 sm:px-4 border-b border-gray-100 bg-white flex items-center gap-3 flex-shrink-0">
           <!-- Back button (mobile) -->
           <button
             @click="goBackToList"
-            class="md:hidden p-1.5 -ml-1 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+            class="md:hidden w-9 h-9 -ml-1 flex items-center justify-center text-gray-600 hover:bg-gray-100 rounded-xl transition-colors"
           >
             <IconArrowLeft class="w-5 h-5" />
           </button>
 
           <!-- Avatar -->
-          <div class="w-9 h-9 rounded-full overflow-hidden flex-shrink-0 cursor-pointer" @click="openUserProfile">
+          <div
+            class="w-9 h-9 rounded-full overflow-hidden flex-shrink-0 cursor-pointer ring-2 ring-gray-100 hover:ring-orange-200 transition-all"
+            @click="openUserProfile"
+          >
             <img
               v-if="activeConversation.profile?.picture"
               :src="activeConversation.profile.picture"
@@ -203,31 +259,31 @@ const openUserProfile = () => {
               @error="$event.target.style.display = 'none'; $event.target.nextElementSibling.style.display = 'flex'"
             />
             <div
-              class="w-full h-full bg-gradient-to-r from-orange-400 to-amber-400 flex items-center justify-center"
+              class="w-full h-full bg-gradient-to-br from-orange-400 to-amber-500 flex items-center justify-center"
               :style="{ display: activeConversation.profile?.picture ? 'none' : 'flex' }"
             >
               <IconUser class="w-4 h-4 text-white" />
             </div>
           </div>
 
-          <!-- Name -->
+          <!-- Name + info -->
           <div class="flex-1 min-w-0 cursor-pointer" @click="openUserProfile">
-            <div class="font-medium text-sm text-gray-900 truncate">
-              {{ activeConversation.profile?.name || activeConversation.pubkey?.substring(0, 12) + '...' }}
+            <div class="font-medium text-[14px] text-gray-900 truncate leading-tight">
+              {{ displayName }}
             </div>
-            <div v-if="activeConversation.profile?.lud16" class="text-xs text-gray-400 truncate flex items-center gap-1">
-              <IconBolt class="w-3 h-3 text-yellow-500" />
-              {{ activeConversation.profile.lud16 }}
+            <div class="flex items-center gap-1 mt-0.5">
+              <IconLock class="w-3 h-3 text-green-500 flex-shrink-0" />
+              <span class="text-[11px] text-gray-400">Encrypted</span>
             </div>
           </div>
 
           <!-- Actions -->
           <button
             @click="refreshConversationProfile(activeConversation.pubkey)"
-            class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+            class="w-9 h-9 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-xl transition-colors"
             title="Refresh profile"
           >
-            <IconRefresh class="w-4 h-4" />
+            <IconRefresh class="w-[18px] h-[18px]" />
           </button>
         </div>
 
@@ -238,15 +294,30 @@ const openUserProfile = () => {
           :messages="messages"
           :current-user-pubkey="currentUser?.pubkey"
           :conversation-profile="activeConversation?.profile"
+          :wallet-connected="isWalletConnected"
         />
         <ChatEmptyState v-else type="no-selection" />
+
+        <!-- Send error toast -->
+        <div
+          v-if="sendError"
+          class="mx-3 sm:mx-4 mb-1 px-3 py-2 bg-red-50 border border-red-200 rounded-xl flex items-center gap-2 text-sm text-red-600 animate-fade-in"
+        >
+          <IconAlertCircle class="w-4 h-4 flex-shrink-0" />
+          <span class="truncate">{{ sendError }}</span>
+          <button @click="sendError = ''" class="ml-auto p-0.5 hover:bg-red-100 rounded transition-colors flex-shrink-0">
+            <IconX class="w-3.5 h-3.5" />
+          </button>
+        </div>
 
         <!-- Input -->
         <ChatInputBar
           v-if="activeConversation"
           ref="inputBarRef"
           :sending="isSending"
+          :wallet-connected="isWalletConnected"
           @send="handleSend"
+          @send-invoice="handleSendInvoice"
         />
       </div>
     </template>
@@ -254,52 +325,70 @@ const openUserProfile = () => {
     <!-- New Connection Modal -->
     <Teleport to="#modal-root">
       <transition name="modal-transition">
-        <div v-if="showNewConnectionModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[9999] p-4" @click.self="showNewConnectionModal = false">
-          <div class="bg-white rounded-2xl p-5 sm:p-6 w-full max-w-md shadow-2xl">
-            <div class="flex items-center justify-between mb-5">
-              <h3 class="text-lg font-semibold text-gray-900">New Conversation</h3>
-              <button @click="showNewConnectionModal = false" class="p-1 text-gray-400 hover:text-gray-600 rounded-lg transition-colors">
+        <div
+          v-if="showNewConnectionModal"
+          class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[9999] p-4"
+          @click.self="showNewConnectionModal = false"
+        >
+          <div class="bg-white rounded-2xl w-full max-w-[420px] shadow-2xl overflow-hidden">
+            <!-- Modal header -->
+            <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+              <h3 class="text-[17px] font-semibold text-gray-900">New Conversation</h3>
+              <button
+                @click="showNewConnectionModal = false"
+                class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+              >
                 <IconX class="w-5 h-5" />
               </button>
             </div>
 
-            <div class="space-y-4">
+            <!-- Modal body -->
+            <div class="px-5 py-5 space-y-4">
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1.5">Name (optional)</label>
+                <label class="block text-[13px] font-medium text-gray-700 mb-1.5">Name <span class="text-gray-400 font-normal">(optional)</span></label>
                 <input
                   v-model="newConnection.name"
                   type="text"
-                  placeholder="Contact name"
-                  class="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-orange-300 focus:border-orange-300 transition-colors"
+                  placeholder="e.g. Alice"
+                  class="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-orange-200 focus:border-orange-300 transition-all placeholder:text-gray-400"
                 />
               </div>
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1.5">Public Key</label>
+                <label class="block text-[13px] font-medium text-gray-700 mb-1.5">Nostr Public Key</label>
                 <textarea
                   v-model="newConnection.pubkey"
-                  placeholder="npub... or hex public key"
+                  placeholder="npub1... or hex public key"
                   rows="2"
-                  class="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-orange-300 focus:border-orange-300 transition-colors resize-none"
+                  class="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-orange-200 focus:border-orange-300 transition-all resize-none font-mono placeholder:font-sans placeholder:text-gray-400"
                 ></textarea>
+                <p class="text-[11px] text-gray-400 mt-1 leading-relaxed">
+                  Paste an npub address or 64-character hex public key
+                </p>
               </div>
-              <div v-if="connectionError" class="bg-red-50 border border-red-200 rounded-xl p-3 flex items-center gap-2">
-                <IconAlertCircle class="w-4 h-4 text-red-500 flex-shrink-0" />
-                <span class="text-sm text-red-600">{{ connectionError }}</span>
+
+              <!-- Error -->
+              <div v-if="connectionError" class="bg-red-50 border border-red-200 rounded-xl p-3 flex items-start gap-2">
+                <IconAlertCircle class="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
+                <span class="text-[13px] text-red-600 leading-relaxed">{{ connectionError }}</span>
               </div>
             </div>
 
-            <div class="flex items-center justify-end gap-3 mt-6">
-              <button @click="showNewConnectionModal = false" class="btn-secondary text-sm px-4 py-2">
+            <!-- Modal footer -->
+            <div class="px-5 py-4 border-t border-gray-100 bg-gray-50/50 flex items-center justify-end gap-2.5">
+              <button
+                @click="showNewConnectionModal = false; connectionError = ''"
+                class="px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-xl transition-colors"
+              >
                 Cancel
               </button>
               <button
                 @click="addConnection"
-                :disabled="!newConnection.pubkey || isAddingConnection"
-                class="btn-primary text-sm px-4 py-2 disabled:opacity-50"
+                :disabled="!newConnection.pubkey?.trim() || isAddingConnection"
+                class="btn-primary text-sm px-5 py-2.5 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <IconLoader v-if="isAddingConnection" class="w-4 h-4 animate-spin" />
-                <IconPlus v-else class="w-4 h-4" />
-                {{ isAddingConnection ? 'Adding...' : 'Start Chat' }}
+                <IconLoader2 v-if="isAddingConnection" class="w-4 h-4 animate-spin" />
+                <IconMessageCircle v-else class="w-4 h-4" />
+                {{ isAddingConnection ? 'Starting...' : 'Start Chat' }}
               </button>
             </div>
           </div>
@@ -317,17 +406,11 @@ const openUserProfile = () => {
 </template>
 
 <style scoped>
-.scrollbar-thin::-webkit-scrollbar {
-  width: 6px;
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
 }
-.scrollbar-thin::-webkit-scrollbar-track {
-  background: transparent;
-}
-.scrollbar-thin::-webkit-scrollbar-thumb {
-  background-color: rgba(251, 146, 60, 0.3);
-  border-radius: 3px;
-}
-.scrollbar-thin::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(251, 146, 60, 0.5);
+.animate-fade-in {
+  animation: fade-in 0.2s ease-out;
 }
 </style>

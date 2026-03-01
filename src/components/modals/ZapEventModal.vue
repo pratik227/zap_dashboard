@@ -330,6 +330,17 @@ const getEventKindIcon = (kind) => {
   }
 }
 
+// Escape HTML entities to prevent XSS
+const escapeHtml = (str) => {
+  if (!str) return ''
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;')
+}
+
 // Get event content
 const getEventContent = () => {
   if (!event.value) return ''
@@ -339,8 +350,8 @@ const getEventContent = () => {
     const summary = event.value.tags.find(tag => tag[0] === 'summary')?.[1]
 
     if (title) {
-      return `<h2 class="text-2xl font-semibold mb-3 text-gray-900">${title}</h2>` +
-             (summary ? `<p class="text-gray-600 mb-6 text-base leading-relaxed">${summary}</p>` : '') +
+      return `<h2 class="text-2xl font-semibold mb-3 text-gray-900">${escapeHtml(title)}</h2>` +
+             (summary ? `<p class="text-gray-600 mb-6 text-base leading-relaxed">${escapeHtml(summary)}</p>` : '') +
              formatContent(event.value.content)
     }
   }
@@ -352,10 +363,7 @@ const getEventContent = () => {
 const formatContent = (content) => {
   if (!content) return ''
 
-  let formatted = content
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
+  let formatted = escapeHtml(content)
 
   formatted = formatted.replace(/\n/g, '<br>')
 

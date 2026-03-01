@@ -479,7 +479,9 @@ const login = async () => {
           // Background tasks (don't block — relay manager ready() is awaited internally)
           nostrRelayManager.ready().then(() => {
             startUserEventListener(pubkey)
-            updateRelaysFromNip65(pubkey).catch(() => {})
+            updateRelaysFromNip65(pubkey).catch(e => {
+              console.warn('NIP-65 relay update failed:', e.message)
+            })
           }).catch(() => {
             console.warn('Relay manager failed to become ready, skipping NIP-65 + listener')
           })
@@ -525,7 +527,9 @@ const login = async () => {
 
     // Background tasks
     startUserEventListener(pubkey)
-    updateRelaysFromNip65(pubkey).catch(() => {})
+    updateRelaysFromNip65(pubkey).catch(e => {
+      console.warn('NIP-65 relay update failed:', e.message)
+    })
 
     return userData
   } catch (error) {
@@ -659,7 +663,9 @@ const initAuthAndRelays = async () => {
           }
 
           startUserEventListener(pubkey)
-          updateRelaysFromNip65(pubkey).catch(() => {})
+          updateRelaysFromNip65(pubkey).catch(e => {
+            console.warn('NIP-65 relay update failed:', e.message)
+          })
         } else {
           currentUser.value = null
           localStorage.removeItem(NOSTR_USER_KEY)
@@ -670,7 +676,9 @@ const initAuthAndRelays = async () => {
     } else if (hasUser) {
       // User stored but no extension - keep for display, login required for actions
       if (!isProfileComplete(currentUser.value) && currentUser.value?.pubkey) {
-        fetchAndStoreProfile(currentUser.value.pubkey).catch(() => {})
+        fetchAndStoreProfile(currentUser.value.pubkey).catch(e => {
+          console.warn('Background profile fetch failed:', e.message)
+        })
       }
     }
 
@@ -702,7 +710,11 @@ const debouncedSaveUser = () => {
     if (currentUser.value) saveUserToStorage(currentUser.value)
   }, 2000)
 }
-watch(currentUser, debouncedSaveUser, { deep: true })
+// Watch specific user properties that matter for storage (avoid deep watch on entire user object)
+watch(
+  () => currentUser.value && `${currentUser.value.pubkey}|${currentUser.value.profile?.name}|${currentUser.value.profile?.picture}|${currentUser.value.profile?.nip05}|${currentUser.value.profile?.about}|${currentUser.value.profile?.display_name}`,
+  debouncedSaveUser
+)
 
 watch(() => userRelays.value.length, () => {
   saveRelaysToStorage(userRelays.value)
