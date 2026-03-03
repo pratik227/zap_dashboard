@@ -825,6 +825,58 @@ const getProfilePicture = (user) => {
   return null
 }
 
+// Unified people list for event detail view
+const allEventPeople = computed(() => {
+  if (!selectedEvent.value) return []
+  const eventId = selectedEvent.value.id
+  const rsvpList = getEventRSVPs(eventId)
+  const participants = selectedEvent.value.participants || []
+  const peopleMap = new Map()
+
+  // Add invited participants first
+  for (const p of participants) {
+    const rsvp = getParticipantRSVP(eventId, p.pubkey)
+    peopleMap.set(p.pubkey, {
+      pubkey: p.pubkey,
+      name: p.name || rsvp?.name,
+      picture: p.picture || rsvp?.picture,
+      role: p.role,
+      rsvpStatus: rsvp?.status || null,
+      isInvited: true
+    })
+  }
+
+  // Add RSVPs from non-invited people
+  for (const rsvp of rsvpList) {
+    if (!peopleMap.has(rsvp.pubkey)) {
+      peopleMap.set(rsvp.pubkey, {
+        pubkey: rsvp.pubkey,
+        name: rsvp.name,
+        picture: rsvp.picture,
+        role: null,
+        rsvpStatus: rsvp.status,
+        isInvited: false
+      })
+    }
+  }
+
+  // Sort: accepted first, then tentative, then pending, then declined
+  const statusOrder = { accepted: 0, tentative: 1, null: 2, undefined: 2, declined: 3 }
+  return Array.from(peopleMap.values()).sort((a, b) => {
+    return (statusOrder[a.rsvpStatus] ?? 2) - (statusOrder[b.rsvpStatus] ?? 2)
+  })
+})
+
+const acceptedCount = computed(() => allEventPeople.value.filter(p => p.rsvpStatus === 'accepted').length)
+const tentativeCount = computed(() => allEventPeople.value.filter(p => p.rsvpStatus === 'tentative').length)
+const declinedCount = computed(() => allEventPeople.value.filter(p => p.rsvpStatus === 'declined').length)
+const pendingCount = computed(() => allEventPeople.value.filter(p => !p.rsvpStatus).length)
+
+const eventMessages = computed(() => {
+  if (!selectedEvent.value) return []
+  return getEventRSVPs(selectedEvent.value.id).filter(rsvp => rsvp.note && rsvp.note.trim())
+})
+
 // Watch for events changes to refetch RSVPs
 watch(() => events.value.length, (newLength, oldLength) => {
   if (newLength > 0 && newLength !== oldLength) {
@@ -1014,7 +1066,7 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- Event Modal -->
+    <!-- Event Modal — Streamlined with progressive disclosure -->
     <Teleport to="#modal-root">
       <transition name="modal-transition">
         <div v-if="showEventModal" class="fixed inset-0 z-[9999]">
@@ -1024,379 +1076,317 @@ onMounted(() => {
             class="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
           ></div>
 
-          <!-- Modal Content - Desktop: centered card, Mobile: bottom sheet -->
-          <div class="absolute inset-0 flex md:items-center md:justify-center md:p-12 pointer-events-none">
-            <div class="pointer-events-auto w-full md:w-[640px] h-full md:h-auto md:max-h-[85vh] bg-white md:shadow-xl md:overflow-hidden flex flex-col md:mt-0 mt-auto md:animate-scale-in animate-slide-up rounded-t-3xl md:rounded-2xl max-h-[90vh]">
-              <!-- Header - Minimal and elegant -->
-              <div class="flex-shrink-0 md:sticky md:top-0 md:z-10 bg-white/95 backdrop-blur-sm border-b border-gray-100 rounded-t-3xl md:rounded-t-2xl">
-                <div class="px-6 md:px-8 pt-6 md:pt-7 pb-5 md:pb-6 flex items-start justify-between">
-                  <div class="flex-1">
-                    <h2 class="text-xl md:text-2xl font-semibold text-gray-900 tracking-tight leading-tight">
-                      {{ isEditingEvent ? 'Edit Event' : 'New Event' }}
-                    </h2>
-                    <p class="text-sm text-gray-500 mt-1.5">{{ isEditingEvent ? 'Update event details' : 'Create a new calendar event' }}</p>
-                  </div>
+          <!-- Modal -->
+          <div class="absolute inset-0 flex md:items-center md:justify-center md:p-8 pointer-events-none">
+            <div class="pointer-events-auto w-full md:w-[520px] md:max-h-[85vh] max-h-[92vh] mt-auto md:mt-0 bg-white md:shadow-2xl flex flex-col md:animate-scale-in animate-slide-up rounded-t-3xl md:rounded-2xl overflow-hidden">
+
+              <!-- Header — compact -->
+              <div class="flex-shrink-0 rounded-t-3xl md:rounded-t-2xl">
+                <!-- Mobile drag handle -->
+                <div class="md:hidden flex justify-center pt-2.5 pb-1">
+                  <div class="w-9 h-1 bg-gray-300 rounded-full"></div>
+                </div>
+                <div class="px-5 md:px-6 pt-3 md:pt-5 pb-3 flex items-center justify-between">
+                  <h2 class="text-lg font-bold text-gray-900">
+                    {{ isEditingEvent ? 'Edit Event' : 'New Event' }}
+                  </h2>
                   <button
                     @click="closeEventModal"
-                    class="w-8 h-8 md:w-9 md:h-9 rounded-full hover:bg-gray-100 flex items-center justify-center transition-all duration-200 flex-shrink-0 ml-4"
+                    class="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors flex-shrink-0"
                   >
-                    <IconX class="w-4.5 h-4.5 md:w-5 md:h-5 text-gray-400" />
+                    <IconX class="w-4 h-4 text-gray-500" />
                   </button>
                 </div>
               </div>
 
               <!-- Scrollable Content -->
               <div class="flex-1 overflow-y-auto overscroll-contain min-h-0">
-                <div class="px-6 md:px-8 py-6 md:py-8">
-                <div class="space-y-7">
-                  <!-- Title -->
-                  <div>
-                    <label class="block text-sm font-medium text-gray-900 mb-2.5">Title</label>
-                    <input
-                      v-model="modalEventForm.title"
-                      type="text"
-                      placeholder="Event title"
-                      class="w-full px-4 py-3.5 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all text-base placeholder-gray-400 hover:border-gray-400"
-                    />
-                  </div>
+                <div class="px-5 md:px-6 pb-5">
 
-                  <!-- Type - Segmented Control Style -->
-                  <div>
-                    <label class="block text-sm font-medium text-gray-900 mb-2.5">Event Type</label>
-                    <div class="inline-flex bg-gray-100/80 rounded-lg p-1.5 w-full">
+                  <!-- ═══ ESSENTIALS ═══ -->
+
+                  <!-- Title — large, clean input -->
+                  <input
+                    v-model="modalEventForm.title"
+                    type="text"
+                    placeholder="Event name"
+                    class="w-full px-0 py-3 bg-transparent border-0 border-b-2 border-gray-200 focus:border-orange-400 focus:outline-none focus:ring-0 transition-colors text-xl font-semibold text-gray-900 placeholder-gray-300"
+                  />
+
+                  <!-- Date/Time + Type — all in one compact card -->
+                  <div class="mt-4 bg-gray-50/80 rounded-xl border border-gray-200/80 overflow-hidden">
+                    <!-- Type toggle row -->
+                    <div class="px-4 pt-3 pb-2 flex items-center gap-1.5">
                       <button
                         type="button"
                         @click="modalEventForm.type = 'time-based'"
                         :class="[
-                          'flex-1 px-4 py-2.5 text-sm font-medium rounded-md transition-all duration-200',
+                          'px-3 py-1.5 rounded-full text-xs font-semibold transition-all duration-200',
                           modalEventForm.type === 'time-based'
-                            ? 'bg-white text-gray-900 shadow-sm'
-                            : 'text-gray-600 hover:text-gray-800'
+                            ? 'bg-orange-500 text-white shadow-sm'
+                            : 'bg-white text-gray-500 border border-gray-200 hover:text-orange-600 hover:border-orange-200'
                         ]"
                       >
-                        <IconClock class="w-4 h-4 inline mr-2" />
-                        Time-based
+                        <IconClock class="w-3 h-3 inline mr-1 -mt-px" />Specific time
                       </button>
                       <button
                         type="button"
                         @click="modalEventForm.type = 'date-based'"
                         :class="[
-                          'flex-1 px-4 py-2.5 text-sm font-medium rounded-md transition-all duration-200',
+                          'px-3 py-1.5 rounded-full text-xs font-semibold transition-all duration-200',
                           modalEventForm.type === 'date-based'
-                            ? 'bg-white text-gray-900 shadow-sm'
-                            : 'text-gray-600 hover:text-gray-800'
+                            ? 'bg-orange-500 text-white shadow-sm'
+                            : 'bg-white text-gray-500 border border-gray-200 hover:text-orange-600 hover:border-orange-200'
                         ]"
                       >
-                        <IconCalendar class="w-4 h-4 inline mr-2" />
-                        Date-based
+                        <IconCalendar class="w-3 h-3 inline mr-1 -mt-px" />All-day
                       </button>
                     </div>
-                  </div>
-
-                  <!-- Date and Time - Card Style -->
-                  <div class="bg-gray-50 rounded-xl p-6 border border-gray-200">
-                    <label class="block text-sm font-medium text-gray-900 mb-4">When</label>
-                    <div class="space-y-4">
-                      <div class="grid grid-cols-2 gap-4">
-                        <div>
-                          <label class="block text-xs font-medium text-gray-700 mb-2">Start Date</label>
-                          <input
-                            v-model="modalEventForm.start_date"
-                            type="date"
-                            class="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all text-sm"
-                          />
-                        </div>
-                        <div>
-                          <label class="block text-xs font-medium text-gray-700 mb-2">End Date</label>
-                          <input
-                            v-model="modalEventForm.end_date"
-                            type="date"
-                            class="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all text-sm"
-                          />
-                        </div>
+                    <!-- Date inputs -->
+                    <div class="px-4 pb-3 grid grid-cols-2 gap-2.5">
+                      <div>
+                        <label class="block text-[11px] font-medium text-gray-400 uppercase tracking-wider mb-1">Start</label>
+                        <input
+                          v-model="modalEventForm.start_date"
+                          type="date"
+                          class="w-full px-2.5 py-2 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400/30 focus:border-orange-400 transition-all text-sm"
+                        />
                       </div>
-
-                      <!-- Time fields for time-based events -->
-                      <div v-if="modalEventForm.type === 'time-based'" class="grid grid-cols-2 gap-4 pt-3 border-t border-gray-300">
-                        <div>
-                          <label class="block text-xs font-medium text-gray-700 mb-2">Start Time</label>
-                          <input
-                            v-model="modalEventForm.start_time"
-                            type="time"
-                            class="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all text-sm"
-                          />
-                        </div>
-                        <div>
-                          <label class="block text-xs font-medium text-gray-700 mb-2">End Time</label>
-                          <input
-                            v-model="modalEventForm.end_time"
-                            type="time"
-                            class="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all text-sm"
-                          />
-                        </div>
+                      <div>
+                        <label class="block text-[11px] font-medium text-gray-400 uppercase tracking-wider mb-1">End</label>
+                        <input
+                          v-model="modalEventForm.end_date"
+                          type="date"
+                          class="w-full px-2.5 py-2 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400/30 focus:border-orange-400 transition-all text-sm"
+                        />
+                      </div>
+                    </div>
+                    <!-- Time inputs (time-based only) -->
+                    <div v-if="modalEventForm.type === 'time-based'" class="px-4 pb-3 grid grid-cols-2 gap-2.5 -mt-1">
+                      <div>
+                        <label class="block text-[11px] font-medium text-gray-400 uppercase tracking-wider mb-1">From</label>
+                        <input
+                          v-model="modalEventForm.start_time"
+                          type="time"
+                          class="w-full px-2.5 py-2 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400/30 focus:border-orange-400 transition-all text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label class="block text-[11px] font-medium text-gray-400 uppercase tracking-wider mb-1">Until</label>
+                        <input
+                          v-model="modalEventForm.end_time"
+                          type="time"
+                          class="w-full px-2.5 py-2 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400/30 focus:border-orange-400 transition-all text-sm"
+                        />
                       </div>
                     </div>
                   </div>
 
-                  <!-- Description -->
-                  <div>
-                    <label class="block text-sm font-medium text-gray-900 mb-2.5">Description</label>
-                    <textarea
-                      v-model="modalEventForm.description"
-                      rows="4"
-                      placeholder="Add details about your event..."
-                      class="w-full px-4 py-3.5 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all text-base placeholder-gray-400 resize-none hover:border-gray-400"
-                    ></textarea>
-                  </div>
-
-                  <!-- Location -->
-                  <div>
-                    <label class="flex items-center gap-2 text-sm font-medium text-gray-900 mb-2.5">
-                      <IconMapPin class="w-4 h-4 text-gray-500" />
-                      Location
-                    </label>
+                  <!-- Location — icon-prefixed inline -->
+                  <div class="mt-3 flex items-center gap-3 px-1">
+                    <IconMapPin class="w-4 h-4 text-gray-400 flex-shrink-0" />
                     <input
                       v-model="modalEventForm.location"
                       type="text"
-                      placeholder="Add location or online link"
-                      class="w-full px-4 py-3.5 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all text-base placeholder-gray-400 hover:border-gray-400"
+                      placeholder="Add location or link"
+                      class="flex-1 py-2.5 bg-transparent border-0 border-b border-gray-200 focus:border-orange-400 focus:outline-none focus:ring-0 transition-colors text-sm text-gray-900 placeholder-gray-400"
                     />
-                    <p class="text-xs text-gray-500 mt-2.5">Physical address or video call link</p>
                   </div>
 
-                  <!-- Geohash - Collapsible -->
-                  <details class="group">
-                    <summary class="flex items-center justify-between cursor-pointer text-sm font-medium text-gray-600 py-2.5 hover:text-gray-800 transition-colors">
-                      <span>Advanced Location (Geohash)</span>
-                      <IconChevronRight class="w-4 h-4 transition-transform group-open:rotate-90" />
+                  <!-- Description — icon-prefixed inline -->
+                  <div class="mt-1 flex items-start gap-3 px-1">
+                    <IconMessage class="w-4 h-4 text-gray-400 flex-shrink-0 mt-3" />
+                    <textarea
+                      v-model="modalEventForm.description"
+                      rows="2"
+                      placeholder="Add description"
+                      class="flex-1 py-2.5 bg-transparent border-0 border-b border-gray-200 focus:border-orange-400 focus:outline-none focus:ring-0 transition-colors text-sm text-gray-900 placeholder-gray-400 resize-none"
+                    ></textarea>
+                  </div>
+
+                  <!-- ═══ MORE OPTIONS — collapsible ═══ -->
+                  <details class="mt-5 group" :open="isEditingEvent && ((modalEventForm.participants && modalEventForm.participants.length > 0) || (modalEventForm.tags && modalEventForm.tags.length > 0) || (modalEventForm.references && modalEventForm.references.length > 0) || modalEventForm.geohash) ? true : undefined">
+                    <summary class="flex items-center gap-2 cursor-pointer select-none py-2 -mx-1 px-1 rounded-lg hover:bg-gray-50 transition-colors">
+                      <div class="flex items-center gap-2 flex-1">
+                        <IconPlus class="w-4 h-4 text-orange-500 transition-transform group-open:rotate-45" />
+                        <span class="text-sm font-semibold text-gray-700">More options</span>
+                      </div>
+                      <!-- Preview badges for already-added items -->
+                      <div class="flex items-center gap-1.5">
+                        <span v-if="modalEventForm.participants && modalEventForm.participants.length > 0" class="text-xs px-2 py-0.5 bg-orange-50 text-orange-500 rounded-full font-medium">
+                          {{ modalEventForm.participants.length }} invited
+                        </span>
+                        <span v-if="modalEventForm.tags && modalEventForm.tags.length > 0" class="text-xs px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full font-medium">
+                          {{ modalEventForm.tags.length }} tags
+                        </span>
+                        <span v-if="modalEventForm.references && modalEventForm.references.length > 0" class="text-xs px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full font-medium">
+                          {{ modalEventForm.references.length }} links
+                        </span>
+                      </div>
                     </summary>
-                    <div class="mt-3">
-                      <input
-                        v-model="modalEventForm.geohash"
-                        type="text"
-                        placeholder="e.g., 9q5"
-                        class="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all text-sm placeholder-gray-400 hover:border-gray-400"
-                      />
-                      <p class="text-xs text-gray-500 mt-2.5">Geohash for searchable physical location</p>
+
+                    <div class="mt-3 space-y-4 pt-3 border-t border-gray-100">
+
+                      <!-- Invite People -->
+                      <div>
+                        <label class="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
+                          <IconUsers class="w-4 h-4 text-gray-400" />
+                          Invite People
+                        </label>
+                        <UserSearchInput
+                          placeholder="Search by name or npub..."
+                          role-label="Role (optional)"
+                          :show-role="true"
+                          @user-selected="addParticipant"
+                        />
+                        <div v-if="modalEventForm.participants && modalEventForm.participants.length > 0" class="mt-2.5 space-y-1.5">
+                          <div
+                            v-for="(participant, index) in modalEventForm.participants"
+                            :key="index"
+                            class="flex items-center gap-2.5 bg-gray-50 px-3 py-2 rounded-lg"
+                          >
+                            <div class="w-7 h-7 rounded-full overflow-hidden bg-gradient-to-br from-orange-100 to-amber-100 flex-shrink-0">
+                              <img
+                                v-if="participant.picture"
+                                :src="participant.picture"
+                                :alt="participant.name"
+                                class="w-full h-full object-cover"
+                                @error="(e) => e.target.style.display = 'none'"
+                              />
+                              <div v-else class="w-full h-full flex items-center justify-center">
+                                <IconUser class="w-3.5 h-3.5 text-orange-400" />
+                              </div>
+                            </div>
+                            <p class="flex-1 min-w-0 text-sm font-medium text-gray-900 truncate">
+                              {{ participant.name || participant.pubkey?.substring(0, 12) + '...' }}
+                            </p>
+                            <span v-if="participant.role" class="text-[11px] px-1.5 py-0.5 bg-orange-50 text-orange-500 rounded font-medium">{{ participant.role }}</span>
+                            <button
+                              @click="removeParticipant(index)"
+                              type="button"
+                              class="w-6 h-6 rounded-full hover:bg-red-50 text-gray-400 hover:text-red-500 flex items-center justify-center flex-shrink-0 transition-colors"
+                            >
+                              <IconX class="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- Hashtags -->
+                      <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Hashtags</label>
+                        <div class="flex gap-2">
+                          <input
+                            v-model="newTag"
+                            type="text"
+                            placeholder="Add tag"
+                            class="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400/30 focus:border-orange-400 transition-all text-sm placeholder-gray-400"
+                            @keyup.enter="addTag"
+                          />
+                          <button
+                            @click="addTag"
+                            type="button"
+                            class="px-3 py-2 rounded-lg bg-orange-100 hover:bg-orange-200 text-orange-600 text-sm font-medium transition-colors active:scale-95"
+                          >
+                            Add
+                          </button>
+                        </div>
+                        <div v-if="modalEventForm.tags && modalEventForm.tags.length > 0" class="flex flex-wrap gap-1.5 mt-2">
+                          <span
+                            v-for="(tag, index) in modalEventForm.tags"
+                            :key="index"
+                            class="inline-flex items-center gap-1 bg-orange-50 text-orange-600 px-2.5 py-1 rounded-full text-xs font-medium border border-orange-100"
+                          >
+                            #{{ tag }}
+                            <button @click="removeTag(index)" type="button" class="hover:text-orange-800 transition-colors">
+                              <IconX class="w-3 h-3" />
+                            </button>
+                          </span>
+                        </div>
+                      </div>
+
+                      <!-- Links -->
+                      <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Reference Links</label>
+                        <div class="flex gap-2">
+                          <input
+                            v-model="newReference"
+                            type="url"
+                            placeholder="https://..."
+                            class="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400/30 focus:border-orange-400 transition-all text-sm placeholder-gray-400"
+                            @keyup.enter="addReference"
+                          />
+                          <button
+                            @click="addReference"
+                            type="button"
+                            class="px-3 py-2 rounded-lg bg-orange-100 hover:bg-orange-200 text-orange-600 text-sm font-medium transition-colors active:scale-95"
+                          >
+                            Add
+                          </button>
+                        </div>
+                        <div v-if="modalEventForm.references && modalEventForm.references.length > 0" class="mt-2 space-y-1">
+                          <div
+                            v-for="(ref, index) in modalEventForm.references"
+                            :key="index"
+                            class="flex items-center gap-2 text-xs group"
+                          >
+                            <IconExternalLink class="w-3 h-3 text-gray-400 flex-shrink-0" />
+                            <a :href="ref" target="_blank" class="flex-1 truncate text-orange-600 hover:text-orange-700 font-medium">{{ ref }}</a>
+                            <button @click="removeReference(index)" type="button" class="text-gray-400 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100">
+                              <IconX class="w-3 h-3" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- Geohash -->
+                      <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Geohash</label>
+                        <input
+                          v-model="modalEventForm.geohash"
+                          type="text"
+                          placeholder="e.g., 9q5 — for searchable location"
+                          class="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400/30 focus:border-orange-400 transition-all text-sm placeholder-gray-400"
+                        />
+                      </div>
+
                     </div>
                   </details>
 
-                  <!-- Participants -->
-                  <div>
-                    <label class="flex items-center gap-2 text-sm font-medium text-gray-900 mb-3">
-                      <IconUsers class="w-4 h-4 text-gray-500" />
-                      Participants
-                    </label>
-                    <div class="space-y-3">
-                      <!-- User Search Component -->
-                      <UserSearchInput
-                        placeholder="Search users by name or npub..."
-                        role-label="Role (optional)"
-                        :show-role="true"
-                        @user-selected="addParticipant"
-                      />
-
-                      <!-- Selected Participants List -->
-                      <div v-if="modalEventForm.participants && modalEventForm.participants.length > 0" class="space-y-2.5">
-                        <div
-                          v-for="(participant, index) in modalEventForm.participants"
-                          :key="index"
-                          class="flex items-center gap-3 bg-gray-50 px-4 py-3.5 rounded-lg border border-gray-200 hover:border-gray-300 transition-colors"
-                        >
-                          <!-- Avatar -->
-                          <div class="w-10 h-10 rounded-full overflow-hidden bg-gradient-to-br from-orange-100 to-orange-200 flex-shrink-0">
-                            <img
-                              v-if="participant.picture"
-                              :src="participant.picture"
-                              :alt="participant.name"
-                              class="w-full h-full object-cover"
-                              @error="(e) => e.target.style.display = 'none'"
-                            />
-                            <div v-else class="w-full h-full flex items-center justify-center">
-                              <IconUser class="w-5 h-5 text-gray-500" />
-                            </div>
-                          </div>
-
-                          <!-- User Info -->
-                          <div class="flex-1 min-w-0">
-                            <p class="font-medium text-sm text-gray-900 truncate">
-                              {{ participant.name || participant.pubkey?.substring(0, 16) + '...' }}
-                            </p>
-                            <div class="flex items-center gap-2 text-xs text-gray-500 mt-0.5">
-                              <span v-if="participant.nip05" class="truncate">{{ participant.nip05 }}</span>
-                              <span v-else class="font-mono truncate">{{ participant.pubkey?.substring(0, 16) }}...</span>
-                              <span v-if="participant.role" class="inline-flex items-center px-2 py-0.5 bg-orange-100 text-orange-700 rounded-full text-xs font-medium">{{ participant.role }}</span>
-                            </div>
-                          </div>
-
-                          <!-- Remove Button -->
-                          <button
-                            @click="removeParticipant(index)"
-                            type="button"
-                            class="w-7 h-7 rounded-full bg-red-50 hover:bg-red-100 text-red-600 flex items-center justify-center flex-shrink-0 transition-colors"
-                          >
-                            <IconX class="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- Tags -->
-                  <div>
-                    <label class="block text-sm font-medium text-gray-900 mb-3">
-                      Hashtags
-                    </label>
-                    <div class="space-y-3">
-                      <div class="flex gap-2.5">
-                        <input
-                          v-model="newTag"
-                          type="text"
-                          placeholder="Add hashtag"
-                          class="flex-1 px-4 py-3 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all text-sm placeholder-gray-400 hover:border-gray-400"
-                          @keyup.enter="addTag"
-                        />
-                        <button
-                          @click="addTag"
-                          type="button"
-                          class="w-11 h-11 rounded-lg bg-orange-500 hover:bg-orange-600 text-white flex items-center justify-center transition-all duration-200 shadow-sm active:scale-95"
-                        >
-                          <IconPlus class="w-5 h-5" />
-                        </button>
-                      </div>
-                      <div v-if="modalEventForm.tags && modalEventForm.tags.length > 0" class="flex flex-wrap gap-2">
-                        <span
-                          v-for="(tag, index) in modalEventForm.tags"
-                          :key="index"
-                          class="inline-flex items-center gap-1.5 bg-orange-50 text-orange-700 px-3 py-1.5 rounded-full text-sm font-medium border border-orange-100"
-                        >
-                          #{{ tag }}
-                          <button
-                            @click="removeTag(index)"
-                            type="button"
-                            class="hover:bg-orange-100 rounded-full p-0.5 transition-colors"
-                          >
-                            <IconX class="w-3 h-3" />
-                          </button>
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- References / Links -->
-                  <div>
-                    <label class="flex items-center gap-2 text-sm font-medium text-gray-900 mb-3">
-                      <IconExternalLink class="w-4 h-4 text-gray-500" />
-                      Reference Links
-                    </label>
-                    <div class="space-y-3">
-                      <div class="flex gap-2.5">
-                        <input
-                          v-model="newReference"
-                          type="url"
-                          placeholder="https://example.com"
-                          class="flex-1 px-4 py-3 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all text-sm placeholder-gray-400 hover:border-gray-400"
-                          @keyup.enter="addReference"
-                        />
-                        <button
-                          @click="addReference"
-                          type="button"
-                          class="w-11 h-11 rounded-lg bg-orange-500 hover:bg-orange-600 text-white flex items-center justify-center transition-all duration-200 shadow-sm active:scale-95"
-                        >
-                          <IconPlus class="w-5 h-5" />
-                        </button>
-                      </div>
-                      <div v-if="modalEventForm.references && modalEventForm.references.length > 0" class="space-y-2.5">
-                        <div
-                          v-for="(ref, index) in modalEventForm.references"
-                          :key="index"
-                          class="flex items-center justify-between gap-3 bg-gray-50 px-4 py-3.5 rounded-lg border border-gray-200 hover:border-gray-300 transition-colors"
-                        >
-                          <a :href="ref" target="_blank" class="flex-1 truncate text-orange-600 hover:text-orange-700 text-sm font-medium">
-                            {{ ref }}
-                          </a>
-                          <button
-                            @click="removeReference(index)"
-                            type="button"
-                            class="w-7 h-7 rounded-full bg-red-50 hover:bg-red-100 text-red-600 flex items-center justify-center flex-shrink-0 transition-colors"
-                          >
-                            <IconX class="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
                 </div>
               </div>
 
-              <!-- Fixed Footer with Actions -->
-              <div class="flex-shrink-0 md:sticky md:bottom-0 md:z-10 bg-white/95 backdrop-blur-sm border-t border-gray-200 px-4 md:px-8 py-4 md:py-5 safe-bottom">
-                <div>
-                  <!-- Mobile Layout: Stacked Buttons -->
-                  <div class="flex md:hidden flex-col gap-2">
-                    <button
-                      @click="handleEventFormSubmit"
-                      :disabled="!isFormValid || isLoading"
-                      class="w-full py-3 rounded-xl bg-gradient-to-r from-orange-400 to-orange-600 hover:from-orange-500 hover:to-orange-700 text-white font-semibold transition-all text-sm shadow-lg shadow-orange-500/25 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
-                    >
-                      <IconLoader v-if="isLoading" class="w-4 h-4 animate-spin inline mr-1.5" />
-                      <IconCheck v-else class="w-4 h-4 inline mr-1.5" />
-                      {{ isEditingEvent ? 'Update Event' : 'Create Event' }}
-                    </button>
-                    <div class="flex gap-2">
-                      <button
-                        @click="handleEventFormCancel"
-                        class="flex-1 py-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold transition-colors text-sm"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        v-if="isEditingEvent"
-                        @click="handleDeleteEvent"
-                        class="flex-1 py-2.5 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 font-semibold transition-colors text-sm"
-                      >
-                        <IconTrash class="w-4 h-4 inline mr-1" />
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-
-                  <!-- Desktop Layout: Horizontal Buttons -->
-                  <div class="hidden md:flex items-center justify-between gap-3">
-                    <!-- Delete Button (Edit Mode Only) -->
-                    <button
-                      v-if="isEditingEvent"
-                      @click="handleDeleteEvent"
-                      class="px-5 py-2.5 rounded-lg text-red-600 font-medium hover:bg-red-50 transition-all text-base"
-                    >
-                      <IconTrash class="w-4 h-4 inline mr-1.5" />
-                      Delete
-                    </button>
-
-                    <!-- Spacer for alignment -->
-                    <div v-else class="flex-1"></div>
-
-                    <!-- Cancel & Submit -->
-                    <div class="flex items-center gap-3 flex-1 justify-end">
-                      <button
-                        @click="handleEventFormCancel"
-                        class="px-5 py-2.5 rounded-lg text-gray-700 font-medium hover:bg-gray-100 transition-all text-base"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        @click="handleEventFormSubmit"
-                        :disabled="!isFormValid || isLoading"
-                        class="px-6 py-2.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-semibold transition-all text-base shadow-sm disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
-                      >
-                        <IconLoader v-if="isLoading" class="w-4 h-4 animate-spin inline mr-2" />
-                        {{ isEditingEvent ? 'Update Event' : 'Create Event' }}
-                      </button>
-                    </div>
-                  </div>
+              <!-- Footer -->
+              <div class="flex-shrink-0 border-t border-gray-200 bg-white px-5 md:px-6 py-3.5 safe-bottom">
+                <div class="flex items-center gap-3">
+                  <button
+                    v-if="isEditingEvent"
+                    @click="handleDeleteEvent"
+                    class="p-2.5 rounded-lg text-red-500 hover:bg-red-50 hover:text-red-600 transition-colors"
+                    title="Delete event"
+                  >
+                    <IconTrash class="w-4 h-4" />
+                  </button>
+                  <div class="flex-1"></div>
+                  <button
+                    @click="handleEventFormCancel"
+                    class="px-4 py-2.5 rounded-lg text-gray-500 font-medium hover:bg-gray-100 transition-colors text-sm"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    @click="handleEventFormSubmit"
+                    :disabled="!isFormValid || isLoading"
+                    class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-orange-400 to-amber-400 hover:from-orange-500 hover:to-amber-500 text-white font-semibold transition-all text-sm shadow-sm shadow-orange-200/50 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none active:scale-[0.97] flex items-center gap-2"
+                  >
+                    <IconLoader v-if="isLoading" class="w-4 h-4 animate-spin" />
+                    <template v-else>
+                      {{ isEditingEvent ? 'Save Changes' : 'Create Event' }}
+                    </template>
+                  </button>
                 </div>
               </div>
+
             </div>
           </div>
         </div>
@@ -1406,244 +1396,388 @@ onMounted(() => {
     <!-- View Event Details Modal -->
     <Teleport to="#modal-root">
       <transition name="modal-transition">
-        <div v-if="showViewEventModal && selectedEvent" class="fixed inset-0 bg-black/50 backdrop-blur-lg flex items-center justify-center z-[9999] p-4">
-          <div class="bg-white rounded-xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
-            <div class="flex justify-between items-start mb-6">
-              <div class="flex-1">
-                <h3 class="text-2xl font-bold text-gray-900">{{ selectedEvent.title }}</h3>
-                <div class="flex items-center space-x-2 mt-2">
-                  <span :class="['inline-block px-3 py-1 rounded-full text-xs font-medium', getEventTypeBadge(selectedEvent.type)]">
-                    {{ selectedEvent.type === 'time-based' ? 'Time-based Event' : 'Date-based Event' }}
-                  </span>
-                  <!-- RSVP Summary -->
-                  <div v-if="getEventRSVPs(selectedEvent.id).length > 0 || (selectedEvent.participants && selectedEvent.participants.length > 0)" class="flex items-center space-x-1 text-xs">
-                    <span class="px-2 py-1 bg-green-50 text-green-700 rounded-full">
-                      {{ getEventRSVPs(selectedEvent.id).filter(r => r.status === 'accepted').length }} ✓
-                    </span>
-                    <span class="px-2 py-1 bg-yellow-50 text-yellow-700 rounded-full">
-                      {{ getEventRSVPs(selectedEvent.id).filter(r => r.status === 'tentative').length }} ?
-                    </span>
-                    <span class="px-2 py-1 bg-red-50 text-red-700 rounded-full">
-                      {{ getEventRSVPs(selectedEvent.id).filter(r => r.status === 'declined').length }} ✗
-                    </span>
-                    <span v-if="selectedEvent.participants && selectedEvent.participants.length > 0" class="px-2 py-1 bg-gray-50 text-gray-600 rounded-full">
-                      {{ selectedEvent.participants.filter(p => !getParticipantRSVP(selectedEvent.id, p.pubkey)).length }} pending
-                    </span>
-                  </div>
+        <div v-if="showViewEventModal && selectedEvent" class="fixed inset-0 z-[9999]">
+          <!-- Backdrop -->
+          <div @click="showViewEventModal = false" class="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity"></div>
+
+          <!-- Modal -->
+          <div class="absolute inset-0 flex md:items-center md:justify-center md:p-8 pointer-events-none">
+            <div class="pointer-events-auto w-full md:w-[520px] h-full md:h-auto md:max-h-[88vh] bg-white md:shadow-2xl flex flex-col md:mt-0 mt-auto md:animate-scale-in animate-slide-up rounded-t-3xl md:rounded-2xl max-h-[92vh] overflow-hidden">
+
+              <!-- Top bar -->
+              <div class="flex-shrink-0">
+                <!-- Mobile drag handle -->
+                <div class="md:hidden flex justify-center pt-2.5 pb-1">
+                  <div class="w-9 h-1 bg-gray-300 rounded-full"></div>
                 </div>
-              </div>
-              <button @click="showViewEventModal = false" class="text-gray-500 hover:text-gray-700">
-                <IconX class="w-5 h-5" />
-              </button>
-            </div>
-            
-            <div class="space-y-4">
-              <!-- Date/Time -->
-              <div class="bg-gray-50 p-4 rounded-lg">
-                <div class="flex items-start space-x-3">
-                  <IconClock class="w-5 h-5 text-gray-600 mt-0.5" />
-                  <div>
-                    <p class="font-medium text-gray-900">
-                      {{ selectedEvent.type === 'time-based' 
-                        ? new Date(selectedEvent.start * 1000).toLocaleString() 
-                        : selectedEvent.start_date }}
-                    </p>
-                    <p v-if="selectedEvent.end || selectedEvent.end_date" class="text-sm text-gray-600 mt-1">
-                      to {{ selectedEvent.type === 'time-based' 
-                        ? new Date(selectedEvent.end * 1000).toLocaleString() 
-                        : selectedEvent.end_date }}
-                    </p>
+                <!-- Utility row: share actions left, close right -->
+                <div class="flex items-center justify-between px-5 md:px-6 pt-2 md:pt-4">
+                  <div class="flex items-center gap-0.5">
+                    <button
+                      @click="openNostrEvent(selectedEvent)"
+                      class="p-2 rounded-lg text-gray-400 hover:text-orange-500 hover:bg-orange-50/60 transition-colors"
+                      title="View on Nostr"
+                    >
+                      <IconExternalLink class="w-4 h-4" />
+                    </button>
+                    <button
+                      @click="copyNostrEventLink(selectedEvent)"
+                      class="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+                      title="Copy link"
+                    >
+                      <IconCopy class="w-4 h-4" />
+                    </button>
                   </div>
+                  <button
+                    @click="showViewEventModal = false"
+                    class="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+                  >
+                    <IconX class="w-4.5 h-4.5" />
+                  </button>
                 </div>
               </div>
 
-              <!-- Description -->
-              <div v-if="selectedEvent.description">
-                <h4 class="font-medium text-gray-900 mb-2">Description</h4>
-                <p class="text-gray-700 whitespace-pre-wrap">{{ selectedEvent.description }}</p>
-              </div>
+              <!-- Scrollable content -->
+              <div class="flex-1 overflow-y-auto overscroll-contain min-h-0">
+                <div class="px-5 md:px-6 pt-2 pb-6">
 
-              <!-- Location -->
-              <div v-if="selectedEvent.location">
-                <div class="flex items-start space-x-3">
-                  <IconMapPin class="w-5 h-5 text-gray-600 mt-0.5" />
-                  <div class="flex-1">
-                    <h4 class="font-medium text-gray-900 mb-1">Location</h4>
-                    <p class="text-gray-700">{{ selectedEvent.location }}</p>
-                    <p v-if="selectedEvent.geohash" class="text-xs text-gray-500 mt-1">
-                      Geohash: {{ selectedEvent.geohash }}
-                    </p>
+                  <!-- Event header -->
+                  <div class="mb-5">
+                    <span class="inline-flex items-center gap-1 text-[11px] font-semibold text-orange-500 uppercase tracking-widest mb-2">
+                      <IconClock v-if="selectedEvent.type === 'time-based'" class="w-3 h-3" />
+                      <IconCalendar v-else class="w-3 h-3" />
+                      {{ selectedEvent.type === 'time-based' ? 'Time-based event' : 'All-day event' }}
+                    </span>
+                    <h2 class="text-2xl md:text-[28px] font-bold text-gray-900 leading-[1.2] tracking-tight">
+                      {{ selectedEvent.title }}
+                    </h2>
                   </div>
-                </div>
-              </div>
 
-              <!-- Attendees (Going) - All accepted RSVPs -->
-              <div v-if="getEventRSVPs(selectedEvent.id).filter(rsvp => rsvp.status === 'accepted').length > 0">
-                <div class="flex items-start space-x-3">
-                  <div class="text-2xl mt-0.5">🧑‍🤝‍🧑</div>
-                  <div class="flex-1">
-                    <h4 class="font-medium text-gray-900 mb-1">Attendees</h4>
-                    <p class="text-sm text-green-600 font-medium mb-3">
-                      Going · {{ getEventRSVPs(selectedEvent.id).filter(rsvp => rsvp.status === 'accepted').length }} 
-                      {{ getEventRSVPs(selectedEvent.id).filter(rsvp => rsvp.status === 'accepted').length === 1 ? 'person' : 'people' }}
-                    </p>
-                    <div class="space-y-2">
-                      <div
-                        v-for="(rsvp, index) in getEventRSVPs(selectedEvent.id).filter(rsvp => rsvp.status === 'accepted')"
-                        :key="index"
-                        class="flex items-center space-x-3 bg-green-50 px-3 py-2 rounded-lg border border-green-100"
-                      >
-                        <!-- Avatar -->
-                        <div class="w-8 h-8 rounded-full overflow-hidden bg-gray-200 flex-shrink-0">
+                  <!-- Key details — clean full-width rows -->
+                  <div class="mb-5 -mx-5 md:-mx-6">
+                    <!-- Date & Time -->
+                    <div class="flex items-center gap-3.5 px-5 md:px-6 py-3 border-y border-gray-100">
+                      <div class="w-10 h-10 rounded-xl bg-orange-50 flex flex-col items-center justify-center flex-shrink-0 border border-orange-100/60">
+                        <span class="text-[10px] font-bold text-orange-500 uppercase leading-none">
+                          {{ selectedEvent.type === 'time-based'
+                            ? new Date(selectedEvent.start * 1000).toLocaleDateString('en-US', { month: 'short' })
+                            : '' }}
+                        </span>
+                        <span class="text-sm font-bold text-gray-900 leading-none mt-px">
+                          {{ selectedEvent.type === 'time-based'
+                            ? new Date(selectedEvent.start * 1000).getDate()
+                            : '—' }}
+                        </span>
+                      </div>
+                      <div class="flex-1 min-w-0">
+                        <p class="text-sm font-semibold text-gray-900">
+                          {{ selectedEvent.type === 'time-based'
+                            ? new Date(selectedEvent.start * 1000).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
+                            : selectedEvent.start_date }}
+                        </p>
+                        <p v-if="selectedEvent.type === 'time-based'" class="text-sm text-gray-500 mt-0.5">
+                          {{ new Date(selectedEvent.start * 1000).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) }}
+                          <template v-if="selectedEvent.end">
+                            – {{ new Date(selectedEvent.end * 1000).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) }}
+                          </template>
+                        </p>
+                        <p v-else-if="selectedEvent.end_date" class="text-sm text-gray-500 mt-0.5">
+                          Through {{ selectedEvent.end_date }}
+                        </p>
+                      </div>
+                    </div>
+
+                    <!-- Location -->
+                    <div v-if="selectedEvent.location" class="flex items-center gap-3.5 px-5 md:px-6 py-3 border-b border-gray-100">
+                      <div class="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0 border border-blue-100/60">
+                        <IconMapPin class="w-4.5 h-4.5 text-blue-500" />
+                      </div>
+                      <div class="flex-1 min-w-0">
+                        <p class="text-sm font-semibold text-gray-900 break-words">{{ selectedEvent.location }}</p>
+                        <p v-if="selectedEvent.geohash" class="text-xs text-gray-400 mt-0.5 font-mono">{{ selectedEvent.geohash }}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Description -->
+                  <div v-if="selectedEvent.description" class="mb-5">
+                    <p class="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed">{{ selectedEvent.description }}</p>
+                  </div>
+
+                  <!-- People — unified section -->
+                  <div v-if="allEventPeople.length > 0" class="mb-5">
+                    <div class="flex items-center justify-between mb-3">
+                      <h4 class="text-[11px] font-semibold text-gray-400 uppercase tracking-widest">People</h4>
+                      <div class="flex items-center gap-2.5 text-xs">
+                        <span v-if="acceptedCount > 0" class="flex items-center gap-1 text-green-600 font-medium">
+                          <span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                          {{ acceptedCount }} going
+                        </span>
+                        <span v-if="tentativeCount > 0" class="flex items-center gap-1 text-amber-600 font-medium">
+                          <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+                          {{ tentativeCount }} maybe
+                        </span>
+                        <span v-if="pendingCount > 0" class="flex items-center gap-1 text-gray-400 font-medium">
+                          <span class="w-1.5 h-1.5 rounded-full bg-gray-300"></span>
+                          {{ pendingCount }} pending
+                        </span>
+                      </div>
+                    </div>
+
+                    <!-- Avatar stack preview -->
+                    <div v-if="allEventPeople.length > 3" class="flex items-center mb-3">
+                      <div class="flex -space-x-2">
+                        <div
+                          v-for="(person, i) in allEventPeople.slice(0, 6)"
+                          :key="'stack-' + person.pubkey"
+                          class="w-8 h-8 rounded-full overflow-hidden ring-2 ring-white flex-shrink-0"
+                          :style="{ zIndex: 10 - i }"
+                        >
                           <img
-                            :src="getProfilePicture(rsvp)"
-                            :alt="rsvp.name || 'User'"
+                            :src="getProfilePicture(person)"
+                            :alt="person.name || 'User'"
                             class="w-full h-full object-cover"
-                            @error="(e) => { e.target.src = generateAvatar(rsvp.pubkey) }"
+                            @error="(e) => { e.target.src = generateAvatar(person.pubkey) }"
                           />
                         </div>
-                        
-                        <!-- User Info -->
-                        <div class="flex-1 min-w-0">
-                          <div class="flex items-center space-x-2">
-                            <p class="font-medium text-sm text-gray-900 truncate">
-                              {{ rsvp.name || rsvp.pubkey?.substring(0, 16) + '...' }}
-                            </p>
-                          </div>
-                          <div class="flex items-center space-x-2 text-xs text-gray-500 mt-0.5">
-                            <span v-if="rsvp.nip05" class="truncate">{{ rsvp.nip05 }}</span>
-                            <span v-else class="font-mono truncate">{{ rsvp.pubkey?.substring(0, 16) }}...</span>
-                          </div>
+                        <div
+                          v-if="allEventPeople.length > 6"
+                          class="w-8 h-8 rounded-full bg-gray-100 ring-2 ring-white flex items-center justify-center flex-shrink-0 text-xs font-semibold text-gray-500"
+                        >
+                          +{{ allEventPeople.length - 6 }}
                         </div>
-                        
-                        <!-- Going Badge -->
-                        <span class="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
-                          ✓ Going
+                      </div>
+                    </div>
+
+                    <!-- Full people list -->
+                    <div class="space-y-0.5">
+                      <div
+                        v-for="person in allEventPeople"
+                        :key="'list-' + person.pubkey"
+                        class="flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-gray-50/80 transition-colors"
+                      >
+                        <div class="w-7 h-7 rounded-full overflow-hidden flex-shrink-0">
+                          <img
+                            :src="getProfilePicture(person)"
+                            :alt="person.name || 'User'"
+                            class="w-full h-full object-cover"
+                            @error="(e) => { e.target.src = generateAvatar(person.pubkey) }"
+                          />
+                        </div>
+                        <div class="flex-1 min-w-0">
+                          <p class="text-sm font-medium text-gray-900 truncate">
+                            {{ person.name || person.pubkey?.substring(0, 12) + '...' }}
+                          </p>
+                          <p v-if="person.role" class="text-xs text-orange-500">{{ person.role }}</p>
+                        </div>
+                        <span :class="[
+                          'inline-flex items-center gap-1 text-xs font-medium',
+                          person.rsvpStatus === 'accepted' ? 'text-green-600' :
+                          person.rsvpStatus === 'tentative' ? 'text-amber-600' :
+                          person.rsvpStatus === 'declined' ? 'text-red-500' :
+                          'text-gray-400'
+                        ]">
+                          <span :class="[
+                            'w-1.5 h-1.5 rounded-full',
+                            person.rsvpStatus === 'accepted' ? 'bg-green-500' :
+                            person.rsvpStatus === 'tentative' ? 'bg-amber-400' :
+                            person.rsvpStatus === 'declined' ? 'bg-red-400' :
+                            'bg-gray-300'
+                          ]"></span>
+                          {{ person.rsvpStatus === 'accepted' ? 'Going' :
+                             person.rsvpStatus === 'tentative' ? 'Maybe' :
+                             person.rsvpStatus === 'declined' ? 'Declined' :
+                             'Invited' }}
                         </span>
                       </div>
                     </div>
                   </div>
-                </div>
-              </div>
 
-              <!-- Invited Participants -->
-              <div v-if="selectedEvent.participants && selectedEvent.participants.length > 0">
-                <div class="flex items-start space-x-3">
-                  <IconUsers class="w-5 h-5 text-gray-600 mt-0.5" />
-                  <div class="flex-1">
-                    <h4 class="font-medium text-gray-900 mb-2">
-                      Invited Participants ({{ selectedEvent.participants.length }})
-                      <span class="text-xs text-gray-500 font-normal ml-2">
-                        {{ selectedEvent.participants.filter(p => getParticipantRSVP(selectedEvent.id, p.pubkey)?.status === 'accepted').length }} accepted,
-                        {{ selectedEvent.participants.filter(p => !getParticipantRSVP(selectedEvent.id, p.pubkey)).length }} pending
-                      </span>
-                    </h4>
-                    <div class="space-y-2">
+                  <!-- Discussion -->
+                  <div v-if="eventMessages.length > 0" class="mb-5">
+                    <h4 class="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-3">Discussion</h4>
+                    <div class="space-y-3">
                       <div
-                        v-for="(participant, index) in selectedEvent.participants"
-                        :key="index"
-                        class="flex items-center space-x-3 bg-gray-50 px-3 py-2 rounded-lg"
+                        v-for="msg in eventMessages"
+                        :key="msg.id"
+                        class="flex items-start gap-2.5"
                       >
-                        <!-- Avatar -->
-                        <div class="w-8 h-8 rounded-full overflow-hidden bg-gray-200 flex-shrink-0">
+                        <div class="w-6 h-6 rounded-full overflow-hidden flex-shrink-0 mt-0.5">
                           <img
-                            :src="getProfilePicture(participant)"
-                            :alt="participant.name || 'User'"
+                            :src="getProfilePicture(msg)"
+                            :alt="msg.name || 'User'"
                             class="w-full h-full object-cover"
-                            @error="(e) => { e.target.src = generateAvatar(participant.pubkey) }"
+                            @error="(e) => { e.target.src = generateAvatar(msg.pubkey) }"
                           />
                         </div>
-                        
-                        <!-- User Info -->
                         <div class="flex-1 min-w-0">
-                          <div class="flex items-center space-x-2">
-                            <p class="font-medium text-sm text-gray-900 truncate">
-                              {{ participant.name || participant.pubkey?.substring(0, 16) + '...' }}
-                            </p>
-                            <span v-if="participant.role" class="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">
-                              {{ participant.role }}
-                            </span>
+                          <div class="flex items-baseline gap-2 mb-0.5">
+                            <span class="text-sm font-semibold text-gray-900">{{ msg.name || msg.pubkey.substring(0, 8) + '...' }}</span>
+                            <span class="text-[11px] text-gray-400">{{ new Date(msg.created_at * 1000).toLocaleDateString() }}</span>
                           </div>
-                          <div class="flex items-center space-x-2 text-xs text-gray-500 mt-0.5">
-                            <span v-if="participant.nip05" class="truncate">{{ participant.nip05 }}</span>
-                            <span v-else class="font-mono truncate">{{ participant.pubkey?.substring(0, 16) }}...</span>
-                          </div>
-                        </div>
-                        
-                        <!-- RSVP Status -->
-                        <div class="flex-shrink-0">
-                          <span
-                            v-if="getParticipantRSVP(selectedEvent.id, participant.pubkey)"
-                            :class="['px-2 py-1 rounded-full text-xs font-medium', getRSVPStatusColor(getParticipantRSVP(selectedEvent.id, participant.pubkey).status)]"
-                          >
-                            {{ getRSVPStatusIcon(getParticipantRSVP(selectedEvent.id, participant.pubkey).status) }}
-                            {{ getParticipantRSVP(selectedEvent.id, participant.pubkey).status }}
-                          </span>
-                          <span v-else class="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
-                            • Pending
-                          </span>
+                          <p class="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed">{{ msg.note }}</p>
                         </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              </div>
 
-              <!-- Tags -->
-              <div v-if="selectedEvent.tags && selectedEvent.tags.length > 0">
-                <h4 class="font-medium text-gray-900 mb-2">Tags</h4>
-                <div class="flex flex-wrap gap-2">
-                  <span
-                    v-for="(tag, index) in selectedEvent.tags"
-                    :key="index"
-                    class="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-sm"
-                  >
-                    #{{ tag }}
-                  </span>
-                </div>
-              </div>
-
-              <!-- References -->
-              <div v-if="selectedEvent.references && selectedEvent.references.length > 0">
-                <div class="flex items-start space-x-3">
-                  <IconExternalLink class="w-5 h-5 text-gray-600 mt-0.5" />
-                  <div class="flex-1">
-                    <h4 class="font-medium text-gray-900 mb-2">Reference Links</h4>
-                    <div class="space-y-2">
+                  <!-- Tags & Links -->
+                  <div v-if="(selectedEvent.tags?.length > 0) || (selectedEvent.references?.length > 0)" class="pt-4 border-t border-gray-100">
+                    <div v-if="selectedEvent.tags?.length > 0" class="flex flex-wrap gap-1.5 mb-3">
+                      <span
+                        v-for="(tag, index) in selectedEvent.tags"
+                        :key="index"
+                        class="text-xs text-orange-600 bg-orange-50 px-2 py-0.5 rounded-md font-medium"
+                      >#{{ tag }}</span>
+                    </div>
+                    <div v-if="selectedEvent.references?.length > 0" class="space-y-1.5">
                       <a
                         v-for="(ref, index) in selectedEvent.references"
                         :key="index"
                         :href="ref"
                         target="_blank"
-                        class="block text-blue-600 hover:underline text-sm truncate"
+                        rel="noopener"
+                        class="flex items-center gap-2 text-xs text-blue-600 hover:text-blue-700 font-medium group truncate"
                       >
-                        {{ ref }}
+                        <IconExternalLink class="w-3 h-3 flex-shrink-0 opacity-50 group-hover:opacity-100 transition-opacity" />
+                        <span class="truncate underline underline-offset-2 decoration-blue-200 group-hover:decoration-blue-400 transition-colors">{{ ref }}</span>
                       </a>
                     </div>
                   </div>
+
                 </div>
               </div>
 
-              <!-- Discussion (RSVP Notes) -->
-              <div v-if="getEventRSVPs(selectedEvent.id).filter(rsvp => rsvp.note && rsvp.note.trim()).length > 0">
-                <div class="flex items-start space-x-3">
-                  <IconMessage class="w-5 h-5 text-gray-600 mt-0.5" />
-                  <div class="flex-1">
-                    <h4 class="font-medium text-gray-900 mb-3">
-                      Discussion
-                      <span class="text-xs text-gray-500 font-normal ml-1">
-                        ({{ getEventRSVPs(selectedEvent.id).filter(rsvp => rsvp.note && rsvp.note.trim()).length }})
-                      </span>
-                    </h4>
-                    <div class="space-y-3">
-                      <div
-                        v-for="rsvp in getEventRSVPs(selectedEvent.id).filter(rsvp => rsvp.note && rsvp.note.trim())"
-                        :key="rsvp.id"
-                        class="bg-gray-50 p-3 rounded-lg"
-                      >
-                        <div class="flex items-start space-x-3">
-                          <!-- Avatar -->
-                          <div class="w-8 h-8 rounded-full overflow-hidden bg-gray-200 flex-shrink-0">
+              <!-- Sticky footer -->
+              <div class="flex-shrink-0 border-t border-gray-200 px-5 md:px-6 py-3 bg-white safe-bottom">
+                <div class="flex items-center gap-2">
+                  <button
+                    @click="openRSVPFromView"
+                    class="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-orange-400 to-amber-400 hover:from-orange-500 hover:to-amber-500 text-white font-semibold text-sm transition-all shadow-sm shadow-orange-200/50 flex items-center justify-center gap-1.5 active:scale-[0.97]"
+                  >
+                    <IconCheck class="w-4 h-4" />
+                    {{ getUserRSVP(selectedEvent.id) ? 'Update RSVP' : 'RSVP' }}
+                  </button>
+                  <button
+                    v-if="selectedEvent.pubkey === currentUser?.pubkey"
+                    @click="openEditFromView"
+                    class="px-4 py-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium text-sm transition-colors flex items-center gap-1.5"
+                  >
+                    <IconEdit class="w-4 h-4" />
+                    Edit
+                  </button>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </transition>
+    </Teleport>
+
+    <!-- RSVP Modal — Streamlined with full event context -->
+    <Teleport to="#modal-root">
+      <transition name="modal-transition">
+        <div v-if="showRSVPModal" class="fixed inset-0 z-[9999]">
+          <!-- Backdrop -->
+          <div @click="closeRSVPModal" class="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity"></div>
+
+          <!-- Modal — full-height mobile bottom sheet, centered card on desktop -->
+          <div class="absolute inset-0 flex md:items-center md:justify-center md:p-8 pointer-events-none">
+            <div
+              @click.stop
+              class="pointer-events-auto bg-white w-full md:w-[480px] md:max-h-[85vh] max-h-[92vh] mt-auto md:mt-0 rounded-t-3xl md:rounded-2xl shadow-2xl overflow-hidden flex flex-col md:animate-scale-in animate-slide-up"
+            >
+              <!-- Mobile drag handle -->
+              <div class="md:hidden flex justify-center pt-2.5 pb-1">
+                <div class="w-9 h-1 bg-gray-300 rounded-full"></div>
+              </div>
+
+              <!-- Header — event title + close -->
+              <div class="flex-shrink-0 px-5 md:px-6 pt-3 md:pt-5 pb-3 flex items-start justify-between gap-3">
+                <div class="flex-1 min-w-0">
+                  <p class="text-xs font-medium text-orange-500 mb-0.5">RSVP to event</p>
+                  <h3 v-if="selectedEvent" class="text-lg md:text-xl font-bold text-gray-900 leading-tight">{{ selectedEvent.title }}</h3>
+                </div>
+                <button
+                  @click="closeRSVPModal"
+                  class="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors flex-shrink-0 mt-0.5"
+                >
+                  <IconX class="w-4 h-4 text-gray-500" />
+                </button>
+              </div>
+
+              <!-- Scrollable content -->
+              <div class="flex-1 overflow-y-auto overscroll-contain min-h-0">
+                <div v-if="selectedEvent" class="px-5 md:px-6 pb-5 space-y-4">
+
+                  <!-- Event details — compact info rows -->
+                  <div class="space-y-2">
+                    <!-- Date & Time -->
+                    <div class="flex items-center gap-3 py-2">
+                      <div class="w-8 h-8 rounded-lg bg-orange-50 flex items-center justify-center flex-shrink-0">
+                        <IconClock class="w-4 h-4 text-orange-500" />
+                      </div>
+                      <div class="flex-1 min-w-0">
+                        <p class="text-sm font-semibold text-gray-900">
+                          {{ selectedEvent.type === 'time-based'
+                            ? new Date(selectedEvent.start * 1000).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
+                            : selectedEvent.start_date }}
+                        </p>
+                        <p v-if="selectedEvent.type === 'time-based'" class="text-xs text-gray-500 mt-0.5">
+                          {{ new Date(selectedEvent.start * 1000).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) }}
+                          <template v-if="selectedEvent.end"> — {{ new Date(selectedEvent.end * 1000).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) }}</template>
+                        </p>
+                        <p v-else-if="selectedEvent.end_date" class="text-xs text-gray-500 mt-0.5">
+                          to {{ selectedEvent.end_date }}
+                        </p>
+                      </div>
+                    </div>
+
+                    <!-- Location (clickable if URL) -->
+                    <div v-if="selectedEvent.location" class="flex items-center gap-3 py-2">
+                      <div class="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
+                        <IconMapPin class="w-4 h-4 text-blue-500" />
+                      </div>
+                      <div class="flex-1 min-w-0">
+                        <a
+                          v-if="selectedEvent.location.startsWith('http')"
+                          :href="selectedEvent.location"
+                          target="_blank"
+                          rel="noopener"
+                          class="text-sm font-medium text-blue-600 hover:text-blue-700 hover:underline truncate block"
+                        >
+                          {{ selectedEvent.location }}
+                        </a>
+                        <p v-else class="text-sm font-medium text-gray-900 truncate">{{ selectedEvent.location }}</p>
+                      </div>
+                    </div>
+
+                    <!-- Attendees summary -->
+                    <div v-if="getEventRSVPs(selectedEvent.id).length > 0 || (selectedEvent.participants && selectedEvent.participants.length > 0)" class="flex items-center gap-3 py-2">
+                      <div class="w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center flex-shrink-0">
+                        <IconUsers class="w-4 h-4 text-green-500" />
+                      </div>
+                      <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-2 flex-wrap">
+                          <span v-if="getEventRSVPs(selectedEvent.id).filter(r => r.status === 'accepted').length > 0" class="text-sm font-medium text-green-700">
+                            {{ getEventRSVPs(selectedEvent.id).filter(r => r.status === 'accepted').length }} going
+                          </span>
+                          <span v-if="getEventRSVPs(selectedEvent.id).filter(r => r.status === 'tentative').length > 0" class="text-sm text-amber-600">
+                            · {{ getEventRSVPs(selectedEvent.id).filter(r => r.status === 'tentative').length }} maybe
+                          </span>
+                          <span v-if="selectedEvent.participants && selectedEvent.participants.filter(p => !getParticipantRSVP(selectedEvent.id, p.pubkey)).length > 0" class="text-sm text-gray-400">
+                            · {{ selectedEvent.participants.filter(p => !getParticipantRSVP(selectedEvent.id, p.pubkey)).length }} pending
+                          </span>
+                        </div>
+                        <!-- Avatar stack of going users -->
+                        <div v-if="getEventRSVPs(selectedEvent.id).filter(r => r.status === 'accepted').length > 0" class="flex items-center mt-1.5 -space-x-1.5">
+                          <div
+                            v-for="(rsvp, i) in getEventRSVPs(selectedEvent.id).filter(r => r.status === 'accepted').slice(0, 6)"
+                            :key="i"
+                            class="w-6 h-6 rounded-full overflow-hidden border-2 border-white flex-shrink-0"
+                            :title="rsvp.name || rsvp.pubkey?.substring(0, 12)"
+                          >
                             <img
                               :src="getProfilePicture(rsvp)"
                               :alt="rsvp.name || 'User'"
@@ -1651,98 +1785,179 @@ onMounted(() => {
                               @error="(e) => { e.target.src = generateAvatar(rsvp.pubkey) }"
                             />
                           </div>
-                          
-                          <div class="flex-1 min-w-0">
-                            <!-- Header -->
-                            <div class="flex items-center justify-between mb-1">
-                              <div class="flex items-center space-x-2">
-                                <span class="font-medium text-sm text-gray-900">
-                                  {{ rsvp.name || rsvp.pubkey.substring(0, 16) + '...' }}
-                                </span>
-                                <span :class="['px-2 py-0.5 rounded-full text-xs font-medium', getRSVPStatusColor(rsvp.status)]">
-                                  {{ getRSVPStatusIcon(rsvp.status) }} {{ rsvp.status }}
-                                </span>
-                              </div>
-                              <span class="text-xs text-gray-500">
-                                {{ new Date(rsvp.created_at * 1000).toLocaleDateString() }}
-                              </span>
-                            </div>
-                            
-                            <!-- NIP-05 -->
-                            <p v-if="rsvp.nip05" class="text-xs text-gray-500 mb-2">{{ rsvp.nip05 }}</p>
-                            
-                            <!-- Note/Comment -->
-                            <p class="text-sm text-gray-700 whitespace-pre-wrap">{{ rsvp.note }}</p>
-                          </div>
+                          <span v-if="getEventRSVPs(selectedEvent.id).filter(r => r.status === 'accepted').length > 6" class="w-6 h-6 rounded-full bg-gray-200 border-2 border-white flex items-center justify-center text-xs text-gray-500 font-medium flex-shrink-0">
+                            +{{ getEventRSVPs(selectedEvent.id).filter(r => r.status === 'accepted').length - 6 }}
+                          </span>
                         </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              </div>
 
-              <!-- Other RSVPs (non-participants who responded) -->
-              <div v-if="getEventRSVPs(selectedEvent.id).filter(rsvp => !selectedEvent.participants?.some(p => p.pubkey === rsvp.pubkey)).length > 0">
-                <h4 class="font-medium text-gray-900 mb-2">
-                  Other RSVPs 
-                  <span class="text-xs text-gray-500 font-normal ml-1">
-                    ({{ getEventRSVPs(selectedEvent.id).filter(rsvp => !selectedEvent.participants?.some(p => p.pubkey === rsvp.pubkey)).length }})
-                  </span>
-                </h4>
-                <p class="text-xs text-gray-500 mb-2">People who RSVP'd but weren't invited</p>
-                <div class="space-y-2">
-                  <div
-                    v-for="rsvp in getEventRSVPs(selectedEvent.id).filter(rsvp => !selectedEvent.participants?.some(p => p.pubkey === rsvp.pubkey))"
-                    :key="rsvp.id"
-                    class="bg-gray-50 px-3 py-2 rounded-lg text-sm"
-                  >
-                    <div class="flex items-center justify-between">
-                      <span class="font-mono text-xs">{{ rsvp.pubkey.substring(0, 16) }}...</span>
-                      <span :class="['px-2 py-1 rounded-full text-xs font-medium', getRSVPStatusColor(rsvp.status)]">
-                        {{ getRSVPStatusIcon(rsvp.status) }} {{ rsvp.status }}
-                      </span>
-                    </div>
-                    <p v-if="rsvp.note" class="text-gray-600 mt-1">{{ rsvp.note }}</p>
+                  <!-- Description (collapsible if long) -->
+                  <div v-if="selectedEvent.description" class="bg-gray-50/80 rounded-xl px-4 py-3">
+                    <p class="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed line-clamp-4">{{ selectedEvent.description }}</p>
                   </div>
+
+                  <!-- Reference links — clickable -->
+                  <div v-if="selectedEvent.references && selectedEvent.references.length > 0" class="space-y-1.5">
+                    <a
+                      v-for="(ref, index) in selectedEvent.references"
+                      :key="index"
+                      :href="ref"
+                      target="_blank"
+                      rel="noopener"
+                      class="flex items-center gap-2 px-3 py-2 rounded-lg bg-orange-50/60 hover:bg-orange-50 border border-orange-100/50 transition-colors group"
+                    >
+                      <IconExternalLink class="w-3.5 h-3.5 text-orange-400 group-hover:text-orange-500 flex-shrink-0" />
+                      <span class="text-sm text-orange-600 group-hover:text-orange-700 font-medium truncate">{{ ref }}</span>
+                    </a>
+                  </div>
+
+                  <!-- Divider -->
+                  <div class="border-t border-gray-100"></div>
+
+                  <!-- Response selection -->
+                  <div>
+                    <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Your response</p>
+                    <div class="grid grid-cols-3 gap-2.5">
+                      <!-- Going -->
+                      <button
+                        @click="rsvpForm.status = 'accepted'"
+                        :class="[
+                          'flex flex-col items-center gap-2 py-4 px-2 rounded-xl border-2 transition-all duration-200 touch-target',
+                          rsvpForm.status === 'accepted'
+                            ? 'border-green-400 bg-green-50 shadow-md shadow-green-100/50'
+                            : 'border-gray-200 bg-white hover:border-green-200 hover:bg-green-50/30'
+                        ]"
+                      >
+                        <div :class="[
+                          'w-11 h-11 rounded-full flex items-center justify-center transition-all duration-200',
+                          rsvpForm.status === 'accepted' ? 'bg-green-500 scale-110' : 'bg-gray-100'
+                        ]">
+                          <IconCheck :class="['w-5 h-5', rsvpForm.status === 'accepted' ? 'text-white' : 'text-gray-400']" />
+                        </div>
+                        <span :class="['text-sm font-bold', rsvpForm.status === 'accepted' ? 'text-green-700' : 'text-gray-500']">Going</span>
+                      </button>
+
+                      <!-- Maybe -->
+                      <button
+                        @click="rsvpForm.status = 'tentative'"
+                        :class="[
+                          'flex flex-col items-center gap-2 py-4 px-2 rounded-xl border-2 transition-all duration-200 touch-target',
+                          rsvpForm.status === 'tentative'
+                            ? 'border-amber-400 bg-amber-50 shadow-md shadow-amber-100/50'
+                            : 'border-gray-200 bg-white hover:border-amber-200 hover:bg-amber-50/30'
+                        ]"
+                      >
+                        <div :class="[
+                          'w-11 h-11 rounded-full flex items-center justify-center transition-all duration-200',
+                          rsvpForm.status === 'tentative' ? 'bg-amber-500 scale-110' : 'bg-gray-100'
+                        ]">
+                          <IconAlertCircle :class="['w-5 h-5', rsvpForm.status === 'tentative' ? 'text-white' : 'text-gray-400']" />
+                        </div>
+                        <span :class="['text-sm font-bold', rsvpForm.status === 'tentative' ? 'text-amber-700' : 'text-gray-500']">Maybe</span>
+                      </button>
+
+                      <!-- Can't go -->
+                      <button
+                        @click="rsvpForm.status = 'declined'"
+                        :class="[
+                          'flex flex-col items-center gap-2 py-4 px-2 rounded-xl border-2 transition-all duration-200 touch-target',
+                          rsvpForm.status === 'declined'
+                            ? 'border-gray-400 bg-gray-100 shadow-md shadow-gray-200/50'
+                            : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'
+                        ]"
+                      >
+                        <div :class="[
+                          'w-11 h-11 rounded-full flex items-center justify-center transition-all duration-200',
+                          rsvpForm.status === 'declined' ? 'bg-gray-500 scale-110' : 'bg-gray-100'
+                        ]">
+                          <IconX :class="['w-5 h-5', rsvpForm.status === 'declined' ? 'text-white' : 'text-gray-400']" />
+                        </div>
+                        <span :class="['text-sm font-bold', rsvpForm.status === 'declined' ? 'text-gray-700' : 'text-gray-500']">Can't go</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Availability + Message — shown together when not declining -->
+                  <div v-if="rsvpForm.status !== 'declined'" class="space-y-3">
+                    <!-- Availability — segmented toggle -->
+                    <div>
+                      <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Mark as</p>
+                      <div class="inline-flex bg-gray-100 rounded-lg p-1 w-full">
+                        <button
+                          @click="rsvpForm.freebusy = 'free'"
+                          :class="[
+                            'flex-1 py-2 text-sm font-medium rounded-md transition-all duration-200',
+                            rsvpForm.freebusy === 'free'
+                              ? 'bg-white text-green-700 shadow-sm'
+                              : 'text-gray-500 hover:text-gray-700'
+                          ]"
+                        >
+                          Free
+                        </button>
+                        <button
+                          @click="rsvpForm.freebusy = 'busy'"
+                          :class="[
+                            'flex-1 py-2 text-sm font-medium rounded-md transition-all duration-200',
+                            rsvpForm.freebusy === 'busy'
+                              ? 'bg-white text-gray-700 shadow-sm'
+                              : 'text-gray-500 hover:text-gray-700'
+                          ]"
+                        >
+                          Busy
+                        </button>
+                      </div>
+                    </div>
+
+                    <!-- Message -->
+                    <textarea
+                      v-model="rsvpForm.note"
+                      rows="2"
+                      placeholder="Add a message (optional)"
+                      class="w-full px-3.5 py-2.5 bg-gray-50/80 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-400/40 focus:border-orange-400 focus:bg-white text-sm placeholder:text-gray-400 resize-none transition-all"
+                    ></textarea>
+                  </div>
+
+                  <!-- Declining — just a message -->
+                  <div v-else>
+                    <textarea
+                      v-model="rsvpForm.note"
+                      rows="2"
+                      placeholder="Let the organizer know why (optional)"
+                      class="w-full px-3.5 py-2.5 bg-gray-50/80 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-400/40 focus:border-orange-400 focus:bg-white text-sm placeholder:text-gray-400 resize-none transition-all"
+                    ></textarea>
+                  </div>
+
                 </div>
               </div>
 
-              <!-- Actions -->
-              <div class="flex flex-col sm:flex-row items-center justify-between space-y-3 sm:space-y-0 sm:space-x-3 pt-4 border-t">
-                <!-- Left side - View on Nostr -->
-                <div class="flex items-center space-x-2">
+              <!-- Sticky footer -->
+              <div class="flex-shrink-0 border-t border-gray-100 bg-white px-5 md:px-6 py-4 safe-bottom">
+                <div class="flex items-center gap-3">
                   <button
-                    @click="openNostrEvent(selectedEvent)"
-                    class="text-purple-600 hover:text-purple-700 font-medium text-sm flex items-center"
+                    @click="closeRSVPModal"
+                    class="px-4 py-3 rounded-xl text-gray-500 font-medium text-sm hover:bg-gray-100 transition-colors flex-shrink-0"
                   >
-                    <IconExternalLink class="w-4 h-4 inline mr-1" />
-                    View on Nostr
+                    Cancel
                   </button>
                   <button
-                    @click="copyNostrEventLink(selectedEvent)"
-                    class="text-gray-600 hover:text-gray-700 p-1 rounded hover:bg-gray-100"
-                    title="Copy link"
+                    @click="handleRSVPSubmit"
+                    :disabled="isLoading"
+                    :class="[
+                      'flex-1 py-3 rounded-xl font-semibold text-sm transition-all flex items-center justify-center gap-2 active:scale-[0.97] disabled:opacity-40 disabled:cursor-not-allowed',
+                      rsvpForm.status === 'accepted'
+                        ? 'bg-green-500 hover:bg-green-600 text-white shadow-sm shadow-green-200/50'
+                        : rsvpForm.status === 'tentative'
+                          ? 'bg-gradient-to-r from-amber-400 to-orange-400 hover:from-amber-500 hover:to-orange-500 text-white shadow-sm shadow-amber-200/50'
+                          : 'bg-gray-500 hover:bg-gray-600 text-white'
+                    ]"
                   >
-                    <IconCopy class="w-4 h-4" />
-                  </button>
-                </div>
-                
-                <!-- Right side - Action buttons -->
-                <div class="flex flex-col sm:flex-row items-center space-y-3 sm:space-y-0 sm:space-x-3 w-full sm:w-auto">
-                  <button
-                    @click="openRSVPFromView"
-                    class="w-full sm:w-auto btn-secondary"
-                  >
-                    <IconCheck class="w-4 h-4 inline mr-2" />
-                    {{ getUserRSVP(selectedEvent.id) ? 'Update RSVP' : 'RSVP' }}
-                  </button>
-                  <button
-                    v-if="selectedEvent.pubkey === currentUser?.pubkey"
-                    @click="openEditFromView"
-                    class="w-full sm:w-auto btn-primary"
-                  >
-                    <IconEdit class="w-4 h-4 inline mr-2" />
-                    Edit Event
+                    <IconLoader v-if="isLoading" class="w-4 h-4 animate-spin" />
+                    <template v-else>
+                      <IconBolt class="w-4 h-4" />
+                      <span>{{ rsvpForm.status === 'accepted' ? "I'm going" : rsvpForm.status === 'tentative' ? 'Maybe' : 'Decline' }}</span>
+                    </template>
                   </button>
                 </div>
               </div>
@@ -1752,292 +1967,102 @@ onMounted(() => {
       </transition>
     </Teleport>
 
-    <!-- RSVP Modal -->
+    <!-- Pending Invitations Modal — mobile responsive -->
     <Teleport to="#modal-root">
-      <transition
-        enter-active-class="transition-all duration-300 ease-out"
-        enter-from-class="opacity-0"
-        enter-to-class="opacity-100"
-        leave-active-class="transition-all duration-200 ease-in"
-        leave-from-class="opacity-100"
-        leave-to-class="opacity-0"
-      >
-        <div v-if="showRSVPModal" @click="closeRSVPModal" class="fixed inset-0 bg-black/40 z-[9999] flex items-end md:items-center justify-center">
-          <transition
-            enter-active-class="transition-all duration-300 ease-out"
-            enter-from-class="translate-y-full md:translate-y-0 md:scale-95 opacity-0"
-            enter-to-class="translate-y-0 md:scale-100 opacity-100"
-            leave-active-class="transition-all duration-200 ease-in"
-            leave-from-class="translate-y-0 md:scale-100 opacity-100"
-            leave-to-class="translate-y-full md:translate-y-0 md:scale-95 opacity-0"
-          >
-            <div
-              @click.stop
-              class="bg-white w-full md:max-w-lg md:mx-4 rounded-t-3xl md:rounded-3xl shadow-2xl overflow-hidden"
-            >
-              <!-- Handle bar for mobile -->
-              <div class="md:hidden flex justify-center pt-3 pb-1">
-                <div class="w-10 h-1 bg-gray-300 rounded-full"></div>
+      <transition name="modal-transition">
+        <div v-if="showPendingInvitationsModal" class="fixed inset-0 z-[9999]">
+          <!-- Backdrop -->
+          <div @click="closePendingInvitationsModal" class="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity"></div>
+
+          <!-- Modal -->
+          <div class="absolute inset-0 flex md:items-center md:justify-center md:p-8 pointer-events-none">
+            <div class="pointer-events-auto w-full md:w-[520px] md:max-h-[85vh] max-h-[92vh] mt-auto md:mt-0 bg-white rounded-t-3xl md:rounded-2xl shadow-2xl overflow-hidden flex flex-col md:animate-scale-in animate-slide-up">
+
+              <!-- Mobile drag handle -->
+              <div class="md:hidden flex justify-center pt-2.5 pb-1">
+                <div class="w-9 h-1 bg-gray-300 rounded-full"></div>
               </div>
 
               <!-- Header -->
-              <div class="px-6 pt-5 pb-4 border-b border-gray-100">
-                <div class="flex items-center justify-between">
-                  <div class="flex-1">
-                    <h3 class="text-xl font-bold text-gray-900">RSVP</h3>
-                    <p class="text-sm text-gray-500 mt-0.5">Respond to invitation</p>
-                  </div>
-                  <button
-                    @click="closeRSVPModal"
-                    class="w-9 h-9 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors"
-                  >
-                    <IconX class="w-5 h-5 text-gray-600" />
-                  </button>
-                </div>
-              </div>
-
-              <!-- Content -->
-              <div class="px-6 py-6 max-h-[70vh] md:max-h-[600px] overflow-y-auto">
-                <!-- Event Info Card -->
-                <div v-if="selectedEvent" class="bg-gradient-to-br from-amber-50 to-yellow-50 rounded-2xl p-4 mb-6 border border-amber-100">
-                  <div class="flex items-start gap-3">
-                    <div class="w-12 h-12 rounded-xl bg-white shadow-sm flex items-center justify-center flex-shrink-0">
-                      <IconCalendar class="w-6 h-6 text-amber-600" />
-                    </div>
-                    <div class="flex-1 min-w-0">
-                      <h4 class="text-base font-semibold text-gray-900 mb-1 truncate">{{ selectedEvent.title }}</h4>
-                      <div class="flex items-center gap-2 text-sm text-gray-600">
-                        <IconClock class="w-4 h-4 flex-shrink-0" />
-                        <span>
-                          {{ selectedEvent.type === 'time-based'
-                            ? new Date(selectedEvent.start * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })
-                            : new Date(selectedEvent.start_date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) }}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Response Options -->
-                <div class="mb-5">
-                  <label class="block text-sm font-semibold text-gray-700 mb-3">Your Response</label>
-                  <div class="grid grid-cols-3 gap-2">
-                    <button
-                      @click="rsvpForm.status = 'accepted'"
-                      :class="[
-                        'flex flex-col items-center gap-1.5 py-3 rounded-xl border-2 transition-all',
-                        rsvpForm.status === 'accepted'
-                          ? 'border-amber-400 bg-amber-50 shadow-sm'
-                          : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'
-                      ]"
-                    >
-                      <div :class="[
-                        'w-8 h-8 rounded-full flex items-center justify-center',
-                        rsvpForm.status === 'accepted' ? 'bg-amber-400' : 'bg-gray-100'
-                      ]">
-                        <IconCheck :class="['w-4 h-4', rsvpForm.status === 'accepted' ? 'text-white' : 'text-gray-400']" />
-                      </div>
-                      <span :class="['text-xs font-semibold', rsvpForm.status === 'accepted' ? 'text-amber-700' : 'text-gray-600']">Yes</span>
-                    </button>
-
-                    <button
-                      @click="rsvpForm.status = 'tentative'"
-                      :class="[
-                        'flex flex-col items-center gap-1.5 py-3 rounded-xl border-2 transition-all',
-                        rsvpForm.status === 'tentative'
-                          ? 'border-blue-400 bg-blue-50 shadow-sm'
-                          : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'
-                      ]"
-                    >
-                      <div :class="[
-                        'w-8 h-8 rounded-full flex items-center justify-center',
-                        rsvpForm.status === 'tentative' ? 'bg-blue-400' : 'bg-gray-100'
-                      ]">
-                        <IconAlertCircle :class="['w-4 h-4', rsvpForm.status === 'tentative' ? 'text-white' : 'text-gray-400']" />
-                      </div>
-                      <span :class="['text-xs font-semibold', rsvpForm.status === 'tentative' ? 'text-blue-700' : 'text-gray-600']">Maybe</span>
-                    </button>
-
-                    <button
-                      @click="rsvpForm.status = 'declined'"
-                      :class="[
-                        'flex flex-col items-center gap-1.5 py-3 rounded-xl border-2 transition-all',
-                        rsvpForm.status === 'declined'
-                          ? 'border-gray-400 bg-gray-50 shadow-sm'
-                          : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'
-                      ]"
-                    >
-                      <div :class="[
-                        'w-8 h-8 rounded-full flex items-center justify-center',
-                        rsvpForm.status === 'declined' ? 'bg-gray-400' : 'bg-gray-100'
-                      ]">
-                        <IconX :class="['w-4 h-4', rsvpForm.status === 'declined' ? 'text-white' : 'text-gray-400']" />
-                      </div>
-                      <span :class="['text-xs font-semibold', rsvpForm.status === 'declined' ? 'text-gray-700' : 'text-gray-600']">No</span>
-                    </button>
-                  </div>
-                </div>
-
-                <!-- Availability -->
-                <div v-if="rsvpForm.status !== 'declined'" class="mb-5">
-                  <label class="block text-sm font-semibold text-gray-700 mb-3">Availability</label>
-                  <div class="grid grid-cols-2 gap-2">
-                    <button
-                      @click="rsvpForm.freebusy = 'free'"
-                      :class="[
-                        'py-2.5 px-4 rounded-xl border-2 transition-all text-sm font-medium',
-                        rsvpForm.freebusy === 'free'
-                          ? 'border-green-400 bg-green-50 text-green-700'
-                          : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50'
-                      ]"
-                    >
-                      Free
-                    </button>
-                    <button
-                      @click="rsvpForm.freebusy = 'busy'"
-                      :class="[
-                        'py-2.5 px-4 rounded-xl border-2 transition-all text-sm font-medium',
-                        rsvpForm.freebusy === 'busy'
-                          ? 'border-gray-400 bg-gray-50 text-gray-700'
-                          : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50'
-                      ]"
-                    >
-                      Busy
-                    </button>
-                  </div>
-                </div>
-
-                <!-- Note -->
+              <div class="flex-shrink-0 px-5 md:px-6 pt-3 md:pt-5 pb-4 border-b border-gray-100 flex items-start justify-between gap-3">
                 <div>
-                  <label class="block text-sm font-semibold text-gray-700 mb-3">Add a message <span class="text-gray-400 font-normal">(optional)</span></label>
-                  <textarea
-                    v-model="rsvpForm.note"
-                    rows="3"
-                    placeholder="Let them know you're excited to attend..."
-                    class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-400 focus:border-amber-400 text-base placeholder:text-gray-400 resize-none"
-                  ></textarea>
+                  <h3 class="text-lg md:text-xl font-bold text-gray-900">Pending Invitations</h3>
+                  <p class="text-sm text-gray-500 mt-0.5">{{ pendingInvitations.length }} event{{ pendingInvitations.length !== 1 ? 's' : '' }} awaiting your response</p>
                 </div>
-              </div>
-
-              <!-- Footer Actions -->
-              <div class="px-6 py-4 border-t border-gray-100 bg-gray-50">
-                <button
-                  @click="handleRSVPSubmit"
-                  :disabled="isLoading"
-                  class="w-full py-4 bg-gradient-to-r from-amber-400 to-yellow-400 hover:from-amber-500 hover:to-yellow-500 disabled:from-gray-300 disabled:to-gray-300 text-white rounded-2xl font-semibold text-base transition-all shadow-lg hover:shadow-xl disabled:shadow-none hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 disabled:cursor-not-allowed"
-                >
-                  <IconLoader v-if="isLoading" class="w-5 h-5 animate-spin" />
-                  <template v-else>
-                    <IconBolt class="w-5 h-5" />
-                    <span>Send Response</span>
-                  </template>
+                <button @click="closePendingInvitationsModal" class="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors flex-shrink-0">
+                  <IconX class="w-4 h-4 text-gray-500" />
                 </button>
               </div>
-            </div>
-          </transition>
-        </div>
-      </transition>
-    </Teleport>
 
-    <!-- Pending Invitations List Modal -->
-    <Teleport to="#modal-root">
-      <transition name="modal-transition">
-        <div v-if="showPendingInvitationsModal" class="fixed inset-0 bg-black/50 backdrop-blur-lg flex items-center justify-center z-[9999] p-4">
-          <div class="bg-white rounded-xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
-            <div class="flex justify-between items-center mb-6">
-              <div>
-                <h3 class="text-xl font-bold text-gray-900">Pending Invitations</h3>
-                <p class="text-sm text-gray-600 mt-1">You have {{ pendingInvitations.length }} pending event invitation{{ pendingInvitations.length !== 1 ? 's' : '' }}</p>
-              </div>
-              <button @click="closePendingInvitationsModal" class="text-gray-500 hover:text-gray-700">
-                <IconX class="w-5 h-5" />
-              </button>
-            </div>
-
-            <div class="space-y-4">
-              <div
-                v-for="(event, index) in pendingInvitations"
-                :key="event.id"
-                class="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-xl p-4 hover:shadow-md transition-shadow"
-              >
-                <div class="flex items-start justify-between gap-4">
-                  <div class="flex-1 min-w-0">
-                    <div class="flex items-center gap-2 mb-2">
-                      <h4 class="text-lg font-semibold text-gray-900 truncate">{{ event.title }}</h4>
-                      <span :class="['inline-block px-2 py-0.5 rounded-full text-xs font-medium', getEventTypeBadge(event.type)]">
-                        {{ event.type === 'time-based' ? 'Time-based' : 'Date-based' }}
-                      </span>
+              <!-- Scrollable list -->
+              <div class="flex-1 overflow-y-auto overscroll-contain min-h-0">
+                <div class="px-5 md:px-6 py-4 space-y-3">
+                  <div
+                    v-for="event in pendingInvitations"
+                    :key="event.id"
+                    class="bg-white border border-gray-200 rounded-xl p-4 hover:border-orange-200 hover:shadow-sm transition-all"
+                  >
+                    <!-- Event info -->
+                    <div class="mb-3">
+                      <h4 class="text-base font-semibold text-gray-900 leading-tight mb-1.5">{{ event.title }}</h4>
+                      <div class="space-y-1.5">
+                        <div class="flex items-center gap-2 text-sm text-gray-600">
+                          <IconClock class="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                          <span>
+                            {{ event.type === 'time-based'
+                              ? new Date(event.start * 1000).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+                              : event.start_date }}
+                          </span>
+                        </div>
+                        <div v-if="event.location" class="flex items-center gap-2 text-sm text-gray-600">
+                          <IconMapPin class="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                          <span class="truncate">{{ event.location }}</span>
+                        </div>
+                        <div v-if="event.participants && event.participants.length > 0" class="flex items-center gap-2 text-sm text-gray-500">
+                          <IconUsers class="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                          <span>{{ event.participants.length }} invited</span>
+                        </div>
+                      </div>
+                      <p v-if="event.description" class="text-sm text-gray-500 mt-2 line-clamp-2">{{ event.description }}</p>
                     </div>
 
-                    <div class="space-y-2 text-sm text-gray-700">
-                      <div class="flex items-center gap-2">
-                        <IconClock class="w-4 h-4 text-gray-500 flex-shrink-0" />
-                        <span>
-                          {{ event.type === 'time-based'
-                            ? new Date(event.start * 1000).toLocaleString()
-                            : event.start_date }}
-                        </span>
-                      </div>
-
-                      <div v-if="event.location" class="flex items-center gap-2">
-                        <IconMapPin class="w-4 h-4 text-gray-500 flex-shrink-0" />
-                        <span class="truncate">{{ event.location }}</span>
-                      </div>
-
-                      <div v-if="event.description" class="flex items-start gap-2">
-                        <IconMessage class="w-4 h-4 text-gray-500 flex-shrink-0 mt-0.5" />
-                        <p class="line-clamp-2">{{ event.description }}</p>
-                      </div>
-
-                      <div class="flex items-center gap-2">
-                        <IconUser class="w-4 h-4 text-gray-500 flex-shrink-0" />
-                        <span class="text-gray-600">
-                          Organizer:
-                          <span class="font-medium text-gray-900">
-                            {{ event.pubkey === currentUser?.pubkey ? 'You' : event.pubkey.substring(0, 16) + '...' }}
-                          </span>
-                        </span>
-                      </div>
-
-                      <div v-if="event.participants && event.participants.length > 0" class="flex items-center gap-2">
-                        <IconUsers class="w-4 h-4 text-gray-500 flex-shrink-0" />
-                        <span class="text-gray-600">{{ event.participants.length }} participant{{ event.participants.length !== 1 ? 's' : '' }}</span>
-                      </div>
+                    <!-- Action buttons -->
+                    <div class="flex items-center gap-2">
+                      <button
+                        @click="openRSVPFromList(event)"
+                        class="flex-1 py-2.5 rounded-lg bg-gradient-to-r from-orange-400 to-amber-400 hover:from-orange-500 hover:to-amber-500 text-white font-medium text-sm transition-all flex items-center justify-center gap-1.5 active:scale-[0.97] shadow-sm"
+                      >
+                        <IconBolt class="w-3.5 h-3.5" />
+                        RSVP
+                      </button>
+                      <button
+                        @click="() => { closePendingInvitationsModal(); viewEvent(event); showViewEventModal = true }"
+                        class="py-2.5 px-4 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium text-sm transition-colors flex items-center gap-1.5"
+                      >
+                        <IconEye class="w-3.5 h-3.5" />
+                        <span class="hidden sm:inline">Details</span>
+                      </button>
                     </div>
                   </div>
 
-                  <div class="flex flex-col gap-2">
-                    <button
-                      @click="openRSVPFromList(event)"
-                      class="btn-primary text-sm whitespace-nowrap"
-                    >
-                      <IconCheck class="w-4 h-4 inline mr-1" />
-                      RSVP
-                    </button>
-                    <button
-                      @click="() => { closePendingInvitationsModal(); viewEvent(event); showViewEventModal = true }"
-                      class="btn-secondary text-sm whitespace-nowrap"
-                    >
-                      <IconEye class="w-4 h-4 inline mr-1" />
-                      View Details
-                    </button>
+                  <div v-if="pendingInvitations.length === 0" class="text-center py-10">
+                    <div class="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-3">
+                      <IconCheck class="w-6 h-6 text-green-500" />
+                    </div>
+                    <p class="text-sm text-gray-500">All caught up — no pending invitations</p>
                   </div>
                 </div>
               </div>
 
-              <div v-if="pendingInvitations.length === 0" class="text-center py-8">
-                <IconCheck class="w-12 h-12 text-green-500 mx-auto mb-3" />
-                <p class="text-gray-600">All invitations have been responded to!</p>
+              <!-- Footer -->
+              <div class="flex-shrink-0 border-t border-gray-100 px-5 md:px-6 py-3.5 safe-bottom">
+                <button
+                  @click="closePendingInvitationsModal"
+                  class="w-full py-2.5 rounded-xl text-gray-600 font-medium text-sm hover:bg-gray-100 transition-colors"
+                >
+                  Close
+                </button>
               </div>
-            </div>
-
-            <div class="mt-6 pt-4 border-t border-gray-200">
-              <button
-                @click="closePendingInvitationsModal"
-                class="w-full btn-secondary"
-              >
-                Close
-              </button>
             </div>
           </div>
         </div>
@@ -2112,11 +2137,19 @@ onMounted(() => {
   background: rgba(0, 0, 0, 0.2);
 }
 
-/* Line clamp utility for description preview */
+/* Line clamp utilities for description preview */
 .line-clamp-2 {
   display: -webkit-box;
   -webkit-line-clamp: 2;
   line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.line-clamp-4 {
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }

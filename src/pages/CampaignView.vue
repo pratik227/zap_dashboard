@@ -1,181 +1,165 @@
 <template>
-  <div class="min-h-screen bg-white">
-    <!-- Loading Skeleton -->
-    <div v-if="isLoading && !campaign" class="relative min-h-screen">
+  <div class="min-h-screen bg-gradient-to-b from-orange-25 via-amber-25/50 to-white">
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- LOADING SKELETON — warm, pulsing, storytelling layout  -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <div v-if="isLoading && !campaign" class="relative min-h-screen animate-fadeIn">
       <!-- Hero Skeleton -->
-      <div class="relative w-full bg-gray-100">
-        <div class="w-full aspect-[2.5/1] sm:aspect-[3/1] max-h-[360px] skeleton-shimmer"></div>
+      <div class="relative w-full">
+        <div class="w-full aspect-[2/1] sm:aspect-[2.8/1] max-h-[420px] bg-gradient-to-br from-orange-100/80 via-amber-50/60 to-orange-50/40 skeleton-shimmer"></div>
+        <div class="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-orange-25 via-orange-25/80 to-transparent"></div>
       </div>
 
-      <!-- Skeleton Content Grid -->
-      <div class="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-5 p-4 sm:p-6 lg:p-8">
-        <!-- Left Column -->
-        <div class="lg:col-span-2 space-y-5">
-          <!-- Header Card Skeleton -->
-          <div class="bg-white rounded-2xl border border-gray-200/60">
-            <div class="p-5 sm:p-6">
-              <!-- Title skeleton -->
-              <div class="flex items-start justify-between gap-4 mb-4">
-                <div class="flex-1 space-y-2">
-                  <div class="h-7 w-3/4 bg-gray-200 rounded-lg skeleton-shimmer"></div>
-                  <div class="h-5 w-1/2 bg-gray-100 rounded-lg skeleton-shimmer"></div>
-                </div>
-                <div class="h-7 w-20 bg-gray-100 rounded-full skeleton-shimmer"></div>
-              </div>
-              <!-- Author skeleton -->
-              <div class="flex items-center space-x-2.5 mb-4">
-                <div class="w-10 h-10 rounded-full bg-gray-200 skeleton-shimmer"></div>
+      <!-- Content Skeleton -->
+      <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 -mt-16 relative z-10">
+        <div class="grid grid-cols-1 lg:grid-cols-5 gap-6 lg:gap-8">
+          <!-- Left Column -->
+          <div class="lg:col-span-3 space-y-6">
+            <!-- Title + Author -->
+            <div class="space-y-4">
+              <div class="h-9 w-4/5 bg-orange-100/60 rounded-xl skeleton-shimmer"></div>
+              <div class="h-5 w-3/5 bg-orange-50/80 rounded-lg skeleton-shimmer"></div>
+              <div class="flex items-center space-x-3 pt-2">
+                <div class="w-11 h-11 rounded-full bg-orange-100/60 skeleton-shimmer"></div>
                 <div class="space-y-1.5">
-                  <div class="h-4 w-28 bg-gray-200 rounded skeleton-shimmer"></div>
-                  <div class="h-3 w-20 bg-gray-100 rounded skeleton-shimmer"></div>
-                </div>
-              </div>
-              <!-- Summary skeleton -->
-              <div class="space-y-2">
-                <div class="h-4 w-full bg-gray-100 rounded skeleton-shimmer"></div>
-                <div class="h-4 w-5/6 bg-gray-100 rounded skeleton-shimmer"></div>
-                <div class="h-4 w-2/3 bg-gray-100 rounded skeleton-shimmer"></div>
-              </div>
-            </div>
-            <!-- Progress skeleton -->
-            <div class="border-t border-gray-200/60 p-5 sm:p-6">
-              <div class="flex items-baseline justify-between mb-3">
-                <div class="space-y-1.5">
-                  <div class="h-8 w-32 bg-gray-200 rounded-lg skeleton-shimmer"></div>
-                  <div class="h-4 w-40 bg-gray-100 rounded skeleton-shimmer"></div>
-                </div>
-                <div class="h-7 w-14 bg-gray-200 rounded-lg skeleton-shimmer"></div>
-              </div>
-              <div class="w-full bg-gray-200 rounded-full h-2 mb-4"></div>
-              <div class="grid grid-cols-3 gap-3">
-                <div class="space-y-1.5">
-                  <div class="h-3 w-16 bg-gray-100 rounded skeleton-shimmer"></div>
-                  <div class="h-5 w-10 bg-gray-200 rounded skeleton-shimmer"></div>
-                </div>
-                <div class="border-l border-gray-200 pl-3 space-y-1.5">
-                  <div class="h-3 w-14 bg-gray-100 rounded skeleton-shimmer"></div>
-                  <div class="h-5 w-16 bg-gray-200 rounded skeleton-shimmer"></div>
+                  <div class="h-4 w-28 bg-orange-100/50 rounded skeleton-shimmer"></div>
+                  <div class="h-3 w-20 bg-orange-50/60 rounded skeleton-shimmer"></div>
                 </div>
               </div>
             </div>
-          </div>
 
-          <!-- Description Skeleton -->
-          <div class="bg-white rounded-2xl border border-gray-200/60 p-5 sm:p-6">
-            <div class="h-6 w-16 bg-gray-200 rounded skeleton-shimmer mb-3"></div>
-            <div class="space-y-2">
-              <div class="h-4 w-full bg-gray-100 rounded skeleton-shimmer"></div>
-              <div class="h-4 w-full bg-gray-100 rounded skeleton-shimmer"></div>
-              <div class="h-4 w-4/5 bg-gray-100 rounded skeleton-shimmer"></div>
-              <div class="h-4 w-3/4 bg-gray-100 rounded skeleton-shimmer"></div>
+            <!-- Progress Card Skeleton -->
+            <div class="bg-white/80 rounded-2xl border border-orange-100/40 p-6 space-y-4">
+              <div class="flex items-end justify-between">
+                <div class="space-y-2">
+                  <div class="h-8 w-36 bg-orange-100/60 rounded-lg skeleton-shimmer"></div>
+                  <div class="h-4 w-48 bg-orange-50/80 rounded skeleton-shimmer"></div>
+                </div>
+                <div class="h-14 w-14 rounded-full bg-orange-100/40 skeleton-shimmer"></div>
+              </div>
+              <div class="w-full bg-orange-100/30 rounded-full h-3"></div>
+              <div class="grid grid-cols-3 gap-4">
+                <div v-for="n in 3" :key="n" class="space-y-1.5">
+                  <div class="h-3 w-14 bg-orange-50/60 rounded skeleton-shimmer"></div>
+                  <div class="h-5 w-10 bg-orange-100/50 rounded skeleton-shimmer"></div>
+                </div>
+              </div>
             </div>
-          </div>
 
-          <!-- Supporters Skeleton -->
-          <div class="bg-white rounded-2xl border border-gray-200/60 p-5 sm:p-6">
-            <div class="h-6 w-36 bg-gray-200 rounded skeleton-shimmer mb-4"></div>
-            <div class="space-y-3">
-              <div v-for="n in 3" :key="n" class="flex items-center justify-between py-2.5">
-                <div class="flex items-center space-x-3">
-                  <div class="w-10 h-10 rounded-full bg-gray-200 skeleton-shimmer"></div>
-                  <div class="space-y-1.5">
-                    <div class="h-4 w-24 bg-gray-200 rounded skeleton-shimmer"></div>
-                    <div class="h-3 w-16 bg-gray-100 rounded skeleton-shimmer"></div>
+            <!-- Description Skeleton -->
+            <div class="bg-white/80 rounded-2xl border border-orange-100/40 p-6 space-y-3">
+              <div class="h-5 w-20 bg-orange-100/50 rounded skeleton-shimmer"></div>
+              <div class="space-y-2.5">
+                <div class="h-4 w-full bg-orange-50/60 rounded skeleton-shimmer"></div>
+                <div class="h-4 w-full bg-orange-50/50 rounded skeleton-shimmer"></div>
+                <div class="h-4 w-3/4 bg-orange-50/40 rounded skeleton-shimmer"></div>
+              </div>
+            </div>
+
+            <!-- Supporters Skeleton -->
+            <div class="bg-white/80 rounded-2xl border border-orange-100/40 p-6 space-y-4">
+              <div class="h-5 w-32 bg-orange-100/50 rounded skeleton-shimmer"></div>
+              <div class="space-y-3">
+                <div v-for="n in 3" :key="n" class="flex items-center justify-between py-2">
+                  <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 rounded-full bg-orange-100/50 skeleton-shimmer"></div>
+                    <div class="space-y-1.5">
+                      <div class="h-4 w-24 bg-orange-100/40 rounded skeleton-shimmer"></div>
+                      <div class="h-3 w-16 bg-orange-50/50 rounded skeleton-shimmer"></div>
+                    </div>
                   </div>
+                  <div class="h-4 w-14 bg-amber-100/50 rounded-full skeleton-shimmer"></div>
                 </div>
-                <div class="h-4 w-12 bg-orange-100 rounded skeleton-shimmer"></div>
               </div>
             </div>
           </div>
 
-          <!-- ZapTracker Branding -->
-          <div class="mt-8 pb-8 text-center">
-            <a
-              href="/"
-              class="inline-flex items-center space-x-2 text-orange-600 font-medium text-sm"
-            >
-              <img src="/new_logo3.png" alt="ZapTracker" class="w-4 h-4 object-contain" />
-              <span>Powered by ZapTracker</span>
-            </a>
-          </div>
-        </div>
-
-        <!-- Right Column: Payment Skeleton (Desktop) -->
-        <div class="hidden lg:block lg:col-span-1">
-          <div class="sticky top-6">
-            <div class="bg-white rounded-2xl border border-gray-200/60 shadow-sm p-6 space-y-5">
-              <div class="space-y-1.5">
-                <div class="h-6 w-44 bg-gray-200 rounded-lg skeleton-shimmer"></div>
-                <div class="h-4 w-52 bg-gray-100 rounded skeleton-shimmer"></div>
+          <!-- Right Column: Payment Skeleton -->
+          <div class="hidden lg:block lg:col-span-2">
+            <div class="sticky top-6">
+              <div class="bg-white/80 rounded-2xl border border-orange-100/40 p-6 space-y-5">
+                <div class="space-y-2">
+                  <div class="h-6 w-48 bg-orange-100/50 rounded-lg skeleton-shimmer"></div>
+                  <div class="h-4 w-56 bg-orange-50/60 rounded skeleton-shimmer"></div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                  <div v-for="n in 4" :key="n" class="h-[72px] bg-orange-50/40 rounded-xl skeleton-shimmer"></div>
+                </div>
+                <div class="h-12 w-full bg-orange-100/50 rounded-xl skeleton-shimmer"></div>
               </div>
-              <div class="grid grid-cols-2 gap-2.5">
-                <div v-for="n in 4" :key="n" class="h-16 bg-gray-100 rounded-xl skeleton-shimmer"></div>
-              </div>
-              <div class="h-4 w-28 bg-gray-100 rounded skeleton-shimmer"></div>
-              <div class="h-24 w-full bg-gray-100 rounded-xl skeleton-shimmer"></div>
-              <div class="h-12 w-full bg-orange-100 rounded-xl skeleton-shimmer"></div>
             </div>
           </div>
         </div>
       </div>
 
       <!-- Mobile FAB Skeleton -->
-      <div class="lg:hidden fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-white via-white to-transparent pointer-events-none z-40">
-        <div class="h-14 w-full bg-orange-100 rounded-xl skeleton-shimmer"></div>
+      <div class="lg:hidden fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-white via-white/95 to-transparent pointer-events-none z-40">
+        <div class="h-14 w-full bg-orange-100/60 rounded-2xl skeleton-shimmer"></div>
       </div>
     </div>
 
-    <!-- Error State -->
+    <!-- ═══════════════════════════════════════════ -->
+    <!-- ERROR STATE                                 -->
+    <!-- ═══════════════════════════════════════════ -->
     <div v-else-if="error" class="flex items-center justify-center min-h-screen p-4">
-      <div class="bg-red-50 border border-red-200 rounded-2xl p-6 max-w-md w-full">
-        <div class="flex items-center space-x-3">
-          <IconAlertCircle class="w-5 h-5 text-red-600" />
-          <div>
-            <h3 class="text-base font-semibold text-red-900">Campaign Not Found</h3>
-            <p class="text-sm text-red-600 mt-1">{{ error }}</p>
-          </div>
+      <div class="bg-white/90 backdrop-blur-sm border border-red-200/60 rounded-2xl p-8 max-w-md w-full text-center shadow-sm">
+        <div class="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <IconAlertCircle class="w-8 h-8 text-red-500" />
         </div>
+        <h3 class="text-lg font-semibold text-gray-900 mb-2">Campaign not found</h3>
+        <p class="text-sm text-gray-500 mb-6 leading-relaxed">{{ error }}</p>
+        <button
+          @click="changePage('campaigns')"
+          class="inline-flex items-center space-x-2 px-5 py-2.5 bg-orange-50 hover:bg-orange-100 text-orange-700 rounded-xl text-sm font-medium transition-all duration-200"
+        >
+          <IconArrowLeft class="w-4 h-4" />
+          <span>Back to campaigns</span>
+        </button>
       </div>
     </div>
 
-    <!-- Main Campaign Content -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- MAIN CAMPAIGN CONTENT                                   -->
+    <!-- ═══════════════════════════════════════════════════════ -->
     <div v-else-if="campaign" class="relative min-h-screen">
-      <!-- Hero Image Section -->
-      <div class="relative w-full bg-gray-100">
-        <div class="relative w-full aspect-[2.5/1] sm:aspect-[3/1] max-h-[360px] overflow-hidden">
+
+      <!-- ─── IMMERSIVE HERO ─── -->
+      <div class="relative w-full">
+        <div class="relative w-full aspect-[2/1] sm:aspect-[2.8/1] max-h-[420px] overflow-hidden">
           <img
             v-if="campaign.image && !heroImageFailed"
             :src="campaign.image"
             :alt="campaign.title"
-            class="w-full h-full object-cover object-center"
+            class="w-full h-full object-cover object-center transition-transform duration-700 hover:scale-[1.02]"
             @error="heroImageFailed = true"
           />
           <div
             v-else
-            class="w-full h-full bg-gradient-to-br from-orange-50 via-amber-50 to-orange-100 flex items-center justify-center"
+            class="w-full h-full bg-gradient-to-br from-orange-100 via-amber-50 to-orange-50 flex items-center justify-center"
           >
-            <div class="text-center opacity-60">
-              <img
-                src="/new_logo3.png"
-                alt="ZapTracker"
-                class="w-12 h-12 mx-auto mb-2 object-contain"
-              />
-              <span class="text-sm font-medium text-orange-400">ZapTracker Campaign</span>
+            <div class="text-center space-y-3 opacity-50">
+              <img src="/new_logo3.png" alt="ZapTracker" class="w-14 h-14 mx-auto object-contain" />
+              <span class="text-sm font-medium text-orange-400 tracking-wide">ZapTracker Campaign</span>
             </div>
           </div>
-          <!-- Bottom fade for seamless transition to content -->
-          <div class="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-white to-transparent"></div>
-          <!-- Floating nav overlay -->
-          <div class="absolute top-0 left-0 right-0 flex items-center justify-between p-4">
+
+          <!-- Cinematic gradient fade -->
+          <div class="absolute inset-0 bg-gradient-to-t from-orange-25 via-orange-25/40 to-transparent pointer-events-none"></div>
+          <div class="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-orange-25 to-transparent pointer-events-none"></div>
+
+          <!-- Floating navigation -->
+          <div class="absolute top-0 left-0 right-0 flex items-center justify-between p-4 sm:p-5">
             <button
               @click="changePage('campaigns')"
-              class="w-10 h-10 flex items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-sm hover:bg-black/60 transition-colors"
+              class="w-10 h-10 flex items-center justify-center rounded-full bg-black/30 text-white backdrop-blur-md hover:bg-black/50 transition-all duration-200 active:scale-95"
+              aria-label="Back to campaigns"
             >
               <IconArrowLeft class="w-5 h-5" />
             </button>
             <button
               @click="openShareModal"
-              class="w-10 h-10 flex items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-sm hover:bg-black/60 transition-colors"
+              class="w-10 h-10 flex items-center justify-center rounded-full bg-black/30 text-white backdrop-blur-md hover:bg-black/50 transition-all duration-200 active:scale-95"
+              aria-label="Share campaign"
             >
               <IconShare class="w-5 h-5" />
             </button>
@@ -183,449 +167,505 @@
         </div>
       </div>
 
-      <!-- Main Content Grid -->
-      <div class="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-5 p-4 sm:p-6 lg:p-8">
-        <!-- Left Column: Campaign Details -->
-        <div class="lg:col-span-2 space-y-5 pb-24 lg:pb-0">
-          <!-- Campaign Header Card -->
-          <div class="bg-white rounded-2xl border border-gray-200/60">
-            <div class="p-5 sm:p-6">
-              <!-- Title & Status -->
-              <div class="flex items-start justify-between gap-4 mb-4">
-                <h1 class="text-2xl sm:text-3xl font-semibold text-gray-900 leading-tight flex-1">{{ campaign.title }}</h1>
+      <!-- ─── CONTENT AREA ─── -->
+      <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 -mt-12 sm:-mt-16 relative z-10">
+        <div class="grid grid-cols-1 lg:grid-cols-5 gap-6 lg:gap-8">
+
+          <!-- ════════════════════════════════════════ -->
+          <!-- LEFT COLUMN: Campaign Story + Progress   -->
+          <!-- ════════════════════════════════════════ -->
+          <div class="lg:col-span-3 space-y-5 pb-28 lg:pb-8">
+
+            <!-- ─── Campaign Header: Title, Status, Author ─── -->
+            <div class="space-y-4">
+              <!-- Title Row -->
+              <div class="flex items-start gap-3">
+                <h1 class="text-2xl sm:text-3xl font-bold text-gray-900 leading-tight flex-1 tracking-tight">
+                  {{ campaign.title }}
+                </h1>
                 <span :class="[
-                  'px-3 py-1.5 rounded-full text-xs font-medium flex-shrink-0',
+                  'mt-1 px-3 py-1 rounded-full text-xs font-semibold tracking-wide flex-shrink-0 uppercase',
                   statusColor
                 ]">
-                  {{ status.charAt(0).toUpperCase() + status.slice(1) }}
+                  {{ status }}
                 </span>
               </div>
 
-              <!-- Author Info -->
-              <div v-if="campaignAuthor" @click="openUserProfile" class="flex items-center space-x-2.5 mb-4 cursor-pointer hover:bg-gray-50 rounded-lg transition-colors -mx-2 px-2 py-1">
-                <img
-                  :src="campaignAuthor.picture"
-                  :alt="campaignAuthor.name"
-                  class="w-10 h-10 rounded-full object-cover"
-                  @error="$event.target.src = generateAvatar(campaignAuthor.pubkey)"
-                />
-                <div>
-                  <p class="text-sm font-medium text-gray-900">{{ campaignAuthor.name }}</p>
-                  <p class="text-xs text-gray-500">Campaign creator</p>
-                </div>
-              </div>
+              <!-- Summary — the story hook -->
+              <p class="text-base sm:text-[17px] text-gray-600 leading-relaxed">
+                {{ campaign.summary }}
+              </p>
 
-              <!-- Summary -->
-              <div class="text-[15px] text-gray-700 leading-relaxed">
-                <p>{{ campaign.summary }}</p>
-              </div>
-
-              <!-- View on Nostr -->
-              <a
-                v-if="campaign.id"
-                :href="nostrEventUrl"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="inline-flex items-center space-x-1.5 text-xs text-gray-400 hover:text-orange-600 mt-3 transition-colors"
-              >
-                <IconExternalLink class="w-3.5 h-3.5" />
-                <span>View on Nostr</span>
-              </a>
-            </div>
-
-            <!-- Campaign Progress Section -->
-            <div class="border-t border-gray-200/60 p-5 sm:p-6">
-              <!-- Progress Stats -->
-              <div class="flex items-baseline justify-between mb-3">
-                <div>
-                  <div class="text-2xl sm:text-3xl font-semibold text-gray-900">{{ formatCurrency(progress.current) }}</div>
-                  <div class="text-sm text-gray-500 mt-0.5">raised of {{ formatCurrency(progress.goal) }} goal</div>
-                </div>
-                <div class="text-right">
-                  <div class="text-xl font-semibold text-gray-900">{{ progress.percentage }}%</div>
-                </div>
-              </div>
-
-              <!-- Progress Bar -->
-              <div class="relative w-full bg-gray-200 rounded-full h-2 mb-4 overflow-hidden">
+              <!-- Author chip -->
+              <div class="flex items-center justify-between flex-wrap gap-3">
                 <div
-                  class="absolute inset-y-0 left-0 bg-orange-500 rounded-full transition-all duration-1000 ease-out"
-                  :style="{ width: `${Math.min(progress.percentage, 100)}%` }"
-                ></div>
-              </div>
-
-              <!-- Stats Grid -->
-              <div class="grid grid-cols-3 gap-3">
-                <div>
-                  <div class="text-sm text-gray-500">Contributors</div>
-                  <div class="text-base font-semibold text-gray-900 mt-0.5">{{ totalZapCount }}</div>
+                  v-if="campaignAuthor"
+                  @click="openUserProfile"
+                  class="inline-flex items-center space-x-2.5 px-3 py-2 bg-white/80 backdrop-blur-sm border border-orange-100/50 rounded-full cursor-pointer hover:border-orange-200 hover:bg-white transition-all duration-200 group"
+                >
+                  <img
+                    :src="campaignAuthor.picture"
+                    :alt="campaignAuthor.name"
+                    class="w-8 h-8 rounded-full object-cover ring-2 ring-orange-100 group-hover:ring-orange-200 transition-all"
+                    @error="$event.target.src = generateAvatar(campaignAuthor.pubkey)"
+                  />
+                  <div class="pr-1">
+                    <p class="text-sm font-semibold text-gray-900 leading-tight">{{ campaignAuthor.name }}</p>
+                    <p class="text-[11px] text-gray-400 leading-tight">Campaign creator</p>
+                  </div>
                 </div>
-                <div v-if="daysRemaining !== 'No deadline'" class="border-l border-gray-200 pl-3">
-                  <div class="text-sm text-gray-500">Time left</div>
-                  <div class="text-base font-semibold text-gray-900 mt-0.5">{{ daysRemaining }}</div>
+                <a
+                  v-if="campaign.id"
+                  :href="nostrEventUrl"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="inline-flex items-center space-x-1.5 text-xs text-gray-400 hover:text-orange-500 transition-colors"
+                >
+                  <IconExternalLink class="w-3.5 h-3.5" />
+                  <span>View on Nostr</span>
+                </a>
+              </div>
+            </div>
+
+            <!-- ─── Progress Celebration Card ─── -->
+            <div class="bg-white/90 backdrop-blur-sm rounded-2xl border border-orange-100/50 overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-300">
+              <div class="p-5 sm:p-6">
+                <!-- Top row: amount + percentage ring -->
+                <div class="flex items-end justify-between mb-5">
+                  <div>
+                    <div class="text-3xl sm:text-4xl font-bold text-gray-900 tracking-tight">
+                      {{ formatCurrency(progress.current) }}
+                    </div>
+                    <div class="text-sm text-gray-500 mt-1">
+                      raised of <span class="font-medium text-gray-700">{{ formatCurrency(progress.goal) }}</span> goal
+                    </div>
+                  </div>
+                  <!-- Percentage circle -->
+                  <div class="relative w-16 h-16 flex-shrink-0">
+                    <svg class="w-16 h-16 -rotate-90" viewBox="0 0 64 64">
+                      <circle cx="32" cy="32" r="28" fill="none" stroke-width="5" class="stroke-orange-100/60" />
+                      <circle
+                        cx="32" cy="32" r="28" fill="none" stroke-width="5"
+                        class="stroke-orange-500 transition-all duration-1000 ease-out"
+                        stroke-linecap="round"
+                        :stroke-dasharray="`${Math.min(progress.percentage, 100) * 1.759} 175.9`"
+                      />
+                    </svg>
+                    <div class="absolute inset-0 flex items-center justify-center">
+                      <span class="text-sm font-bold text-gray-900">{{ progress.percentage }}%</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Progress bar — warm gradient -->
+                <div class="relative w-full bg-orange-100/40 rounded-full h-3 overflow-hidden mb-5">
+                  <div
+                    class="absolute inset-y-0 left-0 bg-gradient-to-r from-orange-400 via-orange-500 to-amber-400 rounded-full transition-all duration-1000 ease-out"
+                    :style="{ width: `${Math.min(progress.percentage, 100)}%` }"
+                  ></div>
+                  <!-- Shimmer on active campaigns -->
+                  <div
+                    v-if="status === 'active' && progress.percentage > 0 && progress.percentage < 100"
+                    class="absolute inset-y-0 left-0 rounded-full overflow-hidden"
+                    :style="{ width: `${Math.min(progress.percentage, 100)}%` }"
+                  >
+                    <div class="w-full h-full bg-gradient-to-r from-transparent via-white/25 to-transparent animate-progressShimmer"></div>
+                  </div>
+                </div>
+
+                <!-- Stats row -->
+                <div class="flex items-center divide-x divide-orange-100/60">
+                  <div class="pr-5">
+                    <div class="text-xs text-gray-400 uppercase tracking-wider font-medium">Supporters</div>
+                    <div class="text-lg font-bold text-gray-900 mt-0.5">{{ totalZapCount }}</div>
+                  </div>
+                  <div v-if="daysRemaining !== 'No deadline'" class="pl-5">
+                    <div class="text-xs text-gray-400 uppercase tracking-wider font-medium">Time left</div>
+                    <div class="text-lg font-bold text-gray-900 mt-0.5">{{ daysRemaining }}</div>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
 
-          <!-- Description Section -->
-          <div v-if="campaign.descriptionLong" class="bg-white rounded-2xl border border-gray-200/60 p-5 sm:p-6">
-            <h3 class="text-lg font-semibold text-gray-900 mb-3">About</h3>
-            <div class="prose prose-sm max-w-none text-gray-700 leading-relaxed whitespace-pre-wrap">{{ campaign.descriptionLong }}</div>
-          </div>
+            <!-- ─── About / Description ─── -->
+            <div v-if="campaign.descriptionLong" class="bg-white/90 backdrop-blur-sm rounded-2xl border border-orange-100/50 p-5 sm:p-6 shadow-sm">
+              <h3 class="text-base font-bold text-gray-900 mb-3 flex items-center space-x-2">
+                <span>About this campaign</span>
+              </h3>
+              <div class="text-[15px] text-gray-600 leading-[1.75] whitespace-pre-wrap">{{ campaign.descriptionLong }}</div>
+            </div>
 
-          <!-- Supporters Section -->
-          <div class="bg-white rounded-2xl border border-gray-200/60 p-5 sm:p-6">
-            <h3 class="text-lg font-semibold text-gray-900 mb-4">Recent supporters{{ recentZaps.length > 0 ? ` (${recentZaps.length})` : '' }}</h3>
-            <div v-if="recentZaps.length > 0" class="space-y-2.5">
-              <div
-                v-for="zap in displayedSupporters"
-                :key="zap.id"
-                class="flex items-center justify-between py-2.5 border-b border-gray-100 last:border-0"
-              >
-                <div class="flex items-center space-x-3">
+            <!-- ─── Supporters Section ─── -->
+            <div class="bg-white/90 backdrop-blur-sm rounded-2xl border border-orange-100/50 p-5 sm:p-6 shadow-sm">
+              <div class="flex items-center justify-between mb-4">
+                <h3 class="text-base font-bold text-gray-900">
+                  Supporters
+                  <span v-if="recentZaps.length > 0" class="text-gray-400 font-normal text-sm ml-1">{{ recentZaps.length }}</span>
+                </h3>
+                <!-- Avatar stack preview -->
+                <div v-if="recentZaps.length >= 3" class="flex -space-x-2">
                   <img
+                    v-for="(zap, i) in recentZaps.slice(0, 4)"
+                    :key="'stack-' + zap.id"
                     :src="getSenderAvatar(zap)"
                     :alt="getSenderName(zap)"
-                    class="w-10 h-10 rounded-full object-cover"
+                    class="w-7 h-7 rounded-full object-cover border-2 border-white"
+                    :style="{ zIndex: 4 - i }"
                     @error="$event.target.src = generateAvatar(zap.zapperPubkey)"
                   />
-                  <div>
-                    <div class="text-sm font-medium text-gray-900">{{ getSenderName(zap) }}</div>
-                    <div class="text-xs text-gray-500">{{ zap.timeAgo }}</div>
-                  </div>
                 </div>
-                <div class="text-sm font-semibold text-orange-600">{{ formatSatsShort(zap.amount) }}</div>
               </div>
-              <button
-                v-if="recentZaps.length > 5"
-                @click="showAllSupporters = !showAllSupporters"
-                class="w-full text-center text-sm font-medium text-orange-600 hover:text-orange-700 pt-3 transition-colors"
-              >
-                {{ showAllSupporters ? 'Show less' : `Show all ${recentZaps.length} supporters` }}
-              </button>
-            </div>
-            <div v-else class="text-center py-8">
-              <div class="text-sm text-gray-500">No supporters yet</div>
-              <div class="text-xs text-gray-400 mt-1">Be the first to support this campaign</div>
-            </div>
-          </div>
 
-          <!-- ZapTracker Branding -->
-          <div class="mt-8 pb-8 text-center">
-            <a
-              href="/"
-              class="inline-flex items-center space-x-2 text-orange-600 hover:text-orange-700 font-medium text-sm transition-colors"
-            >
-              <img
-                src="/new_logo3.png"
-                alt="ZapTracker"
-                class="w-4 h-4 object-contain"
-              />
-              <span>Powered by ZapTracker</span>
-            </a>
-          </div>
-        </div>
-
-        <!-- Right Column: Payment Section (Desktop) -->
-        <div class="hidden lg:block lg:col-span-1">
-          <div class="sticky top-6 max-h-[calc(100vh-3rem)] overflow-y-auto">
-            <!-- Payment Card - Apple/Twitter Aesthetic -->
-            <div class="bg-white rounded-2xl border border-gray-200/60 shadow-sm overflow-hidden">
-              <!-- Payment Content -->
-              <div class="p-6">
-                <!-- Campaign ended / Goal reached -->
-                <div v-if="isPaymentDisabled" class="text-center py-8">
-                  <div class="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                    <IconCheck v-if="status === 'completed'" class="w-7 h-7 text-green-600" />
-                    <IconAlertCircle v-else class="w-7 h-7 text-gray-400" />
+              <!-- Supporter list -->
+              <div v-if="recentZaps.length > 0" class="space-y-1">
+                <div
+                  v-for="zap in displayedSupporters"
+                  :key="zap.id"
+                  class="flex items-center justify-between py-3 px-3 -mx-3 rounded-xl hover:bg-orange-25/60 transition-colors duration-150"
+                >
+                  <div class="flex items-center space-x-3 min-w-0">
+                    <img
+                      :src="getSenderAvatar(zap)"
+                      :alt="getSenderName(zap)"
+                      class="w-10 h-10 rounded-full object-cover flex-shrink-0 ring-1 ring-orange-100/60"
+                      @error="$event.target.src = generateAvatar(zap.zapperPubkey)"
+                    />
+                    <div class="min-w-0">
+                      <div class="text-sm font-semibold text-gray-900 truncate">{{ getSenderName(zap) }}</div>
+                      <div class="text-xs text-gray-400">{{ zap.timeAgo }}</div>
+                    </div>
                   </div>
-                  <h4 class="text-lg font-semibold text-gray-900 mb-1">{{ paymentDisabledLabel }}</h4>
-                  <p class="text-sm text-gray-500">This campaign is no longer accepting contributions.</p>
+                  <div class="flex items-center space-x-1 flex-shrink-0 ml-3">
+                    <IconBolt class="w-3.5 h-3.5 text-amber-500" />
+                    <span class="text-sm font-bold text-amber-600">{{ formatSatsShort(zap.amount) }}</span>
+                  </div>
                 </div>
 
-                <!-- Amount Selection (Step 1) -->
-                <div v-else-if="currentStep === 'amount'" class="space-y-6">
-                  <!-- Header -->
-                  <div>
-                    <h3 class="text-xl font-semibold text-gray-900">Support this campaign</h3>
-                    <p class="text-sm text-gray-500 mt-1">Choose an amount or enter your own</p>
+                <button
+                  v-if="recentZaps.length > 5"
+                  @click="showAllSupporters = !showAllSupporters"
+                  class="w-full text-center text-sm font-semibold text-orange-500 hover:text-orange-600 pt-3 mt-1 border-t border-orange-100/40 transition-colors"
+                >
+                  {{ showAllSupporters ? 'Show less' : `View all ${recentZaps.length} supporters` }}
+                </button>
+              </div>
+
+              <!-- Empty state — inviting, not empty -->
+              <div v-else class="text-center py-10 px-4">
+                <div class="w-16 h-16 bg-gradient-to-br from-orange-50 to-amber-50 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-orange-100/40">
+                  <IconBolt class="w-7 h-7 text-orange-400" />
+                </div>
+                <h4 class="text-base font-semibold text-gray-900 mb-1">Be the first supporter</h4>
+                <p class="text-sm text-gray-400 leading-relaxed max-w-xs mx-auto">
+                  Every campaign starts with one. Your support sets the momentum for others to follow.
+                </p>
+              </div>
+            </div>
+
+            <!-- Branding footer -->
+            <div class="pt-4 pb-4 text-center">
+              <a
+                href="/"
+                class="inline-flex items-center space-x-2 text-orange-400 hover:text-orange-500 font-medium text-xs transition-colors opacity-70 hover:opacity-100"
+              >
+                <img src="/new_logo3.png" alt="ZapTracker" class="w-3.5 h-3.5 object-contain" />
+                <span>Powered by ZapTracker</span>
+              </a>
+            </div>
+          </div>
+
+          <!-- ════════════════════════════════════════════ -->
+          <!-- RIGHT COLUMN: Payment (Desktop Sticky)       -->
+          <!-- ════════════════════════════════════════════ -->
+          <div class="hidden lg:block lg:col-span-2">
+            <div class="sticky top-6 max-h-[calc(100vh-3rem)] overflow-y-auto scrollbar-thin">
+              <div class="bg-white/95 backdrop-blur-sm rounded-2xl border border-orange-100/50 shadow-sm overflow-hidden">
+                <div class="p-6">
+                  <!-- Campaign ended / Goal reached -->
+                  <div v-if="isPaymentDisabled" class="text-center py-10">
+                    <div class="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4"
+                      :class="status === 'completed' ? 'bg-green-50 border border-green-100' : 'bg-gray-50 border border-gray-100'"
+                    >
+                      <IconCheck v-if="status === 'completed'" class="w-8 h-8 text-green-500" />
+                      <IconAlertCircle v-else class="w-8 h-8 text-gray-400" />
+                    </div>
+                    <h4 class="text-lg font-bold text-gray-900 mb-1">{{ paymentDisabledLabel }}</h4>
+                    <p class="text-sm text-gray-400 leading-relaxed">This campaign is no longer accepting contributions.</p>
                   </div>
 
-                  <!-- Quick Amount Selection -->
-                  <div>
+                  <!-- ─── Amount Selection (Step 1) ─── -->
+                  <div v-else-if="currentStep === 'amount'" class="space-y-5">
+                    <div>
+                      <h3 class="text-lg font-bold text-gray-900">Support this campaign</h3>
+                      <p class="text-sm text-gray-400 mt-1">Choose an amount or enter your own</p>
+                    </div>
+
+                    <!-- Amount grid -->
                     <div class="grid grid-cols-2 gap-2.5">
                       <button
                         v-for="amount in predefinedAmounts"
                         :key="amount.value"
                         @click="selectAmount(amount.value)"
                         :class="[
-                          'p-3.5 rounded-xl border transition-all duration-200 text-center',
+                          'relative p-4 rounded-xl border-2 transition-all duration-200 text-center group',
                           !isCustomAmount && zapAmount === amount.value
-                            ? 'border-orange-500 bg-orange-50 text-orange-900'
-                            : 'border-gray-200 hover:border-gray-300 bg-white hover:bg-gray-50 text-gray-900'
+                            ? 'border-orange-400 bg-orange-50/80 shadow-sm'
+                            : 'border-gray-100 hover:border-orange-200 bg-white hover:bg-orange-25/50'
                         ]"
                       >
-                        <div class="font-semibold text-base">{{ amount.label }}</div>
-                        <div class="text-xs text-gray-500 mt-0.5">{{ amount.description }}</div>
-                      </button>
-                    </div>
-                  </div>
-
-                  <!-- Custom Amount with Apple-style Slider -->
-                  <div class="space-y-3">
-                    <!-- Toggle Section -->
-                    <div class="flex items-center justify-between py-0.5">
-                      <label class="text-sm font-medium text-gray-700">Custom amount</label>
-                      <button
-                        @click="toggleCustomAmount"
-                        type="button"
-                        :class="[
-                          'relative inline-flex h-[24px] w-[44px] items-center rounded-full transition-colors duration-200 ease-out focus:outline-none shrink-0',
-                          isCustomAmount ? 'bg-orange-500' : 'bg-gray-200'
-                        ]"
-                      >
-                        <span
-                          :class="[
-                            'inline-block h-[20px] w-[20px] transform rounded-full bg-white shadow transition-transform duration-200 ease-out',
-                            isCustomAmount ? 'translate-x-[22px]' : 'translate-x-[2px]'
-                          ]"
-                        />
-                      </button>
-                    </div>
-
-                    <!-- Custom Amount Input with Slider Effect -->
-                    <div v-if="isCustomAmount" class="space-y-2">
-                      <div class="relative">
-                        <input
-                          ref="customAmountInput"
-                          v-model.number="customAmount"
-                          type="number"
-                          min="1"
-                          :max="MAX_ZAP_AMOUNT"
-                          placeholder="Enter amount"
-                          class="w-full px-4 py-3.5 pr-16 border-2 border-orange-200 rounded-xl focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 transition-all text-base font-semibold bg-white"
-                        />
-                        <div class="absolute inset-y-0 right-0 flex items-center pr-4">
-                          <span class="text-sm font-semibold text-gray-500">sats</span>
+                        <div class="font-bold text-lg text-gray-900 group-hover:text-orange-700 transition-colors">{{ amount.label }}</div>
+                        <div class="text-xs text-gray-400 mt-0.5">{{ amount.description }}</div>
+                        <!-- Selected indicator -->
+                        <div
+                          v-if="!isCustomAmount && zapAmount === amount.value"
+                          class="absolute -top-1.5 -right-1.5 w-5 h-5 bg-orange-500 rounded-full flex items-center justify-center"
+                        >
+                          <IconCheck class="w-3 h-3 text-white" />
                         </div>
-                      </div>
-                      <p v-if="isAmountExceedsMax" class="text-xs text-red-500">Maximum amount is {{ MAX_ZAP_AMOUNT.toLocaleString() }} sats</p>
+                      </button>
                     </div>
-                  </div>
 
-                  <!-- Message -->
-                  <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Message (optional)</label>
-                    <textarea
-                      v-model="zapComment"
-                      rows="3"
-                      placeholder="Add a message..."
-                      class="w-full px-3.5 py-3 border border-gray-300 rounded-xl focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-all resize-none text-sm text-gray-900 placeholder-gray-400"
-                    ></textarea>
-                  </div>
-
-                  <!-- Continue Button with Elegant Loading -->
-                  <button
-                    @click="generateInvoice"
-                    :disabled="!canProceed || isGeneratingInvoice"
-                    :class="[
-                      'w-full px-6 py-3.5 rounded-xl font-semibold text-[15px] transition-all duration-200 flex items-center justify-center space-x-2 relative overflow-hidden',
-                      isGeneratingInvoice
-                        ? 'bg-orange-400 cursor-not-allowed text-white'
-                        : !canProceed
-                        ? 'bg-gray-200 cursor-not-allowed text-gray-400'
-                        : 'bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white cursor-pointer'
-                    ]"
-                  >
-                    <!-- Loading Animation Overlay -->
-                    <div
-                      v-if="isGeneratingInvoice"
-                      class="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer"
-                      style="animation: shimmer 1.5s infinite;"
-                    ></div>
-
-                    <!-- Button Content -->
-                    <div class="relative z-10 flex items-center space-x-2">
-                      <div v-if="isGeneratingInvoice" class="flex items-center space-x-2">
-                        <svg class="w-4 h-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        <span>Creating invoice...</span>
+                    <!-- Custom amount toggle -->
+                    <div class="space-y-3">
+                      <div class="flex items-center justify-between">
+                        <label class="text-sm font-medium text-gray-600">Custom amount</label>
+                        <button
+                          @click="toggleCustomAmount"
+                          type="button"
+                          :class="[
+                            'relative inline-flex h-[24px] w-[44px] items-center rounded-full transition-colors duration-200 ease-out focus:outline-none flex-shrink-0',
+                            isCustomAmount ? 'bg-orange-500' : 'bg-gray-200'
+                          ]"
+                        >
+                          <span
+                            :class="[
+                              'inline-block h-[20px] w-[20px] transform rounded-full bg-white shadow-sm transition-transform duration-200 ease-out',
+                              isCustomAmount ? 'translate-x-[22px]' : 'translate-x-[2px]'
+                            ]"
+                          />
+                        </button>
                       </div>
-                      <div v-else class="flex items-center space-x-2">
-                        <span>Continue with {{ effectiveAmount.toLocaleString() }} sats</span>
+
+                      <div v-if="isCustomAmount" class="space-y-2">
+                        <div class="relative">
+                          <input
+                            ref="customAmountInput"
+                            v-model.number="customAmount"
+                            type="number"
+                            min="1"
+                            :max="MAX_ZAP_AMOUNT"
+                            placeholder="Enter amount"
+                            class="w-full px-4 py-3.5 pr-16 border-2 border-orange-200 rounded-xl focus:border-orange-400 focus:ring-2 focus:ring-orange-400/20 transition-all text-base font-bold bg-white outline-none"
+                          />
+                          <div class="absolute inset-y-0 right-0 flex items-center pr-4">
+                            <span class="text-sm font-semibold text-gray-400">sats</span>
+                          </div>
+                        </div>
+                        <p v-if="isAmountExceedsMax" class="text-xs text-red-500">Maximum amount is {{ MAX_ZAP_AMOUNT.toLocaleString() }} sats</p>
                       </div>
                     </div>
-                  </button>
-                </div>
 
-                <!-- Payment Options (Step 2) -->
-                <div v-else-if="currentStep === 'payment' && invoice" class="space-y-5">
-                  <!-- Amount Summary -->
-                  <div class="bg-orange-50 border border-orange-100 rounded-xl p-4">
-                    <div class="flex items-center justify-between">
-                      <span class="text-sm font-medium text-gray-700">Amount</span>
-                      <span class="text-lg font-semibold text-gray-900">{{ effectiveAmount.toLocaleString() }} sats</span>
+                    <!-- Message -->
+                    <div>
+                      <label class="block text-sm font-medium text-gray-600 mb-2">Add a message</label>
+                      <textarea
+                        v-model="zapComment"
+                        rows="3"
+                        placeholder="Say something nice..."
+                        class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-orange-400 focus:ring-1 focus:ring-orange-400/20 transition-all resize-none text-sm text-gray-700 placeholder-gray-300 outline-none"
+                      ></textarea>
                     </div>
-                    <div v-if="zapComment" class="mt-2.5 pt-2.5 border-t border-orange-200">
-                      <p class="text-sm text-gray-600">"{{ zapComment }}"</p>
-                    </div>
-                  </div>
 
-                  <!-- QR Code -->
-                  <div class="text-center">
-                    <div class="bg-white p-4 rounded-xl border border-gray-200 inline-block">
-                      <QRCodeVue3
-                        :value="`lightning:${invoice}`"
-                        :size="200"
-                        color="#000000"
-                        background-color="#ffffff"
-                        error-correction-level="M"
-                      />
-                    </div>
-                    <p class="text-sm text-gray-500 mt-3">Scan with your Lightning wallet</p>
-                  </div>
-
-                  <!-- Copy Invoice -->
-                  <button
-                    @click="copyToClipboard(invoice, 'invoice')"
-                    class="w-full px-4 py-2.5 rounded-xl border border-gray-200 hover:bg-gray-50 text-sm font-medium text-gray-700 transition-colors flex items-center justify-center space-x-2"
-                  >
-                    <IconCopy class="w-4 h-4" />
-                    <span>{{ copySuccess === 'invoice' ? 'Copied!' : 'Copy Invoice' }}</span>
-                  </button>
-
-                  <!-- QR / External wallet info notice -->
-                  <div class="bg-amber-50 border border-amber-200 rounded-xl p-3">
-                    <p class="text-xs text-amber-800 leading-relaxed">
-                      <span class="font-semibold">Good to know:</span> Your sats will reach the campaign creator, but payments made via QR code or external wallet can't be tracked in the campaign progress. Want your support to show?<span v-if="nostrEventUrl"> <a :href="nostrEventUrl" target="_blank" rel="noopener noreferrer" class="underline font-medium hover:text-amber-900">Zap the campaign on Nostr</a> instead.</span><span v-else> Zap the campaign post on Nostr instead.</span>
-                    </p>
-                  </div>
-
-                  <!-- Payment Buttons -->
-                  <div class="space-y-2.5">
-                    <!-- Pay with ZapTracker Wallet -->
+                    <!-- Continue button -->
                     <button
-                      v-if="isWalletConnected"
-                      @click="payWithInternalNWC"
-                      :disabled="isProcessingPayment"
+                      @click="generateInvoice"
+                      :disabled="!canProceed || isGeneratingInvoice"
                       :class="[
-                        'w-full px-4 py-3.5 rounded-xl font-semibold text-[15px] transition-all duration-200 flex items-center justify-center space-x-2 relative overflow-hidden',
-                        isProcessingPayment
-                          ? 'bg-green-400 cursor-not-allowed text-white'
-                          : 'bg-green-500 hover:bg-green-600 active:bg-green-700 text-white cursor-pointer'
+                        'w-full px-6 py-3.5 rounded-xl font-bold text-[15px] transition-all duration-200 flex items-center justify-center space-x-2 relative overflow-hidden',
+                        isGeneratingInvoice
+                          ? 'bg-orange-400 cursor-wait text-white'
+                          : !canProceed
+                          ? 'bg-gray-100 cursor-not-allowed text-gray-300'
+                          : 'bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-md hover:shadow-lg active:scale-[0.98]'
                       ]"
                     >
-                      <!-- Loading Animation Overlay -->
-                      <div
-                        v-if="isProcessingPayment"
-                        class="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
-                        style="animation: shimmer 1.5s infinite;"
-                      ></div>
-
-                      <!-- Button Content -->
+                      <div v-if="isGeneratingInvoice" class="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer"></div>
                       <div class="relative z-10 flex items-center space-x-2">
-                        <div v-if="isProcessingPayment" class="flex items-center space-x-2">
+                        <template v-if="isGeneratingInvoice">
                           <svg class="w-4 h-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                           </svg>
-                          <span>Processing payment...</span>
-                        </div>
-                        <div v-else class="flex items-center space-x-2">
-                          <IconWallet class="w-4 h-4" />
-                          <span>Pay with ZapTracker Wallet</span>
-                        </div>
+                          <span>Creating invoice...</span>
+                        </template>
+                        <template v-else>
+                          <IconBolt class="w-4 h-4" />
+                          <span>Continue with {{ effectiveAmount.toLocaleString() }} sats</span>
+                        </template>
                       </div>
                     </button>
+                  </div>
 
-                    <!-- Open in External Wallet -->
+                  <!-- ─── Payment / QR (Step 2) ─── -->
+                  <div v-else-if="currentStep === 'payment' && invoice" class="space-y-5">
+                    <!-- Amount summary -->
+                    <div class="bg-gradient-to-r from-orange-50 to-amber-50/50 border border-orange-100 rounded-xl p-4">
+                      <div class="flex items-center justify-between">
+                        <span class="text-sm font-medium text-gray-500">Amount</span>
+                        <span class="text-lg font-bold text-gray-900">{{ effectiveAmount.toLocaleString() }} sats</span>
+                      </div>
+                      <div v-if="zapComment" class="mt-2.5 pt-2.5 border-t border-orange-200/50">
+                        <p class="text-sm text-gray-500 italic">"{{ zapComment }}"</p>
+                      </div>
+                    </div>
+
+                    <!-- QR Code -->
+                    <div class="text-center">
+                      <div class="bg-white p-4 rounded-xl border border-gray-100 inline-block shadow-sm">
+                        <QRCodeVue3
+                          :value="`lightning:${invoice}`"
+                          :size="200"
+                          color="#000000"
+                          background-color="#ffffff"
+                          error-correction-level="M"
+                        />
+                      </div>
+                      <p class="text-sm text-gray-400 mt-3">Scan with your Lightning wallet</p>
+                    </div>
+
+                    <!-- Copy invoice -->
                     <button
-                      @click="openExternalWallet"
-                      class="w-full bg-gray-100 hover:bg-gray-200 active:bg-gray-300 text-gray-900 px-4 py-3.5 rounded-xl font-semibold text-[15px] transition-all duration-200 flex items-center justify-center space-x-2"
+                      @click="copyToClipboard(invoice, 'invoice')"
+                      class="w-full px-4 py-2.5 rounded-xl border border-gray-200 hover:bg-gray-50 text-sm font-medium text-gray-600 transition-all flex items-center justify-center space-x-2"
                     >
-                      <IconExternalLink class="w-4 h-4" />
-                      <span>Open in wallet</span>
+                      <IconCopy class="w-4 h-4" />
+                      <span>{{ copySuccess === 'invoice' ? 'Copied!' : 'Copy Invoice' }}</span>
+                    </button>
+
+                    <!-- Info notice -->
+                    <div class="bg-amber-50/80 border border-amber-200/60 rounded-xl p-3">
+                      <p class="text-xs text-amber-700 leading-relaxed">
+                        <span class="font-semibold">Good to know:</span> Your sats will reach the campaign creator, but payments made via QR code or external wallet can't be tracked in the campaign progress. Want your support to show?<span v-if="nostrEventUrl"> <a :href="nostrEventUrl" target="_blank" rel="noopener noreferrer" class="underline font-medium hover:text-amber-900">Zap the campaign on Nostr</a> instead.</span><span v-else> Zap the campaign post on Nostr instead.</span>
+                      </p>
+                    </div>
+
+                    <!-- Payment buttons -->
+                    <div class="space-y-2.5">
+                      <button
+                        v-if="isWalletConnected"
+                        @click="payWithInternalNWC"
+                        :disabled="isProcessingPayment"
+                        :class="[
+                          'w-full px-4 py-3.5 rounded-xl font-bold text-[15px] transition-all duration-200 flex items-center justify-center space-x-2 relative overflow-hidden',
+                          isProcessingPayment
+                            ? 'bg-green-400 cursor-wait text-white'
+                            : 'bg-green-500 hover:bg-green-600 text-white shadow-md hover:shadow-lg active:scale-[0.98]'
+                        ]"
+                      >
+                        <div v-if="isProcessingPayment" class="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer"></div>
+                        <div class="relative z-10 flex items-center space-x-2">
+                          <template v-if="isProcessingPayment">
+                            <svg class="w-4 h-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <span>Processing payment...</span>
+                          </template>
+                          <template v-else>
+                            <IconWallet class="w-4 h-4" />
+                            <span>Pay with ZapTracker Wallet</span>
+                          </template>
+                        </div>
+                      </button>
+
+                      <button
+                        @click="openExternalWallet"
+                        class="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 px-4 py-3.5 rounded-xl font-semibold text-[15px] transition-all duration-200 flex items-center justify-center space-x-2 active:scale-[0.98]"
+                      >
+                        <IconExternalLink class="w-4 h-4" />
+                        <span>Open in wallet</span>
+                      </button>
+                    </div>
+
+                    <!-- Back -->
+                    <div class="text-center pt-2">
+                      <button
+                        @click="resetToAmountSelection"
+                        class="text-gray-400 hover:text-gray-600 text-sm font-medium flex items-center space-x-1 mx-auto transition-colors"
+                      >
+                        <IconArrowLeft class="w-3.5 h-3.5" />
+                        <span>Change amount</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- ─── Success State ─── -->
+                  <div v-else-if="paymentStatus === 'success'" class="text-center py-8">
+                    <div class="w-18 h-18 bg-green-50 rounded-2xl flex items-center justify-center mx-auto mb-5 border border-green-100 w-[72px] h-[72px]">
+                      <IconCheck class="w-9 h-9 text-green-500" />
+                    </div>
+                    <h4 class="text-xl font-bold text-gray-900 mb-2">Thank you!</h4>
+                    <p class="text-sm text-gray-500 mb-5 leading-relaxed">
+                      Your <span class="font-semibold text-gray-700">{{ effectiveAmount.toLocaleString() }} sats</span> contribution makes a real difference.
+                    </p>
+                    <div class="bg-gradient-to-r from-orange-50 to-amber-50/50 border border-orange-100 rounded-xl p-3.5 mb-5">
+                      <p class="text-orange-700 font-medium text-sm">
+                        You're helping this campaign reach its goal
+                      </p>
+                    </div>
+                    <button
+                      @click="resetForm"
+                      class="text-orange-500 hover:text-orange-600 text-sm font-semibold transition-colors"
+                    >
+                      Support again
                     </button>
                   </div>
-                  
-                  <!-- Back Button -->
-                  <div class="text-center pt-2">
+
+                  <!-- ─── Error State ─── -->
+                  <div v-else-if="paymentStatus === 'error'" class="text-center py-6">
+                    <div class="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-red-100">
+                      <IconAlertCircle class="w-8 h-8 text-red-500" />
+                    </div>
+                    <h4 class="text-lg font-bold text-gray-900 mb-2">Payment failed</h4>
+                    <p class="text-sm text-gray-500 mb-5">{{ paymentError }}</p>
                     <button
                       @click="resetToAmountSelection"
-                      class="text-gray-500 hover:text-gray-700 text-sm font-medium flex items-center space-x-1 mx-auto transition-colors"
-                    >
-                      <IconArrowLeft class="w-4 h-4" />
-                      <span>Change amount</span>
-                    </button>
-                  </div>
-                </div>
-
-                <!-- Success State -->
-                <div v-else-if="paymentStatus === 'success'" class="text-center py-6">
-                  <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <IconCheck class="w-8 h-8 text-green-600" />
-                  </div>
-                  <h4 class="text-xl font-semibold text-green-600 mb-2">Thank You!</h4>
-                  <p class="text-gray-600 mb-4">Your {{ effectiveAmount.toLocaleString() }} sats contribution makes a difference!</p>
-                  <div class="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-lg p-3 mb-4">
-                    <p class="text-orange-800 font-medium text-sm">
-                      Your support helps bring this campaign closer to its goal
-                    </p>
-                  </div>
-                  <button
-                    @click="resetForm"
-                    class="text-orange-600 hover:text-orange-700 text-sm font-semibold transition-colors"
-                  >
-                    Support again
-                  </button>
-                </div>
-
-                <!-- Error State -->
-                <div v-else-if="paymentStatus === 'error'" class="space-y-4">
-                  <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
-                    <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <IconAlertCircle class="w-8 h-8 text-red-600" />
-                    </div>
-                    <h4 class="text-lg font-semibold text-red-800 mb-2">Payment Failed</h4>
-                    <p class="text-sm text-red-700 mb-4">{{ paymentError }}</p>
-                    <button 
-                      @click="resetToAmountSelection" 
-                      class="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white px-4 py-2 rounded-lg font-semibold transition-all duration-200 flex items-center justify-center space-x-2 mx-auto"
+                      class="inline-flex items-center space-x-2 px-5 py-2.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white rounded-xl font-semibold text-sm transition-all shadow-md active:scale-[0.98]"
                     >
                       <IconBolt class="w-4 h-4" />
-                      <span>Try Again</span>
+                      <span>Try again</span>
                     </button>
                   </div>
                 </div>
               </div>
             </div>
-
           </div>
         </div>
       </div>
 
-
-      <!-- Mobile Floating Action Button -->
-      <div class="lg:hidden fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-white via-white to-transparent pointer-events-none z-40">
+      <!-- ═══════════════════════════════════════════════════════ -->
+      <!-- MOBILE: Floating Action Button                         -->
+      <!-- ═══════════════════════════════════════════════════════ -->
+      <div class="lg:hidden fixed bottom-0 left-0 right-0 p-4 pb-5 bg-gradient-to-t from-white via-white/98 to-transparent pointer-events-none z-40">
         <button
           @click="openMobilePayment"
           :disabled="isPaymentDisabled"
           :class="[
-            'w-full px-6 py-4 rounded-xl font-semibold text-base shadow-lg flex items-center justify-center space-x-2 pointer-events-auto transition-all duration-200',
+            'w-full px-6 py-4 rounded-2xl font-bold text-base flex items-center justify-center space-x-2.5 pointer-events-auto transition-all duration-200 active:scale-[0.97]',
             isPaymentDisabled
-              ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-              : 'bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white'
+              ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+              : 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-xl shadow-orange-500/25 hover:shadow-orange-500/40'
           ]"
         >
+          <IconBolt v-if="!isPaymentDisabled" class="w-5 h-5" />
           <span>{{ isPaymentDisabled ? paymentDisabledLabel : 'Support this campaign' }}</span>
         </button>
       </div>
     </div>
 
-    <!-- Mobile Payment Bottom Sheet -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- MOBILE: Payment Bottom Sheet                            -->
+    <!-- ═══════════════════════════════════════════════════════ -->
     <div
       v-if="showMobilePayment"
       class="lg:hidden fixed inset-0 z-50"
@@ -633,73 +673,76 @@
     >
       <!-- Backdrop -->
       <div
-        class="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300"
+        class="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity duration-300"
         :class="mobilePaymentAnimating ? 'opacity-100' : 'opacity-0'"
         @click="closeMobilePayment"
       ></div>
 
-      <!-- Bottom Sheet -->
+      <!-- Sheet -->
       <div
-        class="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-xl transition-transform duration-300 ease-out max-h-[90vh] overflow-hidden flex flex-col"
+        class="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-2xl transition-transform duration-300 ease-out max-h-[92vh] overflow-hidden flex flex-col"
         :class="mobilePaymentAnimating ? 'translate-y-0' : 'translate-y-full'"
       >
-        <!-- Handle Bar -->
-        <div class="flex justify-center pt-3 pb-3">
-          <div class="w-10 h-1 bg-gray-300 rounded-full"></div>
+        <!-- Handle -->
+        <div class="flex justify-center pt-3 pb-2">
+          <div class="w-10 h-1 bg-gray-200 rounded-full"></div>
         </div>
 
         <!-- Header -->
-        <div class="relative px-6 py-4 border-b border-gray-200">
+        <div class="px-6 py-3 border-b border-gray-100">
           <div class="flex items-center justify-between">
-            <h3 class="text-xl font-semibold text-gray-900">Support this campaign</h3>
+            <h3 class="text-lg font-bold text-gray-900">Support this campaign</h3>
             <button
               @click="closeMobilePayment"
               class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors"
             >
-              <IconX class="w-5 h-5 text-gray-500" />
+              <IconX class="w-5 h-5 text-gray-400" />
             </button>
           </div>
         </div>
 
-        <!-- Scrollable Content -->
+        <!-- Scrollable content -->
         <div class="flex-1 overflow-y-auto px-6 py-5">
           <!-- Amount Selection (Step 1) -->
           <div v-if="currentStep === 'amount'" class="space-y-5">
-            <!-- Quick Amount Selection -->
-            <div>
-              <div class="grid grid-cols-2 gap-2.5">
-                <button
-                  v-for="amount in predefinedAmounts"
-                  :key="amount.value"
-                  @click="selectAmount(amount.value)"
-                  :class="[
-                    'p-3.5 rounded-xl border text-center transition-all duration-200 active:scale-95',
-                    !isCustomAmount && zapAmount === amount.value
-                      ? 'border-orange-500 bg-orange-50 text-orange-900'
-                      : 'border-gray-200 bg-white text-gray-900'
-                  ]"
+            <div class="grid grid-cols-2 gap-2.5">
+              <button
+                v-for="amount in predefinedAmounts"
+                :key="amount.value"
+                @click="selectAmount(amount.value)"
+                :class="[
+                  'relative p-4 rounded-xl border-2 text-center transition-all duration-200 active:scale-95',
+                  !isCustomAmount && zapAmount === amount.value
+                    ? 'border-orange-400 bg-orange-50/80'
+                    : 'border-gray-100 bg-white'
+                ]"
+              >
+                <div class="font-bold text-lg text-gray-900">{{ amount.label }}</div>
+                <div class="text-xs text-gray-400 mt-0.5">{{ amount.description }}</div>
+                <div
+                  v-if="!isCustomAmount && zapAmount === amount.value"
+                  class="absolute -top-1.5 -right-1.5 w-5 h-5 bg-orange-500 rounded-full flex items-center justify-center"
                 >
-                  <div class="font-semibold text-base">{{ amount.label }}</div>
-                  <div class="text-xs text-gray-500 mt-0.5">{{ amount.description }}</div>
-                </button>
-              </div>
+                  <IconCheck class="w-3 h-3 text-white" />
+                </div>
+              </button>
             </div>
 
-            <!-- Custom Amount with Slider -->
+            <!-- Custom amount -->
             <div class="space-y-3">
-              <div class="flex items-center justify-between py-0.5">
-                <label class="text-sm font-medium text-gray-700">Custom amount</label>
+              <div class="flex items-center justify-between">
+                <label class="text-sm font-medium text-gray-600">Custom amount</label>
                 <button
                   @click="toggleCustomAmount"
                   type="button"
                   :class="[
-                    'relative inline-flex h-[24px] w-[44px] items-center rounded-full transition-colors duration-200 ease-out focus:outline-none shrink-0',
+                    'relative inline-flex h-[24px] w-[44px] items-center rounded-full transition-colors duration-200 ease-out focus:outline-none flex-shrink-0',
                     isCustomAmount ? 'bg-orange-500' : 'bg-gray-200'
                   ]"
                 >
                   <span
                     :class="[
-                      'inline-block h-[20px] w-[20px] transform rounded-full bg-white shadow transition-transform duration-200 ease-out',
+                      'inline-block h-[20px] w-[20px] transform rounded-full bg-white shadow-sm transition-transform duration-200 ease-out',
                       isCustomAmount ? 'translate-x-[22px]' : 'translate-x-[2px]'
                     ]"
                   />
@@ -715,10 +758,10 @@
                     min="1"
                     :max="MAX_ZAP_AMOUNT"
                     placeholder="Enter amount"
-                    class="w-full px-4 py-3.5 pr-16 border border-gray-300 rounded-xl focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-all text-base font-semibold"
+                    class="w-full px-4 py-3.5 pr-16 border-2 border-orange-200 rounded-xl focus:border-orange-400 focus:ring-2 focus:ring-orange-400/20 transition-all text-base font-bold outline-none"
                   />
                   <div class="absolute inset-y-0 right-0 flex items-center pr-4">
-                    <span class="text-sm font-semibold text-gray-500">sats</span>
+                    <span class="text-sm font-semibold text-gray-400">sats</span>
                   </div>
                 </div>
                 <p v-if="isAmountExceedsMax" class="text-xs text-red-500">Maximum amount is {{ MAX_ZAP_AMOUNT.toLocaleString() }} sats</p>
@@ -727,20 +770,20 @@
 
             <!-- Message -->
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">Message (optional)</label>
+              <label class="block text-sm font-medium text-gray-600 mb-2">Add a message</label>
               <textarea
                 v-model="zapComment"
                 rows="3"
-                placeholder="Add a message..."
-                class="w-full px-3.5 py-3 border border-gray-300 rounded-xl focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-all resize-none text-sm"
+                placeholder="Say something nice..."
+                class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-orange-400 focus:ring-1 focus:ring-orange-400/20 transition-all resize-none text-sm outline-none"
               ></textarea>
             </div>
 
-            <!-- Continue Button -->
+            <!-- Continue -->
             <button
               @click="generateInvoice"
               :disabled="!canProceed || isGeneratingInvoice"
-              class="w-full bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white px-6 py-4 rounded-xl font-bold text-base transition-all duration-200 flex items-center justify-center space-x-2.5 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg active:scale-[0.98]"
+              class="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white px-6 py-4 rounded-xl font-bold text-base transition-all duration-200 flex items-center justify-center space-x-2.5 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg active:scale-[0.98]"
             >
               <IconLoader v-if="isGeneratingInvoice" class="w-5 h-5 animate-spin" />
               <IconBolt v-else class="w-5 h-5" />
@@ -748,22 +791,20 @@
             </button>
           </div>
 
-          <!-- Payment Options (Step 2) -->
+          <!-- Payment / QR (Step 2) -->
           <div v-else-if="currentStep === 'payment' && invoice" class="space-y-5">
-            <!-- Amount Summary -->
-            <div class="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-xl p-4">
+            <div class="bg-gradient-to-r from-orange-50 to-amber-50/50 border border-orange-100 rounded-xl p-4">
               <div class="flex items-center justify-between">
-                <span class="text-sm font-semibold text-orange-800">Supporting with:</span>
-                <span class="text-xl font-bold text-orange-600">{{ effectiveAmount.toLocaleString() }} sats</span>
+                <span class="text-sm font-semibold text-orange-700">Supporting with</span>
+                <span class="text-xl font-bold text-gray-900">{{ effectiveAmount.toLocaleString() }} sats</span>
               </div>
-              <div v-if="zapComment" class="mt-3 pt-3 border-t border-orange-200">
-                <p class="text-xs text-orange-700 italic">"{{ zapComment }}"</p>
+              <div v-if="zapComment" class="mt-3 pt-3 border-t border-orange-200/50">
+                <p class="text-xs text-gray-500 italic">"{{ zapComment }}"</p>
               </div>
             </div>
 
-            <!-- QR Code -->
             <div class="text-center">
-              <div class="bg-white p-6 rounded-2xl border-2 border-gray-200 inline-block shadow-sm">
+              <div class="bg-white p-5 rounded-2xl border border-gray-100 inline-block shadow-sm">
                 <QRCodeVue3
                   :value="`lightning:${invoice}`"
                   :size="220"
@@ -772,97 +813,88 @@
                   error-correction-level="M"
                 />
               </div>
-              <p class="text-sm text-gray-600 mt-4">Scan with any Lightning wallet</p>
+              <p class="text-sm text-gray-400 mt-3">Scan with any Lightning wallet</p>
             </div>
 
-            <!-- Copy Invoice -->
             <button
               @click="copyToClipboard(invoice, 'invoice')"
-              class="w-full px-4 py-3 rounded-xl border border-gray-200 hover:bg-gray-50 text-sm font-medium text-gray-700 transition-colors flex items-center justify-center space-x-2"
+              class="w-full px-4 py-3 rounded-xl border border-gray-200 hover:bg-gray-50 text-sm font-medium text-gray-600 transition-colors flex items-center justify-center space-x-2"
             >
               <IconCopy class="w-4 h-4" />
               <span>{{ copySuccess === 'invoice' ? 'Copied!' : 'Copy Invoice' }}</span>
             </button>
 
-            <!-- QR / External wallet info notice -->
-            <div class="bg-amber-50 border border-amber-200 rounded-xl p-3">
-              <p class="text-xs text-amber-800 leading-relaxed">
+            <!-- Info notice -->
+            <div class="bg-amber-50/80 border border-amber-200/60 rounded-xl p-3">
+              <p class="text-xs text-amber-700 leading-relaxed">
                 <span class="font-semibold">Good to know:</span> Your sats will reach the campaign creator, but payments made via QR code or external wallet can't be tracked in the campaign progress. Want your support to show?<span v-if="nostrEventUrl"> <a :href="nostrEventUrl" target="_blank" rel="noopener noreferrer" class="underline font-medium hover:text-amber-900">Zap the campaign on Nostr</a> instead.</span><span v-else> Zap the campaign post on Nostr instead.</span>
               </p>
             </div>
 
-            <!-- Payment Buttons -->
-            <div class="space-y-3">
-              <!-- Pay with ZapTracker Wallet -->
+            <div class="space-y-2.5">
               <button
                 v-if="isWalletConnected"
                 @click="payWithInternalNWC"
                 :disabled="isProcessingPayment"
-                class="w-full bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white px-6 py-4 rounded-xl font-bold transition-all duration-200 flex items-center justify-center space-x-2.5 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg active:scale-[0.98]"
+                class="w-full bg-green-500 hover:bg-green-600 text-white px-6 py-4 rounded-xl font-bold transition-all duration-200 flex items-center justify-center space-x-2.5 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg active:scale-[0.98]"
               >
                 <IconLoader v-if="isProcessingPayment" class="w-5 h-5 animate-spin" />
                 <IconWallet v-else class="w-5 h-5" />
                 <span>{{ isProcessingPayment ? 'Processing...' : 'Pay with ZapTracker Wallet' }}</span>
               </button>
 
-              <!-- Open in External Wallet -->
               <button
                 @click="openExternalWallet"
-                class="w-full bg-blue-500 hover:bg-blue-600 text-white px-6 py-4 rounded-xl font-bold transition-all duration-200 flex items-center justify-center space-x-2.5 shadow-lg active:scale-[0.98]"
+                class="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 px-6 py-4 rounded-xl font-bold transition-all duration-200 flex items-center justify-center space-x-2.5 active:scale-[0.98]"
               >
                 <IconExternalLink class="w-5 h-5" />
-                <span>Open in Wallet</span>
+                <span>Open in wallet</span>
               </button>
             </div>
 
-            <!-- Back Button -->
-            <div class="text-center pt-3 border-t border-gray-200">
+            <div class="text-center pt-3 border-t border-gray-100">
               <button
                 @click="resetToAmountSelection"
-                class="text-gray-600 hover:text-gray-800 text-sm font-semibold flex items-center space-x-1.5 mx-auto"
+                class="text-gray-400 hover:text-gray-600 text-sm font-medium flex items-center space-x-1.5 mx-auto transition-colors"
               >
                 <IconArrowLeft class="w-4 h-4" />
-                <span>Change Amount</span>
+                <span>Change amount</span>
               </button>
             </div>
           </div>
 
-          <!-- Success State -->
+          <!-- Success -->
           <div v-else-if="paymentStatus === 'success'" class="text-center py-8">
-            <div class="w-20 h-20 bg-green-100 rounded-2xl flex items-center justify-center mx-auto mb-5">
-              <IconCheck class="w-10 h-10 text-green-600" />
+            <div class="w-20 h-20 bg-green-50 rounded-2xl flex items-center justify-center mx-auto mb-5 border border-green-100">
+              <IconCheck class="w-10 h-10 text-green-500" />
             </div>
-            <h4 class="text-2xl font-bold text-green-600 mb-3">Thank You!</h4>
-            <p class="text-gray-600 mb-5">Your {{ effectiveAmount.toLocaleString() }} sats contribution makes a difference!</p>
-            <div class="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-xl p-4 mb-5">
-              <p class="text-orange-800 font-semibold text-sm">
-                Your support helps bring this campaign closer to its goal
-              </p>
+            <h4 class="text-2xl font-bold text-gray-900 mb-2">Thank you!</h4>
+            <p class="text-gray-500 mb-5">Your {{ effectiveAmount.toLocaleString() }} sats contribution makes a real difference.</p>
+            <div class="bg-gradient-to-r from-orange-50 to-amber-50/50 border border-orange-100 rounded-xl p-4 mb-5">
+              <p class="text-orange-700 font-semibold text-sm">You're helping this campaign reach its goal</p>
             </div>
             <button
               @click="resetForm"
-              class="text-orange-600 hover:text-orange-700 font-semibold transition-colors"
+              class="text-orange-500 hover:text-orange-600 font-semibold transition-colors"
             >
               Support again
             </button>
           </div>
 
-          <!-- Error State -->
-          <div v-else-if="paymentStatus === 'error'" class="space-y-4">
-            <div class="bg-red-50 border border-red-200 rounded-xl p-5 text-center">
-              <div class="w-16 h-16 bg-red-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                <IconAlertCircle class="w-8 h-8 text-red-600" />
-              </div>
-              <h4 class="text-lg font-bold text-red-800 mb-2">Payment Failed</h4>
-              <p class="text-sm text-red-700 mb-5">{{ paymentError }}</p>
-              <button
-                @click="resetToAmountSelection"
-                class="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white px-6 py-3 rounded-xl font-bold transition-all duration-200 flex items-center justify-center space-x-2 mx-auto"
-              >
-                <IconBolt class="w-5 h-5" />
-                <span>Try Again</span>
-              </button>
+          <!-- Error -->
+          <div v-else-if="paymentStatus === 'error'" class="text-center py-6">
+            <div class="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-red-100">
+              <IconAlertCircle class="w-8 h-8 text-red-500" />
             </div>
+            <h4 class="text-lg font-bold text-gray-900 mb-2">Payment failed</h4>
+            <p class="text-sm text-gray-500 mb-5">{{ paymentError }}</p>
+            <button
+              @click="resetToAmountSelection"
+              class="inline-flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white rounded-xl font-bold transition-all mx-auto active:scale-[0.98]"
+            >
+              <IconBolt class="w-5 h-5" />
+              <span>Try again</span>
+            </button>
           </div>
         </div>
       </div>
@@ -919,11 +951,11 @@ import UserProfileModal from '../components/modals/UserProfileModal.vue'
 const changePage = inject('changePage')
 
 // Use composables
-const { 
-  fetchCampaignById, 
-  getCampaignProgress, 
-  isCampaignExpired, 
-  isCampaignCompleted, 
+const {
+  fetchCampaignById,
+  getCampaignProgress,
+  isCampaignExpired,
+  isCampaignCompleted,
   getCampaignStatus,
   campaignAggregatedZaps: campaignZapsMap,
   isLoading,
@@ -973,17 +1005,17 @@ const getEventIdFromUrl = () => {
 // Load campaign
 const loadCampaign = async () => {
   const eventId = getEventIdFromUrl()
-  
+
   if (!eventId) {
     console.error('No eventId found in URL parameters')
     changePage('campaign-not-found')
     return
   }
-  
+
   try {
     const loadedCampaign = await fetchCampaignById(eventId)
     campaign.value = loadedCampaign
-    
+
     // Fetch author profile
     await fetchAuthorProfile(loadedCampaign.pubkey)
   } catch (err) {
@@ -1000,7 +1032,7 @@ const fetchAuthorProfile = async (pubkey) => {
       authors: [pubkey],
       limit: 1
     })
-    
+
     if (authorEvent) {
       try {
         const profile = JSON.parse(authorEvent.content)
@@ -1059,7 +1091,7 @@ const nostrEventUrl = computed(() => {
 // Enhanced currency formatting with K/M suffixes
 const formatCurrency = (amount) => {
   if (!amount) return '0 sats'
-  
+
   if (amount >= 1000000) {
     return `${(amount / 1000000).toFixed(1)}M sats`
   } else if (amount >= 1000) {
@@ -1070,12 +1102,12 @@ const formatCurrency = (amount) => {
 // Calculate days remaining
 const daysRemaining = computed(() => {
   if (!campaign.value || !campaign.value.closedAt) return 'No deadline'
-  
+
   const now = Math.floor(Date.now() / 1000)
   const remaining = campaign.value.closedAt - now
-  
+
   if (remaining <= 0) return 'Ended'
-  
+
   const days = Math.floor(remaining / (60 * 60 * 24))
   return days === 1 ? '1 day left' : `${days} days left`
 })
@@ -1101,21 +1133,21 @@ const paymentDisabledLabel = computed(() => {
 const statusColor = computed(() => {
   switch (status.value) {
     case 'completed':
-      return 'bg-green-100 text-green-700'
+      return 'bg-green-50 text-green-600 border border-green-100'
     case 'expired':
-      return 'bg-red-100 text-red-700'
+      return 'bg-red-50 text-red-600 border border-red-100'
     default:
-      return 'bg-orange-100 text-orange-700'
+      return 'bg-orange-50 text-orange-600 border border-orange-100'
   }
 })
 
 // Get recent zaps from campaign aggregated zaps
 const recentZaps = computed(() => {
   if (!campaign.value) return []
-  
+
   // Get zaps from the campaign aggregated zaps system using the reactive Map
   const campaignZaps = campaignZapsMap.value.get(campaign.value.id) || []
-  
+
   return campaignZaps
     .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)) // Sort by most recent first
     .map(zap => ({
@@ -1141,7 +1173,7 @@ const formatTimeAgo = (timestamp) => {
   const date = new Date(timestamp)
   const now = new Date()
   const diff = now - date
-  
+
   if (diff < 60000) return 'Just now'
   if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`
   if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`
@@ -1227,11 +1259,11 @@ const toggleCustomAmount = () => {
 // Generate Lightning invoice via NIP-57
 const generateInvoice = async () => {
   if (!canProceed.value) return
-  
+
   isGeneratingInvoice.value = true
   paymentError.value = ''
   paymentStatus.value = ''
-  
+
   try {
     // Use cached author data to construct metadata for zap endpoint resolution
     let profileEvent
@@ -1257,18 +1289,18 @@ const generateInvoice = async () => {
 
     // Get zap endpoint using proper nostr-tools implementation
     const zapEndpoint = await getZapEndpoint(profileEvent)
-    
+
     if (!zapEndpoint) {
       throw new Error('Author does not have a zap endpoint configured')
     }
-    
+
     // Create zap request
     const zapRequest = makeZapRequest({
       profile: campaignAuthor.value.pubkey,
       event: campaign.value.rawEvent,
       amount: effectiveAmount.value * 1000, // Convert to millisats
-      comment: zapComment.value ? 
-        `${zapComment.value} (Campaign: ${campaign.value.title})` : 
+      comment: zapComment.value ?
+        `${zapComment.value} (Campaign: ${campaign.value.title})` :
         `Supporting campaign: ${campaign.value.title}`,
       relays: campaign.value.relays || [
         'wss://relay.damus.io',
@@ -1278,15 +1310,15 @@ const generateInvoice = async () => {
         'wss://nostr-01.yakihonne.com',
       ]
     })
-    
+
     // CRITICAL: Add goal and event tags for proper campaign tracking
     if (!zapRequest.tags) {
       zapRequest.tags = []
     }
-    
+
     // Add goal tag for NIP-75 campaign tracking
     zapRequest.tags.push(['goal', campaign.value.id])
-    
+
     // Add event tag to reference the campaign
     zapRequest.tags.push(['e', campaign.value.id])
 
@@ -1307,23 +1339,23 @@ const generateInvoice = async () => {
         'Accept': 'application/json'
       }
     })
-    
+
     if (!response.ok) {
       const errorText = await response.text()
       console.error('Zap endpoint error response:', errorText)
       throw new Error(`Zap endpoint returned ${response.status}: ${errorText}`)
     }
-    
+
     const zapEndpointResponse = await response.json()
-    
+
     if (!zapEndpointResponse.pr) {
       console.error('Zap endpoint response:', zapEndpointResponse)
       throw new Error('No payment request in zap endpoint response')
     }
-    
+
     invoice.value = zapEndpointResponse.pr
     currentStep.value = 'payment'
-    
+
   } catch (err) {
     console.error('Failed to generate invoice:', err)
     paymentError.value = err.message || 'Failed to generate invoice'
@@ -1336,24 +1368,24 @@ const generateInvoice = async () => {
 // Pay with internal NWC wallet
 const payWithInternalNWC = async () => {
   if (!invoice.value || !isWalletConnected.value) return
-  
+
   isProcessingPayment.value = true
   paymentError.value = ''
-  
+
   try {
     const paymentResult = await payInvoice({
       invoice: invoice.value
     })
-    
+
     paymentStatus.value = 'success'
-    
+
     // Notify about successful payment
     handlePaymentSuccess(paymentResult)
     handleZapSent({
       amount: effectiveAmount.value,
       recipient: campaignAuthor.value.name || 'Campaign Author'
     })
-    
+
   } catch (err) {
     console.error('Internal NWC payment failed:', err)
     paymentError.value = err.message || 'Payment failed'
@@ -1367,12 +1399,12 @@ const payWithInternalNWC = async () => {
 // Open in external wallet
 const openExternalWallet = () => {
   if (!invoice.value) return
-  
+
   try {
     // Create lightning: URI — use location.href to avoid blank tab
     const lightningUri = `lightning:${invoice.value}`
     window.location.href = lightningUri
-    
+
   } catch (err) {
     console.error('Failed to open external wallet:', err)
     paymentError.value = 'Failed to open external wallet'
@@ -1385,7 +1417,7 @@ async function getZapEndpoint(metadata) {
     let lnurl = ''
     const profile = JSON.parse(metadata.content)
     const { lud06, lud16 } = profile
-    
+
     if (lud06) {
       // Decode bech32 lud06 to get LNURL
       try {
@@ -1406,15 +1438,15 @@ async function getZapEndpoint(metadata) {
     } else {
       return null
     }
-    
+
     // Fetch LNURL metadata
     const response = await fetch(lnurl)
     if (!response.ok) {
       throw new Error(`LNURL endpoint returned ${response.status}`)
     }
-    
+
     const body = await response.json()
-    
+
     // Check for NIP-57 zap compatibility
     if (body.allowsNostr && body.nostrPubkey) {
       return body.callback
@@ -1435,17 +1467,17 @@ const getSenderName = (zap) => {
   if (zap.sender?.name) {
     return zap.sender.name
   }
-  
+
   // Check for display_name (Nostr standard)
   if (zap.sender?.display_name) {
     return zap.sender.display_name
   }
-  
+
   // Fallback to pubkey
   if (zap.zapperPubkey) {
     return `user:${zap.zapperPubkey.substring(0, 8)}`
   }
-  
+
   return 'Anonymous'
 }
 
@@ -1455,12 +1487,12 @@ const getSenderAvatar = (zap) => {
   if (zap.sender?.picture) {
     return zap.sender.picture
   }
-  
+
   // Fallback to avatar property (backward compatibility)
   if (zap.sender?.avatar) {
     return zap.sender.avatar
   }
-  
+
   // Generate fallback avatar based on pubkey
   return generateAvatar(zap.zapperPubkey)
 }
@@ -1514,50 +1546,7 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-/* Custom scrollbar */
-.overflow-y-auto::-webkit-scrollbar {
-  width: 6px;
-}
-
-.overflow-y-auto::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.overflow-y-auto::-webkit-scrollbar-thumb {
-  background-color: rgba(251, 146, 60, 0.3);
-  border-radius: 3px;
-}
-
-.overflow-y-auto::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(251, 146, 60, 0.5);
-}
-
-/* Smooth transitions for common elements */
-button,
-a,
-input,
-textarea,
-select {
-  transition-property: background-color, border-color, color, box-shadow, transform;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 200ms;
-}
-
-/* Shimmer loading animation */
-@keyframes shimmer {
-  0% {
-    transform: translateX(-100%);
-  }
-  100% {
-    transform: translateX(100%);
-  }
-}
-
-.animate-shimmer {
-  animation: shimmer 1.5s infinite;
-}
-
-/* Skeleton loading shimmer */
+/* Skeleton shimmer */
 .skeleton-shimmer {
   position: relative;
   overflow: hidden;
@@ -1571,24 +1560,61 @@ select {
   animation: shimmer 1.8s ease-in-out infinite;
 }
 
-/* Ensure proper touch targets on mobile */
-@media (max-width: 640px) {
-  button, input, textarea {
-    font-size: 16px;
-    min-height: 44px;
-  }
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
 }
 
-/* Enhanced hover and active states */
-button:not(:disabled):hover {
-  transform: translateY(-1px);
+.animate-shimmer {
+  animation: shimmer 1.5s infinite;
 }
 
-button:not(:disabled):active {
-  transform: translateY(0);
+/* Progress bar shimmer for active campaigns */
+@keyframes progressShimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
 }
 
-/* Focus states for accessibility */
+.animate-progressShimmer {
+  animation: progressShimmer 2.5s ease-in-out infinite;
+}
+
+/* Fade-in animation */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.4s ease-out;
+}
+
+/* Smooth transitions */
+button, a, input, textarea, select {
+  transition-property: background-color, border-color, color, box-shadow, transform, opacity;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 200ms;
+}
+
+/* Custom scrollbar */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 5px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: rgba(251, 146, 60, 0.2);
+  border-radius: 3px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(251, 146, 60, 0.4);
+}
+
+/* Focus states */
 button:focus-visible,
 input:focus-visible,
 textarea:focus-visible,
@@ -1598,50 +1624,18 @@ a:focus-visible {
   border-radius: 0.5rem;
 }
 
-/* Smooth animations for supporter cards */
-.group:hover {
-  transform: scale(1.05);
-  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-/* Enhanced shadow utilities */
-.shadow-xl {
-  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.1), 0 10px 20px -10px rgba(0, 0, 0, 0.04);
-}
-
-.shadow-2xl {
-  box-shadow: 0 20px 50px -12px rgba(0, 0, 0, 0.25);
-}
-
-/* Mobile bottom sheet animation */
-@keyframes slideUp {
-  from {
-    transform: translateY(100%);
-  }
-  to {
-    transform: translateY(0);
+/* Mobile touch targets */
+@media (max-width: 640px) {
+  button, input, textarea {
+    font-size: 16px;
+    min-height: 44px;
   }
 }
 
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-/* Gradient text */
-.bg-clip-text {
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-/* Ring utilities for focused elements */
-.ring-2 {
-  box-shadow: 0 0 0 2px rgba(251, 146, 60, 0.2);
+/* Prevent tap highlight */
+button, .cursor-pointer {
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
 }
 
 /* Backdrop blur support */
@@ -1650,58 +1644,21 @@ a:focus-visible {
     backdrop-filter: blur(4px);
     -webkit-backdrop-filter: blur(4px);
   }
-
   .backdrop-blur-md {
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
   }
 }
 
-/* Mobile responsive spacing */
-@media (max-width: 640px) {
-  .space-y-4 > :not([hidden]) ~ :not([hidden]) {
-    margin-top: 0.75rem;
-  }
-
-  .space-y-5 > :not([hidden]) ~ :not([hidden]) {
-    margin-top: 1rem;
-  }
-
-  .space-y-6 > :not([hidden]) ~ :not([hidden]) {
-    margin-top: 1.25rem;
-  }
-}
-
-/* Tablet and desktop spacing */
-@media (min-width: 1024px) {
-  .lg\:space-y-6 > :not([hidden]) ~ :not([hidden]) {
-    margin-top: 1.5rem;
-  }
-}
-
-/* Text truncation */
-.truncate {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* Smooth image loading */
-img {
-  image-rendering: -webkit-optimize-contrast;
-  image-rendering: crisp-edges;
-}
-
-/* iOS safe area handling */
+/* iOS safe area */
 @supports (padding: max(0px)) {
   .safe-bottom {
     padding-bottom: max(1rem, env(safe-area-inset-bottom));
   }
 }
 
-/* Prevent text selection on interactive elements */
-button, .cursor-pointer {
-  -webkit-tap-highlight-color: transparent;
-  user-select: none;
+/* Image rendering */
+img {
+  image-rendering: -webkit-optimize-contrast;
 }
 </style>
