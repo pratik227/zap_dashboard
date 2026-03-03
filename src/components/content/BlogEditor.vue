@@ -38,6 +38,7 @@ import {
 import { useMentions } from '../../composables/content/useMentions.js'
 import MentionInput from './MentionInput.vue'
 import MentionRenderer from './MentionRenderer.vue'
+import MediaPickerModal from '../media/MediaPickerModal.vue'
 import * as nip19 from 'nostr-tools/nip19'
 import { fetchProfile } from '../../utils/profile/profileFetcher.js'
 
@@ -82,6 +83,8 @@ const showEmojiPicker = ref(false)
 const showLinkModal = ref(false)
 const showImageModal = ref(false)
 const showVideoModal = ref(false)
+const showMediaPicker = ref(false)
+const showCoverPicker = ref(false)
 const linkPreview = ref({
   show: false,
   url: '',
@@ -500,6 +503,33 @@ const insertVideo = () => {
     insertAtNewLine(`[${title}](${videoForm.value.url})`)
     showVideoModal.value = false
   }
+}
+
+// Media picker handler — appends to content directly (textarea may not be focused after modal)
+const handleMediaSelect = (media) => {
+  const url = media.url
+  const alt = media.alt || ''
+
+  let markdown
+  if (media.type?.startsWith('image/')) {
+    markdown = `![${alt || 'Image'}](${url})`
+  } else if (media.type?.startsWith('video/')) {
+    markdown = `[${alt || 'Video'}](${url})`
+  } else if (media.type?.startsWith('audio/')) {
+    markdown = `[${alt || 'Audio'}](${url})`
+  } else {
+    markdown = `[${alt || 'Media'}](${url})`
+  }
+
+  const content = props.form.content || ''
+  const needsNewline = content && !content.endsWith('\n')
+  props.form.content = content + (needsNewline ? '\n' : '') + markdown + '\n'
+}
+
+// Cover image picker handler
+const handleCoverSelect = (media) => {
+  props.form.coverImage = media.url
+  showCoverPicker.value = false
 }
 
 // Emoji picker
@@ -1037,13 +1067,23 @@ const syncScroll = (source) => {
 
           <!-- Cover Image URL -->
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Cover Image URL</label>
-            <input
-              v-model="props.form.coverImage"
-              type="url"
-              placeholder="https://example.com/image.jpg"
-              class="w-full px-3 py-2 border-0 bg-gray-50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:bg-white transition-all duration-200 text-sm"
-            />
+            <label class="block text-sm font-medium text-gray-700 mb-1">Cover Image</label>
+            <div class="flex gap-2">
+              <input
+                v-model="props.form.coverImage"
+                type="url"
+                placeholder="https://example.com/image.jpg"
+                class="flex-1 px-3 py-2 border-0 bg-gray-50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:bg-white transition-all duration-200 text-sm"
+              />
+              <button
+                type="button"
+                @click="showCoverPicker = true"
+                class="px-3 py-2 bg-orange-50 text-orange-600 hover:bg-orange-100 rounded-lg text-sm font-medium transition-colors flex items-center gap-1 flex-shrink-0"
+              >
+                <IconPhoto class="w-3.5 h-3.5" />
+                Browse
+              </button>
+            </div>
           </div>
 
           <!-- Tags -->
@@ -1141,20 +1181,12 @@ const syncScroll = (source) => {
                 <IconLink class="w-4 h-4" />
               </button>
               <button
-                @click="openImageModal"
+                @click="showMediaPicker = true"
                 type="button"
-                class="p-2 text-gray-600 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-all duration-200 group"
-                title="Insert Image"
+                class="p-2 text-gray-600 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-all duration-200 group"
+                title="Insert Media (Images, Video, Audio)"
               >
                 <IconPhoto class="w-4 h-4 group-hover:scale-110 transition-transform" />
-              </button>
-              <button
-                @click="openVideoModal"
-                type="button"
-                class="p-2 text-gray-600 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-all duration-200 group"
-                title="Insert Video"
-              >
-                <IconVideo class="w-4 h-4 group-hover:scale-110 transition-transform" />
               </button>
             </div>
           </div>
@@ -1472,6 +1504,21 @@ const syncScroll = (source) => {
         </div>
       </div>
     </div>
+
+    <!-- Media Picker Modal (toolbar) -->
+    <MediaPickerModal
+      :visible="showMediaPicker"
+      @close="showMediaPicker = false"
+      @select="handleMediaSelect"
+    />
+
+    <!-- Cover Image Picker Modal -->
+    <MediaPickerModal
+      :visible="showCoverPicker"
+      accept="image"
+      @close="showCoverPicker = false"
+      @select="handleCoverSelect"
+    />
 
     <!-- Link Preview Tooltip -->
     <Teleport to="body">
