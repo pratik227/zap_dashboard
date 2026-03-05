@@ -98,9 +98,9 @@ const formatNumber = (num) => {
       <div v-if="showTooltips" class="custom-tooltip">{{ safeEngagementCounts.reposts }} {{ safeEngagementCounts.reposts <= 1 ? 'repost' : 'reposts' }}</div>
     </span>
     
-    <span :class="['flex items-center gap-1 px-2 py-0.5 rounded-md hover:bg-orange-50 transition-colors', showTooltips ? 'tooltip-container' : '']">
-      <IconBolt :class="[iconSizeClass, zapCount > 0 ? 'text-orange-500' : 'text-gray-400']" />
-      <span :class="[textSize, 'font-medium', zapCount > 0 ? 'text-orange-600' : 'text-gray-500']">{{ formatNumber(zapCount) }}</span>
+    <span :class="['flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-orange-50 transition-all duration-200 group', showTooltips ? 'tooltip-container' : '']">
+      <IconBolt :class="[iconSizeClass, zapCount > 0 ? 'text-orange-500 scale-110' : 'text-gray-400 group-hover:text-orange-400']" />
+      <span :class="[textSize, 'font-bold', zapCount > 0 ? 'text-orange-600' : 'text-gray-500 group-hover:text-orange-500']">{{ formatNumber(zapCount) }}</span>
       <div v-if="showTooltips" class="custom-tooltip">{{ zapCount }} {{ zapCount <= 1 ? 'zap' : 'zaps' }}</div>
     </span>
     

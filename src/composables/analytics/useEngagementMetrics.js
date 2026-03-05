@@ -168,6 +168,19 @@ export function useEngagementMetrics() {
         engagementData = createEngagementData(event, 'repost', referencedEventId)
         targetArray = metrics.reposts
         break
+      
+      case 9735:
+        // Handle zaps within the same pipeline for consistency
+        engagementData = {
+          id: event.id,
+          authorPubkey: event.pubkey,
+          createdAt: event.created_at,
+          referencedEventId,
+          type: 'zap'
+        }
+        if (!metrics.zaps) metrics.zaps = []
+        targetArray = metrics.zaps
+        break
 
       case 10001:
       case 10002:
