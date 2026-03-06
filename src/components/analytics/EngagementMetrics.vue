@@ -17,10 +17,16 @@ const props = defineProps({
       likes: 0,
       reposts: 0,
       bookmarks: 0,
+      zapCount: 0,
+      zapAmountSats: 0,
       totalEngagement: 0
     })
   },
   zapCount: {
+    type: Number,
+    default: 0
+  },
+  zapAmountSats: {
     type: Number,
     default: 0
   },
@@ -65,6 +71,15 @@ const hasAnyEngagement = computed(() =>
   props.zapCount > 0
 )
 
+// Resolve effective zap count and amount: prop overrides > engagementCounts fallback
+const effectiveZapCount = computed(() =>
+  props.zapCount > 0 ? props.zapCount : (props.engagementCounts?.zapCount || 0)
+)
+
+const effectiveZapAmountSats = computed(() =>
+  props.zapAmountSats > 0 ? props.zapAmountSats : (props.engagementCounts?.zapAmountSats || 0)
+)
+
 const safeEngagementCounts = computed(() => ({
   likes: props.engagementCounts?.likes || 0,
   reposts: props.engagementCounts?.reposts || 0,
@@ -99,9 +114,12 @@ const formatNumber = (num) => {
     </span>
     
     <span :class="['flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-orange-50 transition-all duration-200 group', showTooltips ? 'tooltip-container' : '']">
-      <IconBolt :class="[iconSizeClass, zapCount > 0 ? 'text-orange-500 scale-110' : 'text-gray-400 group-hover:text-orange-400']" />
-      <span :class="[textSize, 'font-bold', zapCount > 0 ? 'text-orange-600' : 'text-gray-500 group-hover:text-orange-500']">{{ formatNumber(zapCount) }}</span>
-      <div v-if="showTooltips" class="custom-tooltip">{{ zapCount }} {{ zapCount <= 1 ? 'zap' : 'zaps' }}</div>
+      <IconBolt :class="[iconSizeClass, effectiveZapCount > 0 ? 'text-orange-500 scale-110' : 'text-gray-400 group-hover:text-orange-400']" />
+      <span :class="[textSize, 'font-bold', effectiveZapCount > 0 ? 'text-orange-600' : 'text-gray-500 group-hover:text-orange-500']">{{ formatNumber(effectiveZapCount) }}</span>
+      <div v-if="showTooltips" class="custom-tooltip">
+        {{ effectiveZapCount }} {{ effectiveZapCount <= 1 ? 'zap' : 'zaps' }}
+        <template v-if="effectiveZapAmountSats > 0"> · {{ formatNumber(effectiveZapAmountSats) }} sats</template>
+      </div>
     </span>
     
     <span :class="['flex items-center gap-1 px-2 py-0.5 rounded-md hover:bg-gray-50 transition-colors', showTooltips ? 'tooltip-container' : '']">

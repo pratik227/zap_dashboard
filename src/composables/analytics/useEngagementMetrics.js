@@ -1,11 +1,15 @@
 import { ref, reactive, computed, watch } from 'vue'
 import { useNostrAuth } from '../auth/useNostrAuth.js'
 import { nostrRelayManager } from '../../utils/network/nostrRelayManager.js'
+import { parseZapReceipt } from '../../utils/zaps/parseZapReceipt.js'
 
 const engagementMetrics = reactive(new Map()) 
 const activeSubscriptions = reactive(new Map())
 const isLoading = ref(false)
+// processedEventIds tracks globally seen nostr event IDs to prevent cross-relay duplicates
 const processedEventIds = new Set()
+// perTypeProcessed tracks (eventId+type+engagementId) combos for per-metric-type deduplication
+const perTypeProcessed = new Set()
 
 const batchQueue = reactive(new Set())
 const batchTimer = ref(null)
@@ -68,6 +72,15 @@ export function useEngagementMetrics() {
       return null
     }
 
+    // Per-type deduplication: skip if this specific engagement event id has already been
+    // counted for this (referencedEventId, type) combination. This prevents double-counting
+    // when the same engagement event arrives from multiple relay subscriptions.
+    const perTypeKey = `${referencedEventId}:${type}:${eventId}`
+    if (perTypeProcessed.has(perTypeKey)) {
+      return null
+    }
+    perTypeProcessed.add(perTypeKey)
+
     const baseData = {
       id: eventId,
       authorPubkey,
@@ -125,8 +138,14 @@ export function useEngagementMetrics() {
             initializeEngagementData(eventId)
             const metrics = engagementMetrics.get(eventId)
 
+            const bookmarkId = `${event.id}-${eventId}`
+            // Per-type deduplication for bookmarks
+            const perTypeKey = `${eventId}:bookmark:${bookmarkId}`
+            if (perTypeProcessed.has(perTypeKey)) return
+            perTypeProcessed.add(perTypeKey)
+
             const bookmarkData = {
-              id: `${event.id}-${eventId}`,
+              id: bookmarkId,
               authorPubkey: event.pubkey,
               createdAt: event.created_at,
               referencedEventId: eventId,
@@ -169,18 +188,29 @@ export function useEngagementMetrics() {
         targetArray = metrics.reposts
         break
       
-      case 9735:
-        // Handle zaps within the same pipeline for consistency
+      case 9735: {
+        // Parse zap receipt to extract bolt11 amount in sats
+        const zapReceipt = parseZapReceipt(event)
+        const amountSats = zapReceipt?.amount || 0
+
+        // Per-type deduplication for zaps using payment-hash-based id from parseZapReceipt
+        const zapId = zapReceipt?.id || event.id
+        const perTypeKey = `${referencedEventId}:zap:${zapId}`
+        if (perTypeProcessed.has(perTypeKey)) return
+        perTypeProcessed.add(perTypeKey)
+
         engagementData = {
-          id: event.id,
+          id: zapId,
           authorPubkey: event.pubkey,
           createdAt: event.created_at,
           referencedEventId,
-          type: 'zap'
+          type: 'zap',
+          amountSats
         }
         if (!metrics.zaps) metrics.zaps = []
         targetArray = metrics.zaps
         break
+      }
 
       case 10001:
       case 10002:
@@ -224,6 +254,11 @@ export function useEngagementMetrics() {
         },
         {
           kinds: [6],
+          "#e": uniqueEventIds,
+          limit: 200
+        },
+        {
+          kinds: [9735],
           "#e": uniqueEventIds,
           limit: 200
         },
@@ -345,6 +380,13 @@ export function useEngagementMetrics() {
     queueEngagementFetch(eventId)
   }
 
+  /**
+   * Alias for startEngagementTracking — used by pages to trigger fetch when new events appear.
+   */
+  const fetchEngagementMetrics = (eventId) => {
+    startEngagementTracking(eventId)
+  }
+
   const getEngagementMetrics = (eventId) => {
     if (!eventId) return null
     return engagementMetrics.get(eventId) || null
@@ -357,6 +399,8 @@ export function useEngagementMetrics() {
         likes: 0,
         reposts: 0,
         bookmarks: 0,
+        zapCount: 0,
+        zapAmountSats: 0,
         totalEngagement: 0
       }
     }
@@ -364,25 +408,30 @@ export function useEngagementMetrics() {
     const likes = metrics.likes.length
     const reposts = metrics.reposts.length
     const bookmarks = metrics.bookmarks.length
+    const zapCount = (metrics.zaps || []).length
+    const zapAmountSats = (metrics.zaps || []).reduce((sum, z) => sum + (z.amountSats || 0), 0)
 
     return {
       likes,
       reposts,
       bookmarks,
-      totalEngagement: likes + reposts + bookmarks
+      zapCount,
+      zapAmountSats,
+      totalEngagement: likes + reposts + bookmarks + zapCount
     }
   }
 
   const getCombinedEngagement = (eventId, zapData = null) => {
     const engagementCounts = getEngagementCounts(eventId)
-    const zapCount = zapData?.count || 0
-    const zapAmount = zapData?.totalAmount || 0
+    // Prefer externally-provided zapData for backward compatibility with useContentZaps
+    const zapCount = zapData?.count ?? engagementCounts.zapCount
+    const zapAmount = zapData?.totalAmount ?? engagementCounts.zapAmountSats
 
     return {
       ...engagementCounts,
       zaps: zapCount,
       zapAmount,
-      totalEngagement: engagementCounts.totalEngagement + zapCount
+      totalEngagement: (engagementCounts.likes + engagementCounts.reposts + engagementCounts.bookmarks) + zapCount
     }
   }
 
@@ -438,6 +487,11 @@ export function useEngagementMetrics() {
           limit: 100
         },
         {
+          kinds: [9735],
+          "#a": [aTagIdentifier],
+          limit: 100
+        },
+        {
           kinds: [10001, 10002, 10003, 30001, 30002, 30003],
           "#a": [aTagIdentifier],
           limit: 50
@@ -474,6 +528,7 @@ export function useEngagementMetrics() {
 
   return {
     startEngagementTracking,
+    fetchEngagementMetrics,
     startLongFormContentTracking,
     getEngagementMetrics,
     getEngagementCounts,
