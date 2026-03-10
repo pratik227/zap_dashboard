@@ -23,6 +23,8 @@ import { useNostrConnections } from './composables/core/useNostrConnections.js'
 import { useNotifications } from './composables/core/useNotifications.js'
 import { nostrRelayManager } from './utils/network/nostrRelayManager.js'
 import { useNostrNotes } from './composables/content/useNostrNotes.js'
+import { useCampaigns } from './composables/campaigns/useCampaigns.js'
+import { useAudience } from './composables/audience/useAudience.js'
 import { startRefreshCycle, stopRefreshCycle, setActiveGroup } from './utils/refreshCycle.js'
 import { APP_HARD_TIMEOUT, RELAY_READY_TIMEOUT } from './utils/constants.js'
 import AppLoader from './components/layout/AppLoader.vue'
@@ -89,10 +91,6 @@ if (!hasStoredUser) {
   appReady.value = true
 }
 
-// UI state for dismissible banners
-const showLargeDatasetBanner = ref(true)
-let largeDatasetBannerTimeout = null
-
 // Fetch author profile using shared profileFetcher
 const fetchAuthorProfile = async (pubkey, forceRefresh = false) => {
   const profile = await fetchProfile(pubkey, forceRefresh ? { ttl: 0 } : {})
@@ -153,7 +151,7 @@ const {
 } = useNotifications()
 
 // Use the content zaps composable to get NIP-57 zaps
-const { getAllContentZaps } = useContentZaps()
+const { getAllContentZaps, isTrackingZaps } = useContentZaps()
 
 // Content zaps now self-initialize via watch(isAuthenticated)
 
@@ -162,7 +160,13 @@ const { userZaps, isLoading: isUserZapsLoading } = useUserZaps()
 
 // Initialize notes tracking early (composable self-registers with refresh cycle)
 const { notes, isFetchingNotes } = useNostrNotes()
-useNostrLongForm() // triggers composable initialization + refresh registration
+const { isLoading: isLongFormLoading, longFormContent } = useNostrLongForm()
+
+// Initialize campaigns early so loading screen can track them
+const { isLoading: isCampaignsLoading, userCampaigns } = useCampaigns()
+
+// Initialize audience early so loading screen can track it
+const { isLoading: isAudienceLoading, following, followers } = useAudience()
 
 // Global state
 const zapData = ref([])
@@ -319,38 +323,6 @@ const enhancedCombinedZapData = computed(() => {
   })
 })
 
-// Auto-show and auto-hide logic for the large dataset banner
-const scheduleLargeDatasetBannerHide = () => {
-  if (largeDatasetBannerTimeout) {
-    clearTimeout(largeDatasetBannerTimeout)
-    largeDatasetBannerTimeout = null
-  }
-  largeDatasetBannerTimeout = setTimeout(() => {
-    showLargeDatasetBanner.value = false
-  }, 5000)
-}
-
-watch(
-  () => ({
-    len: enhancedCombinedZapData.value.filter(zap => zap.eventId).length,
-    loading: dataLoadingProgress.value.isLoading
-  }),
-  ({ len, loading }) => {
-    if (len > 50 && !loading) {
-      showLargeDatasetBanner.value = true
-      scheduleLargeDatasetBannerHide()
-    }
-  },
-  { immediate: true }
-)
-
-const dismissLargeDatasetBanner = () => {
-  showLargeDatasetBanner.value = false
-  if (largeDatasetBannerTimeout) {
-    clearTimeout(largeDatasetBannerTimeout)
-    largeDatasetBannerTimeout = null
-  }
-}
 
 // Provide data to child components
 provide('zapData', zapData)
@@ -775,7 +747,7 @@ const runLoadingSequence = async () => {
   loadingPhase.value = 'profile'
   await new Promise(r => setTimeout(r, 800))
 
-  // Phase: syncing — wait for composables to finish their initial fetch
+  // Phase: syncing — wait for ALL composables to finish their initial fetch
   loadingPhase.value = 'syncing'
   await Promise.race([
     new Promise(resolve => {
@@ -786,11 +758,31 @@ const runLoadingSequence = async () => {
       let notesStarted = isFetchingNotes.value
 
       const isDone = () => {
-        // Both must have started and finished, OR have data already
+        // Zaps + notes: must have started and finished, OR have data already
         const zapsReady = zapsStarted && !isUserZapsLoading.value
         const notesReady = notesStarted && !isFetchingNotes.value
-        const hasData = notes.value.length > 0 || userZaps.value.length > 0
-        return (zapsReady && notesReady) || hasData
+        const coreHasData = notes.value.length > 0 || userZaps.value.length > 0
+        const coreReady = (zapsReady && notesReady) || coreHasData
+
+        if (!coreReady) return false
+
+        // Campaigns: wait for fetch to finish (isLoading goes true→false during fetchUserCampaigns)
+        if (isCampaignsLoading.value) return false
+
+        // Profiles: wait for initial batch (debounced 2s after zaps arrive).
+        // Skip if no zaps — no profiles to fetch.
+        if (userZaps.value.length > 0 && profileStore.value.size === 0) return false
+
+        // Long-form articles: wait for fetch to finish
+        if (isLongFormLoading.value) return false
+
+        // Audience (followers/following): wait for fetch to finish
+        if (isAudienceLoading.value) return false
+
+        // Content zaps: wait for subscription to open (only if there's content to track)
+        if (!isTrackingZaps.value && (notes.value.length > 0 || longFormContent.value.length > 0)) return false
+
+        return true
       }
 
       if (isDone()) { resolve(); return }
@@ -799,7 +791,13 @@ const runLoadingSequence = async () => {
         () => ({
           zapsLoading: isUserZapsLoading.value,
           notesLoading: isFetchingNotes.value,
-          dataLen: notes.value.length + userZaps.value.length
+          campaignsLoading: isCampaignsLoading.value,
+          longFormLoading: isLongFormLoading.value,
+          audienceLoading: isAudienceLoading.value,
+          trackingZaps: isTrackingZaps.value,
+          dataLen: notes.value.length + userZaps.value.length,
+          longFormLen: longFormContent.value.length,
+          profileCount: profileStore.value.size
         }),
         ({ zapsLoading, notesLoading }) => {
           if (zapsLoading) zapsStarted = true
@@ -809,7 +807,7 @@ const runLoadingSequence = async () => {
       )
     }),
     // Safety net: don't block forever (new user with no data, or slow relays)
-    new Promise(r => setTimeout(r, 12000))
+    new Promise(r => setTimeout(r, 20000))
   ])
 
   // Phase: ready
@@ -884,6 +882,13 @@ const handleChecklistTaskAction = async (action) => {
       :note-count="notes.length"
       :zaps-loading="isUserZapsLoading"
       :notes-loading="isFetchingNotes"
+      :campaign-count="userCampaigns.length"
+      :campaigns-loading="isCampaignsLoading"
+      :profile-count="profileStore.size"
+      :long-form-count="longFormContent.length"
+      :long-form-loading="isLongFormLoading"
+      :audience-count="following.length + followers.length"
+      :audience-loading="isAudienceLoading"
     />
   </Transition>
 
@@ -1051,44 +1056,6 @@ const handleChecklistTaskAction = async (action) => {
                 <div class="flex items-center space-x-2">
                   <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
                   <span class="text-blue-800 text-sm sm:text-base">Loading page...</span>
-                </div>
-              </div>
-            </div>
-          </transition>
-          
-          <!-- Data Summary for Large Datasets -->
-          <transition name="slide-down">
-            <div v-if="enhancedCombinedZapData.length > 50 && !dataLoadingProgress.isLoading && showLargeDatasetBanner" class="mb-4 lg:mb-6">
-              <div class="bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-lg p-3 sm:p-4">
-                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                  <div class="flex items-center space-x-2">
-                    <div class="p-2 bg-green-100 rounded-full">
-                      <svg class="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
-                      </svg>
-                    </div>
-                    <div>
-                      <span class="text-green-800 text-sm sm:text-base font-medium">
-                        Large dataset loaded successfully
-                      </span>
-                      <p class="text-green-700 text-xs">
-                        {{ enhancedCombinedZapData.filter(zap => zap.eventId).length }} zaps • {{ profileStore.size }} profiles • Ready for analysis
-                      </p>
-                    </div>
-                  </div>
-                  <div class="text-xs text-green-600 flex items-center space-x-3">
-                    <span class="inline-flex items-center">
-                      <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                        <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd"></path>
-                      </svg>
-                      Optimized for large datasets
-                    </span>
-                    <button @click="dismissLargeDatasetBanner" class="text-green-700 hover:text-green-900 p-1 rounded-md hover:bg-green-100 transition-colors" aria-label="Dismiss">
-                      <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
-                      </svg>
-                    </button>
-                  </div>
                 </div>
               </div>
             </div>

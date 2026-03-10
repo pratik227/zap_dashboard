@@ -27,7 +27,14 @@ const props = defineProps({
   zapCount: { type: Number, default: 0 },
   noteCount: { type: Number, default: 0 },
   zapsLoading: { type: Boolean, default: false },
-  notesLoading: { type: Boolean, default: false }
+  notesLoading: { type: Boolean, default: false },
+  campaignCount: { type: Number, default: 0 },
+  campaignsLoading: { type: Boolean, default: false },
+  profileCount: { type: Number, default: 0 },
+  longFormCount: { type: Number, default: 0 },
+  longFormLoading: { type: Boolean, default: false },
+  audienceCount: { type: Number, default: 0 },
+  audienceLoading: { type: Boolean, default: false }
 })
 
 const phaseOrder = ['session', 'relays', 'profile', 'syncing', 'ready']
@@ -50,17 +57,21 @@ const progressPercent = computed(() => {
 
   // During syncing, show granular progress based on data arriving
   if (props.phase === 'syncing') {
-    const hasZaps = props.zapCount > 0
-    const hasNotes = props.noteCount > 0
-    const zapsDone = !props.zapsLoading
-    const notesDone = !props.notesLoading
-
-    // 60% = entered syncing, +10% per data source arriving, +10% per source finished
+    // 60% = entered syncing phase
+    // Each data source contributes: +5% when data arrives, +5% when loading finishes
+    // 6 sources (zaps, notes, campaigns, profiles, articles, audience) → capped at 95%
     let extra = 0
-    if (hasZaps) extra += 10
-    if (hasNotes) extra += 10
-    if (zapsDone) extra += 10
-    if (notesDone) extra += 10
+    if (props.zapCount > 0) extra += 4
+    if (!props.zapsLoading && props.zapCount > 0) extra += 4
+    if (props.noteCount > 0) extra += 4
+    if (!props.notesLoading && props.noteCount > 0) extra += 4
+    if (props.campaignCount > 0) extra += 3
+    if (!props.campaignsLoading) extra += 3
+    if (props.profileCount > 0) extra += 5
+    if (props.longFormCount > 0) extra += 3
+    if (!props.longFormLoading) extra += 3
+    if (props.audienceCount > 0) extra += 3
+    if (!props.audienceLoading) extra += 3
     return Math.min(60 + extra, 95)
   }
 
@@ -84,10 +95,15 @@ const syncLabel = computed(() => {
   const parts = []
   if (props.zapCount > 0) parts.push(`${props.zapCount} zaps`)
   if (props.noteCount > 0) parts.push(`${props.noteCount} notes`)
+  if (props.longFormCount > 0) parts.push(`${props.longFormCount} articles`)
+  if (props.campaignCount > 0) parts.push(`${props.campaignCount} campaigns`)
+  if (props.audienceCount > 0) parts.push(`${props.audienceCount} connections`)
+  if (props.profileCount > 0) parts.push(`${props.profileCount} profiles`)
 
   if (parts.length > 0) {
-    const still = (props.zapsLoading || props.notesLoading) ? 'Still syncing' : 'Wrapping up'
-    return `${still} \u2014 found ${parts.join(', ')}`
+    const anyLoading = props.zapsLoading || props.notesLoading || props.campaignsLoading || props.longFormLoading || props.audienceLoading
+    const label = anyLoading ? 'Syncing' : 'Wrapping up'
+    return `${label} \u2014 ${parts.join(', ')}`
   }
 
   return 'Fetching your data'
@@ -98,7 +114,7 @@ const phaseSub = computed(() => {
     case 'session': return 'Checking your saved credentials'
     case 'relays': return 'Reaching out to Nostr relays'
     case 'profile': return 'Pulling in your latest info'
-    case 'syncing': return props.zapCount === 0 && props.noteCount === 0
+    case 'syncing': return props.zapCount === 0 && props.noteCount === 0 && props.longFormCount === 0 && props.audienceCount === 0
       ? 'This can take a few seconds'
       : ''
     case 'ready': return ''
@@ -138,7 +154,7 @@ const phaseSub = computed(() => {
       </div>
 
       <!-- Live data counters during syncing -->
-      <div v-if="phase === 'syncing' && (zapCount > 0 || noteCount > 0)" class="data-chips">
+      <div v-if="phase === 'syncing' && (zapCount > 0 || noteCount > 0 || longFormCount > 0 || campaignCount > 0 || audienceCount > 0 || profileCount > 0)" class="data-chips">
         <span v-if="zapCount > 0" class="chip">
           <span class="chip-icon">&#9889;</span>
           {{ zapCount }} zap{{ zapCount !== 1 ? 's' : '' }}
@@ -148,6 +164,25 @@ const phaseSub = computed(() => {
           <span class="chip-icon">&#9998;</span>
           {{ noteCount }} note{{ noteCount !== 1 ? 's' : '' }}
           <span v-if="notesLoading" class="chip-dot"></span>
+        </span>
+        <span v-if="longFormCount > 0" class="chip">
+          <span class="chip-icon">&#128196;</span>
+          {{ longFormCount }} article{{ longFormCount !== 1 ? 's' : '' }}
+          <span v-if="longFormLoading" class="chip-dot"></span>
+        </span>
+        <span v-if="campaignCount > 0" class="chip">
+          <span class="chip-icon">&#127919;</span>
+          {{ campaignCount }} campaign{{ campaignCount !== 1 ? 's' : '' }}
+          <span v-if="campaignsLoading" class="chip-dot"></span>
+        </span>
+        <span v-if="audienceCount > 0" class="chip">
+          <span class="chip-icon">&#128101;</span>
+          {{ audienceCount }} connection{{ audienceCount !== 1 ? 's' : '' }}
+          <span v-if="audienceLoading" class="chip-dot"></span>
+        </span>
+        <span v-if="profileCount > 0" class="chip">
+          <span class="chip-icon">&#128100;</span>
+          {{ profileCount }} profile{{ profileCount !== 1 ? 's' : '' }}
         </span>
       </div>
 
