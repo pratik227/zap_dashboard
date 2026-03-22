@@ -153,41 +153,80 @@
                   <IconPhoto class="w-5 h-5 text-purple-500" />
                   <span>Visual Identity</span>
                 </h3>
-                
+
                 <div class="bg-gray-50 rounded-xl p-4 space-y-4">
                   <!-- Profile Picture -->
                   <div class="space-y-2">
                     <label for="picture-input" class="block text-sm font-medium text-gray-700">
-                      Profile Picture URL
+                      Profile Picture
                     </label>
-                    <input
-                      id="picture-input"
-                      v-model="form.picture"
-                      type="url"
-                      placeholder="https://example.com/your-avatar.jpg"
-                      class="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200 text-base touch-target"
-                      :class="{ 'border-red-300 focus:ring-red-500 focus:border-red-500': fieldErrors.picture }"
-                      aria-describedby="picture-help"
-                    />
+                    <!-- Picture Preview -->
+                    <div v-if="form.picture" class="flex items-center space-x-3 mb-2">
+                      <img
+                        :src="form.picture"
+                        alt="Profile picture preview"
+                        class="w-16 h-16 rounded-full object-cover border-2 border-orange-200 shadow-sm"
+                        @error="($event) => $event.target.style.display = 'none'"
+                      />
+                      <span class="text-xs text-gray-500 truncate flex-1">{{ form.picture }}</span>
+                    </div>
+                    <div class="flex gap-2">
+                      <input
+                        id="picture-input"
+                        v-model="form.picture"
+                        type="url"
+                        placeholder="https://example.com/your-avatar.jpg"
+                        class="flex-1 px-4 py-3 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200 text-base touch-target"
+                        :class="{ 'border-red-300 focus:ring-red-500 focus:border-red-500': fieldErrors.picture }"
+                        aria-describedby="picture-help"
+                      />
+                      <button
+                        type="button"
+                        @click="showPicturePicker = true"
+                        class="px-3 py-3 bg-white border border-gray-300 hover:bg-gray-50 text-gray-600 rounded-full transition-colors flex items-center justify-center touch-target"
+                        title="Upload or select from media library"
+                      >
+                        <IconUpload class="w-4 h-4" />
+                      </button>
+                    </div>
                     <p id="picture-help" class="text-xs text-gray-500">
                       {{ fieldErrors.picture || 'Square image recommended, at least 400x400px' }}
                     </p>
                   </div>
-                  
+
                   <!-- Banner -->
                   <div class="space-y-2">
                     <label for="banner-input" class="block text-sm font-medium text-gray-700">
-                      Banner URL
+                      Banner
                     </label>
-                    <input
-                      id="banner-input"
-                      v-model="form.banner"
-                      type="url"
-                      placeholder="https://example.com/your-banner.jpg"
-                      class="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200 text-base touch-target"
-                      :class="{ 'border-red-300 focus:ring-red-500 focus:border-red-500': fieldErrors.banner }"
-                      aria-describedby="banner-help"
-                    />
+                    <!-- Banner Preview -->
+                    <div v-if="form.banner" class="mb-2">
+                      <img
+                        :src="form.banner"
+                        alt="Banner preview"
+                        class="w-full h-24 rounded-lg object-cover border border-gray-200 shadow-sm"
+                        @error="($event) => $event.target.style.display = 'none'"
+                      />
+                    </div>
+                    <div class="flex gap-2">
+                      <input
+                        id="banner-input"
+                        v-model="form.banner"
+                        type="url"
+                        placeholder="https://example.com/your-banner.jpg"
+                        class="flex-1 px-4 py-3 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200 text-base touch-target"
+                        :class="{ 'border-red-300 focus:ring-red-500 focus:border-red-500': fieldErrors.banner }"
+                        aria-describedby="banner-help"
+                      />
+                      <button
+                        type="button"
+                        @click="showBannerPicker = true"
+                        class="px-3 py-3 bg-white border border-gray-300 hover:bg-gray-50 text-gray-600 rounded-full transition-colors flex items-center justify-center touch-target"
+                        title="Upload or select from media library"
+                      >
+                        <IconUpload class="w-4 h-4" />
+                      </button>
+                    </div>
                     <p id="banner-help" class="text-xs text-gray-500">
                       {{ fieldErrors.banner || '1200x400px recommended for best results' }}
                     </p>
@@ -301,6 +340,20 @@
         </div>
       </div>
     </transition>
+
+    <!-- Blossom Media Pickers -->
+    <MediaPickerModal
+      :visible="showPicturePicker"
+      accept="image"
+      @close="showPicturePicker = false"
+      @select="handlePictureSelect"
+    />
+    <MediaPickerModal
+      :visible="showBannerPicker"
+      accept="image"
+      @close="showBannerPicker = false"
+      @select="handleBannerSelect"
+    />
   </Teleport>
 </template>
 
@@ -316,8 +369,10 @@ import {
   IconBolt,
   IconGlobe,
   IconPhoto,
-  IconShield
+  IconShield,
+  IconUpload
 } from '@iconify-prerendered/vue-tabler'
+import MediaPickerModal from '../media/MediaPickerModal.vue'
 import { useNostrAuth } from '../../composables/auth/useNostrAuth.js'
 import { finalizeEvent, verifyEvent } from 'nostr-tools/pure'
 import { nostrRelayManager } from '../../utils/network/nostrRelayManager.js'
@@ -338,6 +393,8 @@ const { currentUser, userProfile, refreshUserProfile } = useNostrAuth()
 
 // Refs
 const modalRef = ref(null)
+const showPicturePicker = ref(false)
+const showBannerPicker = ref(false)
 
 // Form state with proper initialization
 const form = ref({
@@ -572,6 +629,17 @@ const saveProfile = async () => {
     isLoading.value = false;
   }
 };
+
+// Blossom media picker handlers
+const handlePictureSelect = (media) => {
+  form.value.picture = media.url
+  showPicturePicker.value = false
+}
+
+const handleBannerSelect = (media) => {
+  form.value.banner = media.url
+  showBannerPicker.value = false
+}
 
 // Handle cancel action
 const handleCancel = () => {

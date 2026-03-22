@@ -27,7 +27,7 @@ export const EVENT_CACHE_MAX = 500               // max entries
 export const EVENT_CACHE_EVICT = 100             // evict this many when full
 
 // ── App loading ──
-export const APP_HARD_TIMEOUT = 15_000           // 15s max loading screen
+export const APP_HARD_TIMEOUT = 25_000           // 25s max loading screen (waits for all data sources)
 export const RELAY_READY_TIMEOUT = 5_000         // 5s wait for ready() in login/boot
 
 // ── Refresh cycle ──
