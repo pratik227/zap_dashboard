@@ -37,7 +37,8 @@ import {
   IconCheck,
   IconCopy,
   IconInfoCircle,
-  IconBulb
+  IconBulb,
+  IconRefresh
 } from '@iconify-prerendered/vue-tabler'
 import { useNostrNotes } from '../composables/content/useNostrNotes.js'
 import { useNostrAuth } from '../composables/auth/useNostrAuth.js'
@@ -75,7 +76,8 @@ const {
   viewNote,
   editNote,
   createNewNote,
-  formatDate
+  formatDate,
+  fetchUserNotes
 } = useNostrNotes()
 
 // Use content zaps composable to track zaps on notes
@@ -105,6 +107,17 @@ const visibleNotes = computed(() => {
   const list = Array.isArray(notes.value) ? notes.value : []
   return list.slice(0, displayLimit.value)
 })
+
+// Refresh state
+const isRefreshing = ref(false)
+const handleRefresh = async () => {
+  isRefreshing.value = true
+  try {
+    await fetchUserNotes()
+  } finally {
+    isRefreshing.value = false
+  }
+}
 
 // UI State
 const showViewModal = ref(false)
@@ -186,6 +199,7 @@ const enhancedSelectedNote = computed(() => {
 
 // Handle form submission
 const handleSubmit = async () => {
+  noteSubmitAttempted.value = true
   if (!noteForm.content.trim()) return
   
   try {
@@ -231,6 +245,15 @@ const handleDelete = async (note) => {
   }
 }
 
+// Inline status for login errors
+const inlineStatus = ref(null)
+let _statusTimer = null
+const showStatus = (message, type = 'error') => {
+  clearTimeout(_statusTimer)
+  inlineStatus.value = { message, type }
+  _statusTimer = setTimeout(() => { inlineStatus.value = null }, 4000)
+}
+
 // Handle Nostr login
 const handleNostrLogin = async () => {
   try {
@@ -238,9 +261,9 @@ const handleNostrLogin = async () => {
   } catch (error) {
     console.error('Login failed:', error)
     if (error.message.includes('No Nostr extension')) {
-      alert('No Nostr Extension Found\n\nPlease install a NIP-07 browser extension like:\n• Alby (getalby.com)\n• nos2x\n• Flamingo\n\nThen refresh this page.')
+      showStatus('No Nostr extension found. Please install a NIP-07 browser extension (Alby, nos2x, or Flamingo) and refresh this page.')
     } else {
-      alert('Login failed: ' + error.message)
+      showStatus('Login failed: ' + error.message)
     }
   }
 }
@@ -256,6 +279,7 @@ const startCreating = () => {
   createNewNote()
   noteForm.content = ''
   showPreview.value = false
+  noteSubmitAttempted.value = false
 }
 
 // Open detailed view
@@ -283,6 +307,9 @@ const closeSuccessModal = () => {
 const isFormValid = computed(() => {
   return noteForm.content.trim().length > 0
 })
+
+// Track submit attempts for validation feedback
+const noteSubmitAttempted = ref(false)
 
 // Close dropdown when clicking outside
 const handleClickOutside = (event) => {
@@ -427,6 +454,7 @@ watch(isAuthenticated, (authed) => {
 })
 
 onUnmounted(() => {
+  clearTimeout(_statusTimer)
   clearTimeout(_noteStatsTimer)
   document.removeEventListener('click', handleClickOutside)
   document.removeEventListener('show-note-details', handleShowNoteDetails)
@@ -461,18 +489,29 @@ const togglePreview = () => {
 
 // Handle mention added
 const handleMentionAdded = (user) => {
-  console.log('Mention added:', user)
+  // no-op — event binding placeholder
 }
 
 // Handle mention click in preview
 const handleMentionClick = ({ pubkey, profile }) => {
-  console.log('Mention clicked:', pubkey, profile)
   // Could open a profile modal here
 }
 </script>
 
 <template>
   <div class="space-y-6">
+    <!-- Inline Status Banner -->
+    <transition name="slide-down">
+      <div v-if="inlineStatus" role="status" aria-live="polite" :class="[
+        'mb-4 px-4 py-3 rounded-lg text-sm font-medium',
+        inlineStatus.type === 'error' ? 'bg-red-50 text-red-800 border border-red-200' :
+        inlineStatus.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' :
+        'bg-blue-50 text-blue-800 border border-blue-200'
+      ]">
+        {{ inlineStatus.message }}
+      </div>
+    </transition>
+
     <!-- Authentication Required Banner -->
     <div v-if="!isAuthenticated" class="bg-gradient-to-r from-purple-400 to-pink-400 text-white p-6 rounded-xl shadow-lg">
       <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -512,6 +551,16 @@ const handleMentionClick = ({ pubkey, profile }) => {
             Back to Notes
           </button>
           <div v-if="currentView === 'list'" class="flex space-x-2">
+            <button
+              @click="handleRefresh"
+              :disabled="isRefreshing"
+              class="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-600 hover:text-orange-600 bg-gray-100 hover:bg-orange-50 rounded-lg border border-gray-200 hover:border-orange-200 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Refresh notes"
+              aria-label="Refresh notes"
+            >
+              <IconRefresh :class="['w-4 h-4', isRefreshing ? 'animate-spin' : '']" />
+              <span class="hidden sm:inline">Refresh</span>
+            </button>
             <button
               @click="setView('create')"
               class="btn-primary"
@@ -930,7 +979,10 @@ const handleMentionClick = ({ pubkey, profile }) => {
                     class="text-xl text-gray-800 leading-relaxed"
                   />
                 </div>
-                
+
+                <!-- Validation Feedback -->
+                <p v-if="!noteForm.content.trim() && noteSubmitAttempted" class="text-xs text-red-500 mt-2">Your note is empty. Write something before posting.</p>
+
                 <!-- Character Counter -->
                 <div v-if="noteForm.content.length > 1800" class="flex justify-end mt-2">
                   <div class="relative w-8 h-8">

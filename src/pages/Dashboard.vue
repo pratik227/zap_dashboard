@@ -1,8 +1,8 @@
 <script setup>
-import { computed, inject, ref, onMounted, watch, defineEmits } from 'vue'
+import { computed, inject, ref, onMounted, onUnmounted, watch, defineEmits } from 'vue'
 
 const emit = defineEmits(['trigger-login', 'change-page'])
-import { IconBolt, IconCurrencyBitcoin, IconUsers, IconChartLine, IconAlertCircle, IconArrowRight, IconWallet } from '@iconify-prerendered/vue-tabler'
+import { IconBolt, IconCurrencyBitcoin, IconUsers, IconChartLine, IconAlertCircle, IconArrowRight, IconWallet, IconRefresh } from '@iconify-prerendered/vue-tabler'
 import { getNWCClient, getBalance, getWalletInfo } from '../utils/wallet/nwcClient.js'
 import { useNostrAuth } from '../composables/auth/useNostrAuth.js'
 import { useBtcPrice } from '../composables/core/useBtcPrice.js'
@@ -52,6 +52,19 @@ const combinedZapData = inject('combinedZapData')
 const selectedTimeRange = inject('selectedTimeRange')
 const isWalletConnected = inject('isWalletConnected')
 const isAuthenticated = inject('isAuthenticated')
+const refreshZapData = inject('refreshZapData', null)
+
+// Refresh state
+const isRefreshing = ref(false)
+const handleRefresh = async () => {
+  isRefreshing.value = true
+  try {
+    await fetchWalletData()
+    if (refreshZapData) await refreshZapData()
+  } finally {
+    isRefreshing.value = false
+  }
+}
 
 // Use Nostr authentication to get user profile
 const { userProfile } = useNostrAuth()
@@ -63,6 +76,7 @@ const { btcPriceUSD, satsToUSD, formatUSD } = useBtcPrice()
 const walletBalance = ref(0)
 const walletInfo = ref(null)
 const isLoading = ref(false)
+const walletBalanceFailed = ref(false)
 
 // Computed property for personalized welcome message
 const welcomeMessage = computed(() => {
@@ -122,30 +136,33 @@ const noDataMessage = computed(() => {
   }
 })
 
-// Fetch real wallet data
+// Fetch real wallet data — handles partial failures gracefully
 async function fetchWalletData() {
   const client = getNWCClient()
   if (!client) return
 
   isLoading.value = true
-  try {
-    const [balance, info] = await Promise.all([
-      getBalance(),
-      getWalletInfo()
-    ])
-    
-    if (balance) {
-      walletBalance.value = Math.floor(balance.balance / 1000) // Convert msats to sats
-    }
-    
-    if (info) {
-      walletInfo.value = info
-    }
-  } catch (error) {
-    console.error('Failed to fetch wallet data:', error)
-  } finally {
-    isLoading.value = false
+  walletBalanceFailed.value = false
+
+  const [balanceResult, infoResult] = await Promise.allSettled([
+    getBalance(),
+    getWalletInfo()
+  ])
+
+  if (balanceResult.status === 'fulfilled' && balanceResult.value) {
+    walletBalance.value = Math.floor(balanceResult.value.balance / 1000)
+  } else {
+    walletBalanceFailed.value = true
+    console.warn('Balance fetch failed:', balanceResult.reason || 'no data')
   }
+
+  if (infoResult.status === 'fulfilled' && infoResult.value) {
+    walletInfo.value = infoResult.value
+  } else {
+    console.warn('Wallet info fetch failed:', infoResult.reason || 'no data')
+  }
+
+  isLoading.value = false
 }
 
 // Watch for zapData changes to refresh wallet data
@@ -159,9 +176,14 @@ onMounted(() => {
   fetchWalletData()
 })
 
+onUnmounted(() => {
+  // Clean up loading state to prevent stale UI on remount
+  isLoading.value = false
+  isRefreshing.value = false
+})
+
 // Dynamic stats based on real data with 30-day comparison
 const stats = computed(() => {
-  console.log('🔍 Computing stats with real data...')
   const allZaps = combinedZapData.value
   
   // Determine which data to use based on connection status
@@ -199,8 +221,6 @@ const stats = computed(() => {
   
   // Get period comparison for 30 days (fixed period like the chart)
   const comparison = getPeriodComparison(zapsToAnalyze, '30d')
-  console.log('📈 Period comparison result:', comparison)
-  
   return {
     totalZaps: comparison.current.totalZaps,
     totalSats: comparison.current.totalSats,
@@ -410,7 +430,6 @@ const formatTimeAgo = (timestamp) => {
 
 // Get percentage change data for a specific metric
 const getPercentageChange = (metricType) => {
-  console.log(`🔍 Getting percentage change for ${metricType}:`, stats.value.changes[metricType])
   const change = stats.value.changes[metricType]
   
   if (!change) {
@@ -486,9 +505,21 @@ const getTrendColorClass = (change) => {
             </span>
           </p>
         </div>
-        <div v-if="isLoading" class="flex items-center space-x-2">
-          <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
-          <span class="text-sm">Loading...</span>
+        <div class="flex items-center space-x-2">
+          <button
+            @click="handleRefresh"
+            :disabled="isRefreshing"
+            class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white text-sm font-medium rounded-lg border border-white/30 hover:border-white/50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Refresh dashboard data"
+            aria-label="Refresh dashboard data"
+          >
+            <IconRefresh :class="['w-4 h-4', isRefreshing ? 'animate-spin' : '']" />
+            <span class="hidden sm:inline">Refresh</span>
+          </button>
+          <div v-if="isLoading" class="flex items-center space-x-2">
+            <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
+            <span class="text-sm">Loading...</span>
+          </div>
         </div>
       </div>
     </div>
@@ -652,6 +683,14 @@ const getTrendColorClass = (change) => {
       </div>
     </div>
   </div>
+
+    <!-- Wallet Partial State Warning -->
+    <div v-if="walletBalanceFailed && !isLoading" class="mt-4 bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2">
+      <div class="flex items-center justify-between">
+        <span class="text-yellow-800 text-xs">Balance unavailable — wallet may be slow to respond</span>
+        <button @click="fetchWalletData" class="text-yellow-700 hover:text-yellow-900 text-xs font-medium px-2 py-1 rounded hover:bg-yellow-100 transition-colors">Retry</button>
+      </div>
+    </div>
 
     <!-- Wallet Balance Card -->
     <button

@@ -2,11 +2,15 @@ import { ref, reactive, computed, watch } from 'vue'
 import { useNostrAuth } from '../auth/useNostrAuth.js'
 import { nostrService } from '../../services/nostr/NostrService.js'
 import { signerService } from '../../services/nostr/SignerService.js'
+import { publishService } from '../../services/nostr/PublishService.js'
 import { registerRefresh, unregisterRefresh } from '../../utils/refreshCycle.js'
-import { verifyEvent } from '../../services/nostr/nostrImports.js'
 import { generateAvatar } from '../../utils/profile/avatarGenerator.js'
 import { parseZapReceipt } from '../../utils/zaps/parseZapReceipt.js'
-import { fetchProfile, batchFetchProfiles, profileCache } from '../../utils/profile/profileFetcher.js'
+import { profileService } from '../../services/nostr/ProfileService.js'
+import { DEFAULT_RELAY_URLS, STORAGE_KEYS } from '../../utils/constants.js'
+import { storageService } from '../../services/StorageService.js'
+import { getUserFriendlyError } from '../../services/nostr/errors.js'
+import { nip75 } from '../../services/nostr/nostrImports.js'
 
 // Global state for campaigns
 const userCampaigns = ref([])
@@ -19,9 +23,9 @@ const PROCESSED_IDS_MAX = 1000
 // Campaign-specific zap aggregation state
 const campaignAggregatedZaps = reactive(new Map()) // Map<campaignId, zap[]>
 
-// Storage keys
-const CAMPAIGN_AGGREGATED_ZAPS_KEY = 'campaign_aggregated_zaps'
-const CAMPAIGNS_STORAGE_KEY = 'user_campaigns'
+// Storage keys (from constants.js)
+const CAMPAIGN_AGGREGATED_ZAPS_KEY = STORAGE_KEYS.CAMPAIGN_ZAPS
+const CAMPAIGNS_STORAGE_KEY = STORAGE_KEYS.CAMPAIGNS
 
 // Campaign kind as per NIP-75
 const CAMPAIGN_KIND = 9041
@@ -45,51 +49,33 @@ const debouncedSaveCampaignAggregatedZaps = () => {
   }, 2000)
 }
 
-// ── localStorage helpers ─────────────────────────────────────────────────────
+// ── Storage helpers ──────────────────────────────────────────────────────────
 
 const loadCampaignsFromStorage = () => {
-  try {
-    const stored = localStorage.getItem(CAMPAIGNS_STORAGE_KEY)
-    if (stored) {
-      const parsed = JSON.parse(stored)
-      userCampaigns.value = Array.isArray(parsed) ? parsed : []
-      return true
-    }
-  } catch (error) {
-    console.error('Failed to load campaigns from storage:', error)
+  const parsed = storageService.get(CAMPAIGNS_STORAGE_KEY, null)
+  if (parsed) {
+    userCampaigns.value = Array.isArray(parsed) ? parsed : []
+    return true
   }
   return false
 }
 
 const saveCampaignsToStorage = () => {
-  try {
-    localStorage.setItem(CAMPAIGNS_STORAGE_KEY, JSON.stringify(userCampaigns.value))
-  } catch (error) {
-    console.error('Failed to save campaigns to storage:', error)
-  }
+  storageService.set(CAMPAIGNS_STORAGE_KEY, userCampaigns.value)
 }
 
 const loadCampaignAggregatedZaps = () => {
-  try {
-    const stored = localStorage.getItem(CAMPAIGN_AGGREGATED_ZAPS_KEY)
-    if (stored) {
-      const parsed = JSON.parse(stored)
-      Object.entries(parsed).forEach(([campaignId, zaps]) => {
-        campaignAggregatedZaps.set(campaignId, zaps)
-      })
-    }
-  } catch (error) {
-    console.error('Failed to load campaign aggregated zaps from storage:', error)
+  const parsed = storageService.get(CAMPAIGN_AGGREGATED_ZAPS_KEY, null)
+  if (parsed) {
+    Object.entries(parsed).forEach(([campaignId, zaps]) => {
+      campaignAggregatedZaps.set(campaignId, zaps)
+    })
   }
 }
 
 const saveCampaignAggregatedZaps = () => {
-  try {
-    const toSave = Object.fromEntries(campaignAggregatedZaps)
-    localStorage.setItem(CAMPAIGN_AGGREGATED_ZAPS_KEY, JSON.stringify(toSave))
-  } catch (error) {
-    console.error('Failed to save campaign aggregated zaps to storage:', error)
-  }
+  const toSave = Object.fromEntries(campaignAggregatedZaps)
+  storageService.set(CAMPAIGN_AGGREGATED_ZAPS_KEY, toSave)
 }
 
 // ── Stop aggregation ─────────────────────────────────────────────────────────
@@ -200,49 +186,96 @@ export function useCampaigns() {
     return Array.from(allZapEvents.values())
   }
 
-  // ── Phase 3: Resolve zaps to campaigns (pure client-side) ────────────────
+  // ── Shared zap enrichment helper ─────────────────────────────────────────
 
-  /**
-   * Resolve each parsed zap to a campaign ID using 3 strategies.
-   * 0 relay calls — all data comes from Phase 1 + Phase 2.
-   * Returns Map<campaignId, parsedZap[]>.
-   */
-  const resolveZapsToCampaigns = (parsedZaps, campaignIdSet, linkedNoteMap) => {
-    const result = new Map() // Map<campaignId, parsedZap[]>
+  const enrichZap = (zap, campaignId) => {
+    const profile = profileService.getCached(zap.zapperPubkey) || null
+    return {
+      id: zap.id,
+      amount: zap.amount,
+      zapperPubkey: zap.zapperPubkey,
+      sender: {
+        pubkey: zap.zapperPubkey,
+        name: profile?.name || `user:${zap.zapperPubkey.substring(0, 8)}`,
+        picture: profile?.picture || generateAvatar(zap.zapperPubkey),
+        nip05: profile?.nip05 || null,
+        about: profile?.about || null
+      },
+      timestamp: zap.timestamp,
+      message: zap.message,
+      bolt11: zap.bolt11,
+      campaignId,
+      zappedEventId: zap.zappedEventId
+    }
+  }
 
-    // Build reverse lookup: noteId -> campaignId
-    const noteToCampaign = new Map()
-    for (const [campaignId, noteIds] of linkedNoteMap) {
+  // ── Shared zap-to-campaign resolver ────────────────────────────────────
+
+  const resolveZapCampaignId = (zap, campaignIdSet, linkedNoteMap) => {
+    if (zap.zappedEventId && campaignIdSet.has(zap.zappedEventId)) {
+      return zap.zappedEventId
+    }
+    if (zap.goalTag && campaignIdSet.has(zap.goalTag)) {
+      return zap.goalTag
+    }
+    if (zap.zappedEventId && linkedNoteMap) {
+      for (const [cId, noteIds] of linkedNoteMap) {
+        if (noteIds.has(zap.zappedEventId)) return cId
+      }
+    }
+    return null
+  }
+
+  // ── Live zap subscription (Phase 6, extracted for cache/live separation) ──
+
+  const openLiveZapSubscription = (campaignIds, campaignIdSet, linkedNoteMap) => {
+    // Close any existing live sub first
+    if (liveZapSubscription) {
+      liveZapSubscription.close()
+      liveZapSubscription = null
+    }
+
+    const liveFilters = [
+      { kinds: [9735], '#e': campaignIds, since: Math.floor(Date.now() / 1000) },
+      { kinds: [9735], '#goal': campaignIds, since: Math.floor(Date.now() / 1000) }
+    ]
+
+    // Also include linked note IDs in live subscription
+    const allLinkedNoteIds = []
+    for (const noteIds of linkedNoteMap.values()) {
       for (const noteId of noteIds) {
-        noteToCampaign.set(noteId, campaignId)
+        allLinkedNoteIds.push(noteId)
+      }
+    }
+    if (allLinkedNoteIds.length > 0) {
+      for (let i = 0; i < allLinkedNoteIds.length; i += 50) {
+        const chunk = allLinkedNoteIds.slice(i, i + 50)
+        liveFilters.push({ kinds: [9735], '#e': chunk, since: Math.floor(Date.now() / 1000) })
       }
     }
 
-    for (const zap of parsedZaps) {
-      let campaignId = null
+    const nonce = ++subNonce
+    liveZapSubscription = nostrService.subscribe(liveFilters, {
+      _nonce: nonce,
+      onevent: async (zapEvent) => {
+        const parsed = parseZapReceipt(zapEvent)
+        if (!parsed) return
 
-      // Strategy 1: zappedEventId is itself a campaign ID
-      if (zap.zappedEventId && campaignIdSet.has(zap.zappedEventId)) {
-        campaignId = zap.zappedEventId
-      }
+        const campaignId = resolveZapCampaignId(parsed, campaignIdSet, linkedNoteMap)
+        if (!campaignId) return
 
-      // Strategy 2: goalTag matches a campaign ID
-      if (!campaignId && zap.goalTag && campaignIdSet.has(zap.goalTag)) {
-        campaignId = zap.goalTag
-      }
+        const existingZaps = campaignAggregatedZaps.get(campaignId) || []
+        if (existingZaps.some(z => z.id === parsed.id)) return
 
-      // Strategy 3: zappedEventId is a linked note (reverse lookup from Phase 1)
-      if (!campaignId && zap.zappedEventId && noteToCampaign.has(zap.zappedEventId)) {
-        campaignId = noteToCampaign.get(zap.zappedEventId)
-      }
+        try { await profileService.get(parsed.zapperPubkey) } catch { /* use fallback */ }
 
-      if (campaignId) {
-        if (!result.has(campaignId)) result.set(campaignId, [])
-        result.get(campaignId).push(zap)
-      }
-    }
-
-    return result
+        const currentZaps = campaignAggregatedZaps.get(campaignId) || []
+        campaignAggregatedZaps.set(campaignId, [...currentZaps, enrichZap(parsed, campaignId)])
+        debouncedSaveCampaignAggregatedZaps()
+      },
+      oneose: () => {},
+      onclose: () => { liveZapSubscription = null }
+    })
   }
 
   // ── 6-Phase orchestrator ─────────────────────────────────────────────────
@@ -274,6 +307,21 @@ export function useCampaigns() {
       if (signal.aborted) return
       const linkedNoteMap = await batchFetchLinkedNotes(campaignIds)
 
+      // ── Phase 1b: Connect to campaign relay tags ───────────────────────
+      // Campaigns store preferred relays in their 'relays' tag — connect to
+      // those relays so zap queries reach the relays the campaign was published to.
+      if (signal.aborted) return
+      const campaignRelayUrls = [...new Set(
+        activeCampaigns.flatMap(c => c.relays || []).filter(Boolean)
+      )]
+      if (campaignRelayUrls.length > 0) {
+        await Promise.allSettled(
+          campaignRelayUrls.map(url =>
+            nostrService.connectToRelay(url, { read: true, write: false })
+          )
+        )
+      }
+
       // ── Phase 2: Fetch zaps ────────────────────────────────────────────
       if (signal.aborted) return
       // Collect all event IDs to query: campaign IDs + all linked note IDs
@@ -297,12 +345,20 @@ export function useCampaigns() {
         }
       }
 
-      const campaignZapMap = resolveZapsToCampaigns(parsedZaps, campaignIdSet, linkedNoteMap)
+      // Resolve each zap to its campaign using the shared resolver
+      const campaignZapMap = new Map()
+      for (const zap of parsedZaps) {
+        const cId = resolveZapCampaignId(zap, campaignIdSet, linkedNoteMap)
+        if (cId) {
+          if (!campaignZapMap.has(cId)) campaignZapMap.set(cId, [])
+          campaignZapMap.get(cId).push(zap)
+        }
+      }
       // ── Phase 4: Fetch profiles ────────────────────────────────────────
       if (signal.aborted) return
       const allZapperPubkeys = [...new Set(parsedZaps.map(z => z.zapperPubkey))]
       try {
-        await batchFetchProfiles(allZapperPubkeys)
+        await profileService.batch(allZapperPubkeys)
       } catch (err) {
         console.warn('[CampaignZaps] Phase 4 failed (continuing with generated avatars):', err)
       }
@@ -314,130 +370,21 @@ export function useCampaigns() {
         const existingZaps = campaignAggregatedZaps.get(campaignId) || []
         const existingIds = new Set(existingZaps.map(z => z.id))
 
-        const enrichedZaps = []
-        for (const zap of zaps) {
-          if (existingIds.has(zap.id)) continue
+        const newZaps = zaps
+          .filter(z => !existingIds.has(z.id))
+          .map(z => enrichZap(z, campaignId))
 
-          const cached = profileCache.get(zap.zapperPubkey)
-          const profile = cached?.profile || null
-          enrichedZaps.push({
-            id: zap.id,
-            amount: zap.amount,
-            zapperPubkey: zap.zapperPubkey,
-            sender: {
-              pubkey: zap.zapperPubkey,
-              name: profile?.name || `user:${zap.zapperPubkey.substring(0, 8)}`,
-              picture: profile?.picture || generateAvatar(zap.zapperPubkey),
-              nip05: profile?.nip05 || null,
-              about: profile?.about || null
-            },
-            timestamp: zap.timestamp,
-            message: zap.message,
-            bolt11: zap.bolt11,
-            campaignId,
-            zappedEventId: zap.zappedEventId
-          })
-        }
-
-        if (enrichedZaps.length > 0) {
-          campaignAggregatedZaps.set(campaignId, [...existingZaps, ...enrichedZaps])
+        if (newZaps.length > 0) {
+          campaignAggregatedZaps.set(campaignId, [...existingZaps, ...newZaps])
         }
       }
 
       // Single save after all merges
       saveCampaignAggregatedZaps()
 
-      // ── Phase 6: Open live subscription ────────────────────────────────
+      // ── Phase 6: Open live subscription (separated for clarity) ────────
       if (signal.aborted) return
-
-      const liveFilters = [
-        { kinds: [9735], '#e': campaignIds, since: Math.floor(Date.now() / 1000) },
-        { kinds: [9735], '#goal': campaignIds, since: Math.floor(Date.now() / 1000) }
-      ]
-
-      // Also include linked note IDs in live subscription
-      const allLinkedNoteIds = []
-      for (const noteIds of linkedNoteMap.values()) {
-        for (const noteId of noteIds) {
-          allLinkedNoteIds.push(noteId)
-        }
-      }
-      if (allLinkedNoteIds.length > 0) {
-        // Chunk linked note IDs into batches of 50 for the live sub filter
-        for (let i = 0; i < allLinkedNoteIds.length; i += 50) {
-          const chunk = allLinkedNoteIds.slice(i, i + 50)
-          liveFilters.push({ kinds: [9735], '#e': chunk, since: Math.floor(Date.now() / 1000) })
-        }
-      }
-
-      const nonce = ++subNonce
-      liveZapSubscription = nostrService.subscribe(liveFilters, {
-        _nonce: nonce,
-        onevent: async (zapEvent) => {
-          // Parse the live zap
-          const parsed = parseZapReceipt(zapEvent)
-          if (!parsed) return
-
-          // Resolve to campaign
-          let campaignId = null
-          if (parsed.zappedEventId && campaignIdSet.has(parsed.zappedEventId)) {
-            campaignId = parsed.zappedEventId
-          }
-          if (!campaignId && parsed.goalTag && campaignIdSet.has(parsed.goalTag)) {
-            campaignId = parsed.goalTag
-          }
-          if (!campaignId && parsed.zappedEventId) {
-            // Check linked notes reverse lookup
-            for (const [cId, noteIds] of linkedNoteMap) {
-              if (noteIds.has(parsed.zappedEventId)) {
-                campaignId = cId
-                break
-              }
-            }
-          }
-
-          if (!campaignId) return
-
-          // Check for duplicate
-          const existingZaps = campaignAggregatedZaps.get(campaignId) || []
-          if (existingZaps.some(z => z.id === parsed.id)) return
-
-          // Fetch profile for the zapper (single pubkey)
-          let profile = null
-          try {
-            profile = await fetchProfile(parsed.zapperPubkey)
-          } catch { /* use fallback */ }
-
-          const enrichedZap = {
-            id: parsed.id,
-            amount: parsed.amount,
-            zapperPubkey: parsed.zapperPubkey,
-            sender: {
-              pubkey: parsed.zapperPubkey,
-              name: profile?.name || `user:${parsed.zapperPubkey.substring(0, 8)}`,
-              picture: profile?.picture || generateAvatar(parsed.zapperPubkey),
-              nip05: profile?.nip05 || null,
-              about: profile?.about || null
-            },
-            timestamp: parsed.timestamp,
-            message: parsed.message,
-            bolt11: parsed.bolt11,
-            campaignId,
-            zappedEventId: parsed.zappedEventId
-          }
-
-          // Add to reactive map
-          const currentZaps = campaignAggregatedZaps.get(campaignId) || []
-          campaignAggregatedZaps.set(campaignId, [...currentZaps, enrichedZap])
-
-          // Debounced save
-          debouncedSaveCampaignAggregatedZaps()
-        },
-        oneose: () => {},
-        onclose: (reason) => {
-          liveZapSubscription = null
-        }
-      })
+      openLiveZapSubscription(campaignIds, campaignIdSet, linkedNoteMap)
 
     } catch (err) {
       if (!signal.aborted) {
@@ -481,7 +428,7 @@ export function useCampaigns() {
       isLoading.value = false
     } catch (err) {
       console.error('Failed to fetch campaigns:', err)
-      error.value = 'Failed to fetch campaigns: ' + err.message
+      error.value = getUserFriendlyError(err)
       isLoading.value = false
     }
   }
@@ -519,7 +466,7 @@ export function useCampaigns() {
       return campaign
     } catch (err) {
       console.error('Failed to fetch campaign by ID:', err)
-      error.value = 'Failed to fetch campaign: ' + err.message
+      error.value = getUserFriendlyError(err)
       throw err
     } finally {
       isLoading.value = false
@@ -568,36 +515,25 @@ export function useCampaigns() {
       throw new Error('Invalid campaign event');
     }
 
-    const title = event.content || 'Untitled Campaign';
+    // Use nip75 to parse standard zap goal fields
+    const goal = nip75.parseZapGoal(event)
 
-    const amountTag = event.tags.find(tag => tag[0] === 'amount')
-    const summaryTag = event.tags.find(tag => tag[0] === 'summary')
+    // Extract custom tags not covered by nip75
     const descriptionLongTag = event.tags.find(tag => tag[0] === 'description_long')
-    const imageTag = event.tags.find(tag => tag[0] === 'image')
     const linkTag = event.tags.find(tag => tag[0] === 'link')
-    const closedAtTag = event.tags.find(tag => tag[0] === 'closed_at')
-    const relaysTag = event.tags.find(tag => tag[0] === 'relays')
-
-    const goalAmount = amountTag ? parseInt(amountTag[1]) : 0
-    const summary = summaryTag ? summaryTag[1] : ''
-    const descriptionLong = descriptionLongTag ? descriptionLongTag[1] : ''
-    const image = imageTag ? imageTag[1] : null
-    const optionalLink = linkTag ? linkTag[1] : null
-    const closedAt = closedAtTag ? parseInt(closedAtTag[1]) : null
-    const relays = relaysTag ? event.tags.filter(tag => tag[0] === 'relays').map(tag => tag[1]) : []
 
     const campaign = {
       id: event.id,
       pubkey: event.pubkey,
-      title,
+      title: goal.content || 'Untitled Campaign',
       content: event.content,
-      summary,
-      descriptionLong,
-      goalAmount,
-      image,
-      optionalLink,
-      closedAt,
-      relays,
+      summary: goal.summary || '',
+      descriptionLong: descriptionLongTag ? descriptionLongTag[1] : '',
+      goalAmount: goal.amount || 0,
+      image: goal.image || null,
+      optionalLink: linkTag ? linkTag[1] : null,
+      closedAt: goal.closedAt || null,
+      relays: goal.relays || [],
       createdAt: event.created_at,
       linkedNoteIds: [],
       rawEvent: event
@@ -609,7 +545,7 @@ export function useCampaigns() {
   // ── CRUD operations (unchanged) ──────────────────────────────────────────
 
   const publishCampaign = async (campaignData) => {
-    if (!isAuthenticated.value || !signerService.isExtensionAvailable()) {
+    if (!isAuthenticated.value || !signerService.isConnected) {
       throw new Error('Nostr authentication required')
     }
 
@@ -617,59 +553,29 @@ export function useCampaigns() {
     error.value = ''
 
     try {
-      const tags = [
-        ['amount', campaignData.goalAmount.toString()],
-        ['summary', campaignData.summary.trim()]
-      ]
+      const relayUrls = nostrService.getReadRelays().map(relay => relay.url)
+      const relays = relayUrls.length > 0 ? relayUrls : DEFAULT_RELAY_URLS.slice(0, 3)
 
+      // Build the zap goal template via nip75
+      const template = nip75.createZapGoalTemplate({
+        content: campaignData.title,
+        amount: campaignData.goalAmount,
+        relays,
+        closedAt: campaignData.closedAt || undefined,
+        image: campaignData.image ? campaignData.image.trim() : undefined,
+        summary: campaignData.summary ? campaignData.summary.trim() : undefined,
+      })
+
+      // Add custom tags not supported by nip75
       if (campaignData.descriptionLong) {
-        tags.push(['description_long', campaignData.descriptionLong.trim()])
-      }
-      if (campaignData.image) {
-        tags.push(['image', campaignData.image.trim()])
+        template.tags.push(['description_long', campaignData.descriptionLong.trim()])
       }
       if (campaignData.optionalLink) {
-        tags.push(['link', campaignData.optionalLink.trim()])
-      }
-      if (campaignData.closedAt) {
-        const closedAtStr = campaignData.closedAt.toString()
-        tags.push(['closed_at', closedAtStr])
+        template.tags.push(['link', campaignData.optionalLink.trim()])
       }
 
-      const relayUrls = nostrService.getReadRelays().map(relay => relay.url)
-      let relaysTag = ['relays']
-      if (relayUrls.length > 0) {
-        relaysTag.push(...relayUrls)
-      } else {
-        relaysTag.push('wss://relay.damus.io', 'wss://nos.lol', 'wss://relay.snort.social')
-      }
-      tags.push(relaysTag)
-
-      const eventTemplate = {
-        kind: CAMPAIGN_KIND,
-        created_at: Math.floor(Date.now() / 1000),
-        tags,
-        content: campaignData.title
-      }
-
-      const signedEvent = await signerService.signEvent(eventTemplate)
-
-      const isValid = verifyEvent(signedEvent)
-      if (!isValid) {
-        throw new Error('Event signature verification failed. Please try again.')
-      }
-
-      const relayStats = nostrService.getConnectionStats()
-
-      if (relayStats.writeEnabled === 0) {
-        throw new Error('No write-enabled relays available for publishing')
-      }
-
-      const result = await nostrService.publish(signedEvent)
-
-      if (result.successful === 0) {
-        throw new Error('Failed to publish to any relays')
-      }
+      // Use PublishService for sign → verify → publish with retry
+      const { event: signedEvent } = await publishService.signAndPublish(template)
 
       const campaign = processCampaignEvent(signedEvent)
 
@@ -683,7 +589,7 @@ export function useCampaigns() {
       return campaign
     } catch (err) {
       console.error('Failed to publish campaign:', err)
-      error.value = 'Failed to publish campaign: ' + err.message
+      error.value = getUserFriendlyError(err)
       throw err
     } finally {
       isLoading.value = false
@@ -691,7 +597,7 @@ export function useCampaigns() {
   }
 
   const editCampaign = async (campaignId, updatedCampaignData) => {
-    if (!isAuthenticated.value || !signerService.isExtensionAvailable()) {
+    if (!isAuthenticated.value || !signerService.isConnected) {
       throw new Error('Nostr authentication required')
     }
 
@@ -711,7 +617,7 @@ export function useCampaigns() {
       }
 
       try {
-        await deleteCampaign(campaignId) // also cleans up old zap data
+        await deleteCampaign(campaignId)
       } catch (deleteError) {
         console.warn('Failed to delete old campaign, but new campaign was created:', deleteError)
       }
@@ -719,7 +625,7 @@ export function useCampaigns() {
       return newCampaign
     } catch (err) {
       console.error('Failed to edit campaign:', err)
-      error.value = 'Failed to edit campaign: ' + err.message
+      error.value = getUserFriendlyError(err)
       throw err
     } finally {
       isLoading.value = false
@@ -727,7 +633,7 @@ export function useCampaigns() {
   }
 
   const deleteCampaign = async (campaignId) => {
-    if (!isAuthenticated.value || !signerService.isExtensionAvailable()) {
+    if (!isAuthenticated.value || !signerService.isConnected) {
       throw new Error('Nostr authentication required')
     }
 
@@ -735,25 +641,12 @@ export function useCampaigns() {
     error.value = ''
 
     try {
-      const eventTemplate = {
+      // Use PublishService for sign → verify → publish with retry
+      await publishService.signAndPublish({
         kind: 5,
-        created_at: Math.floor(Date.now() / 1000),
         tags: [['e', campaignId]],
         content: 'Deleting campaign'
-      }
-
-      const signedEvent = await signerService.signEvent(eventTemplate)
-
-      const isValid = verifyEvent(signedEvent)
-      if (!isValid) {
-        throw new Error('Event signature verification failed')
-      }
-
-      const result = await nostrService.publish(signedEvent)
-
-      if (result.successful === 0) {
-        throw new Error('Failed to publish to any relays')
-      }
+      })
 
       const index = userCampaigns.value.findIndex(c => c.id === campaignId)
       if (index !== -1) {
@@ -769,7 +662,7 @@ export function useCampaigns() {
       return true
     } catch (err) {
       console.error('Failed to delete campaign:', err)
-      error.value = 'Failed to delete campaign: ' + err.message
+      error.value = getUserFriendlyError(err)
       throw err
     } finally {
       isLoading.value = false
@@ -852,6 +745,7 @@ export function useCampaigns() {
       userCampaigns.value = []
       stopCampaignZapAggregation()
       if (_saveTimer) { clearTimeout(_saveTimer); _saveTimer = null }
+      if (_campaignSaveTimer) { clearTimeout(_campaignSaveTimer); _campaignSaveTimer = null }
       processedEventIds.clear()
       campaignAggregatedZaps.clear()
       unregisterRefresh('campaigns')

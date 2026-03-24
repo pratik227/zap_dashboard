@@ -484,8 +484,6 @@ const truncateInvoice = (invoice, length = 20) => {
 }
 
 const parseNoteContent = (note) => {
-  console.log(note)
-  console.log(typeof note)
   if (typeof note === 'string') {
     // Handle JSON object strings (like Nostr events)
     if (note.startsWith('{') && note.endsWith('}')) {
@@ -700,9 +698,18 @@ const extractTextFromArray = (noteArray) => {
 
       <!-- Error Message -->
       <div v-if="error" class="bg-red-50 border border-red-200 rounded-lg p-4">
-        <div class="flex items-center space-x-2">
-          <IconAlertCircle class="w-5 h-5 text-red-600" />
-          <span class="text-red-800">{{ error }}</span>
+        <div class="flex items-center justify-between">
+          <div class="flex items-center space-x-2">
+            <IconAlertCircle class="w-5 h-5 text-red-600 flex-shrink-0" />
+            <span class="text-red-800">{{ error }}</span>
+          </div>
+          <button
+            @click="loadWalletData"
+            :disabled="isLoading"
+            class="ml-4 px-4 py-1.5 text-sm font-medium text-red-700 bg-red-100 hover:bg-red-200 rounded-lg transition-colors flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Retry
+          </button>
         </div>
       </div>
 
@@ -728,10 +735,24 @@ const extractTextFromArray = (noteArray) => {
           </div>
         </div>
         
-        <div v-else-if="sortedTransactions.length === 0" class="p-6 text-center">
+        <div v-else-if="sortedTransactions.length === 0" class="p-8 text-center">
           <IconBolt class="w-12 h-12 mx-auto text-gray-300 mb-3" />
           <h4 class="text-lg font-medium text-gray-900 mb-2">No transactions yet</h4>
-          <p class="text-gray-600">Your transaction history will appear here</p>
+          <p class="text-gray-600 mb-4">Transactions will appear here once you send or receive Lightning payments. Use the buttons above to create an invoice or send a payment.</p>
+          <div class="flex items-center justify-center space-x-3">
+            <button
+              @click="openCreateInvoice"
+              class="px-4 py-2 text-sm font-medium text-orange-700 bg-orange-50 hover:bg-orange-100 rounded-lg transition-colors"
+            >
+              Create Invoice
+            </button>
+            <button
+              @click="openSendPayment"
+              class="px-4 py-2 text-sm font-medium text-orange-700 bg-orange-50 hover:bg-orange-100 rounded-lg transition-colors"
+            >
+              Send Payment
+            </button>
+          </div>
         </div>
         
         <div v-else class="divide-y divide-orange-100/50">

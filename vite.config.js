@@ -4,6 +4,11 @@ import {VitePWA} from 'vite-plugin-pwa'
 
 // https://vitejs.dev/config/
 export default defineConfig({
+    test: {
+        environment: 'happy-dom',
+        include: ['tests/**/*.test.js'],
+        globals: true,
+    },
     plugins: [
         vue(),
         VitePWA({

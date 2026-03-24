@@ -25,6 +25,7 @@ const {
   authError,
   isAuthenticated,
   login,
+  loginWithRemote,
   logout,
   refreshUserProfile
 } = useNostrAuth()
@@ -47,6 +48,9 @@ const showBadgeDetailModal = ref(false)
 const selectedBadge = ref(null)
 const copySuccess = ref('')
 const showProfileEditor = ref(false)
+const showLoginOptions = ref(false)
+const bunkerUri = ref('')
+const loginMode = ref(null) // null | 'extension' | 'remote'
 
 const handleBadgeClick = (badge) => {
   selectedBadge.value = badge
@@ -95,13 +99,29 @@ const copyToClipboard = async (text) => {
 const handleLogin = async () => {
   try {
     await login()
+    showLoginOptions.value = false
+    loginMode.value = null
   } catch (error) {
     console.error('Login failed:', error)
-    if (error.message.includes('No Nostr extension')) {
-      alert('No Nostr Extension Found\n\nPlease install a NIP-07 browser extension like:\n• Alby (getalby.com)\n• nos2x\n• Flamingo\n\nThen refresh this page.')
-    } else {
-      alert('Login failed: ' + error.message)
-    }
+  }
+}
+
+const handleRemoteLogin = async () => {
+  if (!bunkerUri.value.trim()) return
+  try {
+    await loginWithRemote(bunkerUri.value.trim())
+    showLoginOptions.value = false
+    loginMode.value = null
+    bunkerUri.value = ''
+  } catch (error) {
+    console.error('Remote login failed:', error)
+  }
+}
+
+const selectLoginMode = (mode) => {
+  loginMode.value = mode
+  if (mode === 'extension') {
+    handleLogin()
   }
 }
 
@@ -182,21 +202,93 @@ watch(() => props.initialTab, (newTab) => {
                 <img src="/nostr-logo/nostr10.png" alt="Nostr Logo" class="w-12 h-12 object-contain" />
               </div>
               <h2 class="text-2xl font-semibold text-gray-900 mb-2">Connect Your Identity</h2>
-              <p class="text-gray-500 text-sm mb-6 leading-relaxed">Sign in with your Nostr identity to unlock social features.</p>
-              <button
-                @click="handleLogin"
-                :disabled="isLoading"
-                class="inline-flex items-center justify-center gap-2 w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl font-medium text-sm hover:shadow-lg hover:shadow-orange-500/20 transition-all duration-200 disabled:opacity-50"
-              >
-                <IconLoader v-if="isLoading" class="w-4 h-4 animate-spin" />
-                <IconUser v-else class="w-4 h-4" />
-                {{ isLoading ? 'Connecting...' : 'Connect with Nostr' }}
-              </button>
+              <p class="text-gray-500 text-sm mb-6 leading-relaxed">Choose how to sign in to your Nostr identity.</p>
+
+              <!-- Login Method Selection -->
+              <div v-if="loginMode === null" class="space-y-3">
+                <!-- Browser Extension (NIP-07) -->
+                <button
+                  @click="selectLoginMode('extension')"
+                  :disabled="isLoading"
+                  class="w-full flex items-center gap-4 p-4 bg-gray-50 hover:bg-orange-50 border border-gray-200 hover:border-orange-300 rounded-2xl transition-all group"
+                >
+                  <div class="w-12 h-12 bg-orange-100 group-hover:bg-orange-200 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors">
+                    <IconKey class="w-6 h-6 text-orange-600" />
+                  </div>
+                  <div class="text-left flex-1">
+                    <p class="text-sm font-semibold text-gray-900">Browser Extension</p>
+                    <p class="text-xs text-gray-500">Alby, nos2x, Flamingo, or other NIP-07 extension</p>
+                  </div>
+                </button>
+
+                <!-- Remote Signer (NIP-46) -->
+                <button
+                  @click="loginMode = 'remote'"
+                  :disabled="isLoading"
+                  class="w-full flex items-center gap-4 p-4 bg-gray-50 hover:bg-purple-50 border border-gray-200 hover:border-purple-300 rounded-2xl transition-all group"
+                >
+                  <div class="w-12 h-12 bg-purple-100 group-hover:bg-purple-200 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors">
+                    <IconPlugConnected class="w-6 h-6 text-purple-600" />
+                  </div>
+                  <div class="text-left flex-1">
+                    <p class="text-sm font-semibold text-gray-900">Remote Signer (NIP-46)</p>
+                    <p class="text-xs text-gray-500">Amber, nsec.app, or other bunker signer</p>
+                  </div>
+                </button>
+              </div>
+
+              <!-- NIP-46 Remote Signer Input -->
+              <div v-if="loginMode === 'remote'" class="space-y-4">
+                <div class="text-left">
+                  <label class="block text-xs font-medium text-gray-700 mb-1.5">Connection URI</label>
+                  <input
+                    v-model="bunkerUri"
+                    type="text"
+                    placeholder="bunker://... or nostrconnect://..."
+                    class="w-full px-4 py-3 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    @keyup.enter="handleRemoteLogin"
+                  />
+                  <p class="text-xs text-gray-400 mt-1.5">Get this from your signer app (Amber, nsec.app)</p>
+                </div>
+
+                <div class="flex gap-2">
+                  <button
+                    @click="loginMode = null; bunkerUri = ''"
+                    class="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-200 transition-colors"
+                  >
+                    Back
+                  </button>
+                  <button
+                    @click="handleRemoteLogin"
+                    :disabled="isLoading || !bunkerUri.trim()"
+                    class="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-xl text-sm font-medium hover:shadow-lg hover:shadow-purple-500/20 transition-all disabled:opacity-50"
+                  >
+                    <IconLoader v-if="isLoading" class="w-4 h-4 animate-spin" />
+                    <IconPlugConnected v-else class="w-4 h-4" />
+                    {{ isLoading ? 'Connecting...' : 'Connect' }}
+                  </button>
+                </div>
+              </div>
+
+              <!-- Loading state for extension login -->
+              <div v-if="loginMode === 'extension' && isLoading" class="mt-4 flex items-center justify-center gap-2 text-orange-600">
+                <IconLoader class="w-4 h-4 animate-spin" />
+                <span class="text-sm">Connecting to extension...</span>
+              </div>
+
+              <!-- Error display -->
               <div v-if="authError" class="mt-4 bg-red-50 border border-red-100 rounded-xl p-3">
                 <div class="flex items-center justify-center gap-2 text-sm text-red-600">
                   <IconAlertCircle class="w-4 h-4 flex-shrink-0" />
                   <span>{{ authError }}</span>
                 </div>
+                <button
+                  v-if="loginMode !== null"
+                  @click="loginMode = null; authError = ''"
+                  class="mt-2 text-xs text-red-500 hover:text-red-700 underline"
+                >
+                  Try a different method
+                </button>
               </div>
             </div>
           </div>

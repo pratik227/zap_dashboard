@@ -25,7 +25,7 @@ export function useBlossom({ autoFetch = true } = {}) {
   }
 
   async function signEvent(unsignedEvent) {
-    if (!signerService.isExtensionAvailable()) return null
+    if (!signerService.isConnected) return null
     return signerService.signEvent(unsignedEvent)
   }
 

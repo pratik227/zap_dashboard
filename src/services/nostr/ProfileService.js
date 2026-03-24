@@ -111,7 +111,8 @@ class ProfileService {
     for (let i = 0; i < missing.length; i += batchSize) {
       const batch = missing.slice(i, i + batchSize)
 
-      const events = await nostrService.query(
+      // Use outbox model — fetch profiles from users' write relays for better discovery
+      const events = await nostrService.queryOutbox(
         [{ kinds: [0], authors: batch, limit: batch.length }],
         { timeout, eoseGrace: PROFILE_EOSE_GRACE }
       )
@@ -145,13 +146,33 @@ class ProfileService {
     return cacheManager.get('profiles', pubkey)
   }
 
+  /**
+   * Seed the cache with a pre-loaded profile (e.g. from localStorage).
+   * @param {string} pubkey
+   * @param {object} profile — already-normalized profile object
+   */
+  seed(pubkey, profile) {
+    cacheManager.set('profiles', pubkey, profile)
+  }
+
+  /**
+   * Return the number of cached profiles.
+   */
+  get cacheSize() {
+    const store = cacheManager._namespaces.get('profiles')
+    return store ? store.size : 0
+  }
+
   // ── Internal ────────────────────────────────────────────────────
 
   async _fetchFromRelays(pubkey) {
     try {
-      const event = await nostrService.queryOne({
-        kinds: [0], authors: [pubkey], limit: 1
-      })
+      // Use outbox model — query the user's own write relays
+      const events = await nostrService.queryOutbox(
+        [{ kinds: [0], authors: [pubkey], limit: 1 }],
+        { timeout: 10_000, eoseGrace: 1_500 }
+      )
+      const event = events?.[0] ?? null
 
       if (!event) {
         const fb = fallbackProfile(pubkey)

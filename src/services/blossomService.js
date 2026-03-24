@@ -1,9 +1,16 @@
 /**
  * Blossom Service - Core API for decentralized media uploads
  *
- * Handles SHA-256 hashing, NIP-24242 auth signing, upload, mirror, list, and delete
- * operations against Blossom-compatible servers.
+ * Delegates to nostr-core's blossom helpers for hashing, auth headers,
+ * listing, mirroring, and deletion. Retains XHR-based upload for progress
+ * tracking (nostr-core's uploadBlob uses fetch, which lacks upload progress).
+ *
+ * Auth event creation uses blossom.createAuthEventTemplate() + an external
+ * signEvent callback so it works with NIP-07 / NIP-46 signers (no secret key).
  */
+
+import { blossom } from './nostr/nostrImports.js'
+import { storageService } from './StorageService.js'
 
 export const DEFAULT_BLOSSOM_SERVERS = [
   'https://blossom.band',
@@ -16,61 +23,64 @@ export const BLOSSOM_MAX_FILE_SIZE = 20 * 1024 * 1024 // 20 MB
 const STORAGE_KEY = 'blossom_servers'
 
 /**
- * Compute SHA-256 hex digest of a file
+ * Compute SHA-256 hex digest of a file using nostr-core's blossom.getBlobHash.
+ * @param {File|Blob} file
+ * @returns {Promise<string>} hex-encoded SHA-256 hash
  */
 export async function computeHash(file) {
   const buffer = await file.arrayBuffer()
-  const hashBuffer = await crypto.subtle.digest('SHA-256', buffer)
-  const hashArray = Array.from(new Uint8Array(hashBuffer))
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+  return blossom.getBlobHash(new Uint8Array(buffer))
 }
 
 /**
- * Create a kind 24242 Blossom auth event and sign it
+ * Create a kind 24242 Blossom auth event and sign it via an external signer.
+ *
+ * Uses blossom.createAuthEventTemplate() for the event structure, then
+ * delegates signing to the provided signEvent callback (NIP-07 / NIP-46 compatible).
+ *
  * @param {string} content - Description of the action
- * @param {string} method - HTTP method: 'upload', 'delete', or 'list'
- * @param {string} pubkey - Hex pubkey
- * @param {Function} signEvent - NIP-07 window.nostr.signEvent function
+ * @param {string} action - Blossom action: 'upload', 'delete', or 'list'
+ * @param {string} _pubkey - Hex pubkey (unused — signer fills this in)
+ * @param {Function} signEvent - Signer callback (e.g. signerService.signEvent)
  * @param {string} [hash] - SHA-256 hash for upload/delete
- * @returns {Promise<string|null>} Base64-encoded signed event or null
+ * @returns {Promise<object|null>} Signed event object, or null on failure
  */
-export async function signBlossomAuth(content, method, pubkey, signEvent, hash = null) {
+export async function signBlossomAuth(content, action, _pubkey, signEvent, hash = null) {
   const expiration = Math.floor(Date.now() / 1000) + 300 // 5 minutes
 
-  const tags = [
-    ['t', method],
-    ['expiration', String(expiration)]
-  ]
+  const template = blossom.createAuthEventTemplate({
+    action,
+    expiration,
+    content,
+    hashes: hash ? [hash] : undefined
+  })
 
-  if (hash) {
-    tags.push(['x', hash])
-  }
-
-  const unsignedEvent = {
-    kind: 24242,
-    pubkey,
-    created_at: Math.floor(Date.now() / 1000),
-    tags,
-    content
-  }
-
-  const signed = await signEvent(unsignedEvent)
-  if (!signed) return null
-
-  return btoa(JSON.stringify(signed))
+  const signed = await signEvent(template)
+  return signed || null
 }
 
 /**
- * Upload a file to a blossom server via XHR (for progress tracking)
+ * Upload a file to a blossom server via XHR (for progress tracking).
+ *
+ * Uses blossom.getAuthorizationHeader() to encode the signed auth event.
+ * XHR is retained instead of blossom.uploadBlob() because fetch does not
+ * expose upload progress events.
+ *
+ * @param {string} server - Blossom server URL
+ * @param {File|Blob} file - File to upload
+ * @param {string} hash - SHA-256 hex hash of the file
+ * @param {object|null} authEvent - Signed kind 24242 event
+ * @param {Function} [onProgress] - Progress callback (0-100)
+ * @returns {Promise<object>} Server response with url
  */
-export function upload(server, file, hash, auth, onProgress) {
+export function upload(server, file, hash, authEvent, onProgress) {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest()
     xhr.open('PUT', `${server.replace(/\/$/, '')}/upload`)
 
     xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream')
-    if (auth) {
-      xhr.setRequestHeader('Authorization', `Nostr ${auth}`)
+    if (authEvent) {
+      xhr.setRequestHeader('Authorization', blossom.getAuthorizationHeader(authEvent))
     }
 
     xhr.upload.addEventListener('progress', (e) => {
@@ -99,36 +109,15 @@ export function upload(server, file, hash, auth, onProgress) {
 }
 
 /**
- * Mirror a file to another blossom server
- */
-export async function mirror(server, url, auth) {
-  const headers = { 'Content-Type': 'application/json' }
-  if (auth) {
-    headers['Authorization'] = `Nostr ${auth}`
-  }
-
-  const resp = await fetch(`${server.replace(/\/$/, '')}/mirror`, {
-    method: 'PUT',
-    headers,
-    body: JSON.stringify({ url })
-  })
-
-  if (!resp.ok) {
-    throw new Error(`Mirror failed: ${resp.status}`)
-  }
-
-  return resp.json()
-}
-
-/**
- * Upload to first server, then mirror to remaining servers in parallel
+ * Upload to first server, then mirror to remaining servers in parallel.
+ * Mirroring uses nostr-core's blossom.mirrorBlob().
  */
 export async function uploadToAll(file, servers, pubkey, signEvent, onProgress) {
   if (!servers.length) throw new Error('No servers configured')
 
   const hash = await computeHash(file)
 
-  // Upload to primary server
+  // Upload to primary server (XHR for progress)
   const primaryServer = servers[0]
   const uploadAuth = await signBlossomAuth('Upload file', 'upload', pubkey, signEvent, hash)
   const result = await upload(primaryServer, file, hash, uploadAuth, onProgress)
@@ -137,12 +126,12 @@ export async function uploadToAll(file, servers, pubkey, signEvent, onProgress) 
   const urls = [primaryUrl]
   const successServers = [primaryServer]
 
-  // Mirror to remaining servers in parallel
+  // Mirror to remaining servers via nostr-core
   if (servers.length > 1) {
     const mirrorResults = await Promise.allSettled(
       servers.slice(1).map(async (server) => {
         const mirrorAuth = await signBlossomAuth('Mirror file', 'upload', pubkey, signEvent, hash)
-        await mirror(server, primaryUrl, mirrorAuth)
+        await blossom.mirrorBlob(server, primaryUrl, mirrorAuth)
         const mirrorUrl = `${server.replace(/\/$/, '')}/${hash}`
         return { server, url: mirrorUrl }
       })
@@ -168,64 +157,50 @@ export async function uploadToAll(file, servers, pubkey, signEvent, onProgress) 
 }
 
 /**
- * List files from a blossom server (direct fetch, no backend proxy)
+ * List files from a blossom server using nostr-core's blossom.listBlobs().
  */
 export async function list(server, pubkey, signEvent) {
-  const headers = {}
+  // blossom.listBlobs() does not support auth headers — it's a public GET.
+  // If the server requires auth, fall back to manual fetch with auth.
   if (signEvent) {
-    const auth = await signBlossomAuth('List files', 'list', pubkey, signEvent)
-    if (auth) {
-      headers['Authorization'] = `Nostr ${auth}`
+    const authEvent = await signBlossomAuth('List files', 'list', pubkey, signEvent)
+    if (authEvent) {
+      // Manual fetch with auth header (listBlobs doesn't accept auth)
+      const resp = await fetch(`${server.replace(/\/$/, '')}/list/${pubkey}`, {
+        headers: { 'Authorization': blossom.getAuthorizationHeader(authEvent) }
+      })
+      if (!resp.ok) throw new Error(`List failed: ${resp.status}`)
+      return resp.json()
     }
   }
 
-  const resp = await fetch(`${server.replace(/\/$/, '')}/list/${pubkey}`, { headers })
-
-  if (!resp.ok) {
-    throw new Error(`List failed: ${resp.status}`)
-  }
-
-  return resp.json()
+  // No auth needed — use nostr-core directly
+  return blossom.listBlobs(server, pubkey)
 }
 
 /**
- * Delete a file from a blossom server
+ * Delete a file from a blossom server using nostr-core's blossom.deleteBlob().
+ * @param {string} server - Blossom server URL
+ * @param {string} hash - SHA-256 hex hash
+ * @param {object} authEvent - Signed kind 24242 event
  */
-export async function deleteFile(server, hash, auth) {
-  const headers = {}
-  if (auth) {
-    headers['Authorization'] = `Nostr ${auth}`
-  }
-
-  const resp = await fetch(`${server.replace(/\/$/, '')}/${hash}`, {
-    method: 'DELETE',
-    headers
-  })
-
-  if (!resp.ok) {
-    throw new Error(`Delete failed: ${resp.status}`)
-  }
-
+export async function deleteFile(server, hash, authEvent) {
+  await blossom.deleteBlob(server, hash, authEvent)
   return true
 }
 
 /**
- * Get configured blossom servers from localStorage or defaults
+ * Get configured blossom servers from storage or defaults
  */
 export function getConfiguredServers() {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY)
-    if (stored) {
-      const parsed = JSON.parse(stored)
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed
-    }
-  } catch { /* ignore */ }
+  const parsed = storageService.get(STORAGE_KEY, null)
+  if (Array.isArray(parsed) && parsed.length > 0) return parsed
   return [...DEFAULT_BLOSSOM_SERVERS]
 }
 
 /**
- * Save configured servers to localStorage
+ * Save configured servers to storage
  */
 export function setConfiguredServers(servers) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(servers))
+  storageService.set(STORAGE_KEY, servers)
 }

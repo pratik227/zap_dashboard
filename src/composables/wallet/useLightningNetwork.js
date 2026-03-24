@@ -1,5 +1,6 @@
 import { ref, onMounted, computed } from 'vue'
 import { lightningNetworkService } from '../../utils/network/lightningNetworkService.js'
+import { getUserFriendlyError } from '../../services/nostr/errors.js'
 
 export function useLightningNetwork() {
   const globalStats = ref(null)
@@ -21,7 +22,7 @@ export function useLightningNetwork() {
       return stats
     } catch (err) {
       console.error('Failed to fetch Lightning Network stats:', err)
-      error.value = err.message
+      error.value = getUserFriendlyError(err)
       // Set fallback data
       globalStats.value = lightningNetworkService.getFallbackStats()
       return globalStats.value

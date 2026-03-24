@@ -465,7 +465,7 @@ onMounted(() => {
           @edit="handleEditList"
           @delete="handleDeleteList"
           @follow-all="handleFollowEntireList"
-          @share="$event => console.log('Share list:', $event)"
+          @share="() => {}"
         />
       </div>
 

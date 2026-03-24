@@ -19,11 +19,9 @@ class LightningNetworkService {
     const now = Date.now()
 
     if (cached && (now - cached.timestamp) < CACHE_DURATION) {
-      console.log(`✅ Using cached data for ${key}`)
       return cached.data
     }
 
-    console.log(`🔄 Fetching fresh data for ${key}`)
     try {
       const data = await fetchFn()
       this.cache.set(key, {
@@ -35,7 +33,6 @@ class LightningNetworkService {
       console.error(`❌ Failed to fetch ${key}:`, error)
       // Return cached data even if expired
       if (cached) {
-        console.log(`⚠️ Using stale cache for ${key}`)
         return cached.data
       }
       throw error
@@ -191,7 +188,6 @@ class LightningNetworkService {
    */
   clearCache() {
     this.cache.clear()
-    console.log('🗑️ Lightning Network cache cleared')
   }
 
   /**

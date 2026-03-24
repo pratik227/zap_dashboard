@@ -1,5 +1,5 @@
 <script setup>
-import { computed, inject, ref, watch } from 'vue'
+import { computed, inject, ref, watch, onUnmounted } from 'vue'
 import { generateAvatar } from '../utils/profile/avatarGenerator.js'
 import { formatSatsShort } from '../utils/format.js'
 import {
@@ -21,7 +21,8 @@ import {
   IconHeart,
   IconBulb,
   IconChevronLeft,
-  IconChevronRight
+  IconChevronRight,
+  IconRefresh
 } from '@iconify-prerendered/vue-tabler'
 import { filterZapsByTimeRange } from '../utils/core/timeFilter.js'
 import ZapEventModal from '../components/modals/ZapEventModal.vue'
@@ -37,6 +38,18 @@ const selectedFilters = inject('selectedFilters')
 const selectedTimeRange = inject('selectedTimeRange')
 const isWalletConnected = inject('isWalletConnected')
 const isAuthenticated = inject('isAuthenticated')
+const refreshZapData = inject('refreshZapData', null)
+
+// Refresh state
+const isRefreshing = ref(false)
+const handleRefresh = async () => {
+  isRefreshing.value = true
+  try {
+    if (refreshZapData) await refreshZapData()
+  } finally {
+    isRefreshing.value = false
+  }
+}
 
 // Get zap data from useContentZaps
 const { getAllContentZaps } = useContentZaps()
@@ -72,25 +85,25 @@ const connectionStatus = computed(() => {
     return {
       type: 'both',
       dataLabel: 'payments and zaps',
-      emptyMessage: 'No activity found. Try adjusting your filters or check your connections.'
+      emptyMessage: 'No zaps or payments found yet. Zaps are Lightning micropayments that people send to support your Nostr content. Try publishing a note or article to start receiving them.'
     }
   } else if (hasNostr) {
     return {
       type: 'nostr-only',
       dataLabel: 'Nostr zaps',
-      emptyMessage: 'No Nostr zaps found. Connect your Nostr Account to see data.'
+      emptyMessage: 'No Nostr zaps found yet. Zaps will appear here when people send Lightning payments to your content. Connect a wallet via Settings to also track outgoing payments.'
     }
   } else if (hasNWC) {
     return {
-      type: 'nwc-only', 
+      type: 'nwc-only',
       dataLabel: 'NWC payments',
-      emptyMessage: 'No NWC payments found. Connect your lightning wallet.'
+      emptyMessage: 'No wallet payments found yet. Payments you send and receive will appear here. Connect your Nostr account to also track zaps on your content.'
     }
   } else {
     return {
       type: 'none',
       dataLabel: 'data',
-      emptyMessage: 'Connect your NWC wallet and/or Nostr account to view your activity feed.'
+      emptyMessage: 'Connect your Nostr account or Lightning wallet to start tracking zaps and payments. Zaps are Lightning micropayments used on the Nostr network to support creators.'
     }
   }
 })
@@ -445,6 +458,12 @@ const shouldShowPromoAtIndex = (index) => {
 const showPromoAtTop = computed(() => {
   return showThreadsPromo.value && filteredZaps.value.length < 3
 })
+
+onUnmounted(() => {
+  // Clean up state to prevent stale UI on remount
+  isRefreshing.value = false
+  isInitialLoading.value = true
+})
 </script>
 
 <template>
@@ -458,13 +477,22 @@ const showPromoAtTop = computed(() => {
       <div class="p-4 sm:p-5">
         <!-- Mobile Layout -->
         <div class="flex flex-col gap-4 md:hidden">
-          <!-- Top: Count + View Toggle -->
+          <!-- Top: Count + Refresh + View Toggle -->
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-2">
               <span class="w-2 h-2 bg-green-500 rounded-full"></span>
               <span class="text-sm font-medium text-gray-600">
                 {{ filteredZaps.length }} zap{{ filteredZaps.length !== 1 ? 's' : '' }}
               </span>
+              <button
+                @click="handleRefresh"
+                :disabled="isRefreshing"
+                class="inline-flex items-center p-1.5 text-gray-500 hover:text-orange-600 bg-gray-100 hover:bg-orange-50 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Refresh zap data"
+                aria-label="Refresh zap data"
+              >
+                <IconRefresh :class="['w-4 h-4', isRefreshing ? 'animate-spin' : '']" />
+              </button>
             </div>
 
             <!-- View Toggle -->
@@ -521,12 +549,23 @@ const showPromoAtTop = computed(() => {
 
         <!-- Desktop Layout -->
         <div class="hidden md:flex items-center justify-between">
-          <!-- Left: Zap Count -->
-          <div class="flex items-center gap-2">
-            <span class="w-2 h-2 bg-green-500 rounded-full"></span>
-            <span class="text-sm font-medium text-gray-600">
-              {{ filteredZaps.length }} zap{{ filteredZaps.length !== 1 ? 's' : '' }}
-            </span>
+          <!-- Left: Zap Count + Refresh -->
+          <div class="flex items-center gap-3">
+            <div class="flex items-center gap-2">
+              <span class="w-2 h-2 bg-green-500 rounded-full"></span>
+              <span class="text-sm font-medium text-gray-600">
+                {{ filteredZaps.length }} zap{{ filteredZaps.length !== 1 ? 's' : '' }}
+              </span>
+            </div>
+            <button
+              @click="handleRefresh"
+              :disabled="isRefreshing"
+              class="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-sm font-medium text-gray-600 hover:text-orange-600 bg-gray-100 hover:bg-orange-50 rounded-lg border border-gray-200 hover:border-orange-200 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Refresh zap data"
+              aria-label="Refresh zap data"
+            >
+              <IconRefresh :class="['w-4 h-4', isRefreshing ? 'animate-spin' : '']" />
+            </button>
           </div>
 
           <!-- Center: Time Filter -->

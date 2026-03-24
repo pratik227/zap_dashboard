@@ -3,6 +3,9 @@ import { useNostrAuth } from '../auth/useNostrAuth.js'
 import { useContentZaps } from './useContentZaps.js'
 import { nostrService } from '../../services/nostr/NostrService.js'
 import { registerRefresh, unregisterRefresh } from '../../utils/refreshCycle.js'
+import { getUserFriendlyError } from '../../services/nostr/errors.js'
+import { storageService } from '../../services/StorageService.js'
+import { upsertContentItem, removeContentItem } from './useContent.js'
 
 // Global state for long-form content
 // Helper function to extract d tag identifier from event
@@ -24,8 +27,6 @@ const PROCESSED_IDS_MAX = 1000
 
 // UI state
 const currentView = ref('list') // list, create, edit, view, preview
-const selectedContent = ref(null)
-const editingContent = ref(null)
 
 export function useNostrLongForm() {
   const { currentUser, isAuthenticated, writeRelays, readRelays } = useNostrAuth()
@@ -213,7 +214,7 @@ export function useNostrLongForm() {
 
     } catch (err) {
       console.warn('[useNostrLongForm] Fetch failed:', err.message)
-      error.value = 'Failed to fetch articles. Will retry automatically.'
+      error.value = getUserFriendlyError(err)
       isLoading.value = false
       isFetching = false
     }
@@ -272,80 +273,13 @@ export function useNostrLongForm() {
     }, 2000)
   }
 
-  // Update local storage for backward compatibility
+  // Update/remove content via useContent's centralized storage
+  // This avoids direct localStorage access — useContent owns the storage key
   const updateLocalStorage = (contentItem) => {
-    try {
-      // Get existing content from localStorage
-      const contentStorageKey = 'user_content_items'
-      const storedContent = localStorage.getItem(contentStorageKey)
-      let contentItems = []
-      
-      if (storedContent) {
-        contentItems = JSON.parse(storedContent)
-      }
-      
-      // Check if this content already exists in localStorage
-      const existingIndex = contentItems.findIndex(item => 
-        item.nostrEventId === contentItem.id || item.id === contentItem.id
-      )
-      
-      if (existingIndex !== -1) {
-        // Update existing content
-        contentItems[existingIndex] = {
-          ...contentItems[existingIndex],
-          nostrEventId: contentItem.id,
-          title: contentItem.title,
-          description: contentItem.description,
-          type: contentItem.type,
-          monetizationModel: contentItem.monetizationModel,
-          price: contentItem.price,
-          previewText: contentItem.previewText,
-          fullContent: contentItem.fullContent,
-          tags: contentItem.tags,
-          coverImage: contentItem.coverImage,
-          status: 'published',
-          publishedToRelays: contentItem.publishedToRelays || contentItems[existingIndex].publishedToRelays || 1,
-          publishedAt: contentItem.publishedAt,
-          updatedAt: new Date().toISOString()
-        }
-      } else {
-        // Add new content
-        contentItems.push({
-          ...contentItem,
-          id: contentItem.id // Ensure ID is set correctly
-        })
-      }
-      
-      // Save back to localStorage
-      localStorage.setItem(contentStorageKey, JSON.stringify(contentItems))
-      console.log('Updated local storage with content:', contentItem.id)
-    } catch (error) {
-      console.error('Failed to update local storage:', error)
-    }
+    upsertContentItem(contentItem)
   }
-
-  // Remove content from local storage
   const removeFromLocalStorage = (contentId) => {
-    try {
-      // Get existing content from localStorage
-      const contentStorageKey = 'user_content_items'
-      const storedContent = localStorage.getItem(contentStorageKey)
-      
-      if (storedContent) {
-        let contentItems = JSON.parse(storedContent)
-        
-        // Filter out the deleted content
-        contentItems = contentItems.filter(item => 
-          item.nostrEventId !== contentId && item.id !== contentId
-        )
-        
-        // Save back to localStorage
-        localStorage.setItem(contentStorageKey, JSON.stringify(contentItems))
-        console.log('Removed content from local storage:', contentId)
-      }
-    } catch (error) {
-      console.error('Failed to remove from local storage:', error)
-    }
+    removeContentItem(contentId)
   }
 
   // Fetch a specific long-form content by ID
@@ -358,12 +292,9 @@ export function useNostrLongForm() {
     error.value = ''
 
     try {
-      console.log('Fetching long-form content by ID:', contentId)
-      
       // First check if we already have this content in our state
       const existingContent = longFormContent.value.find(content => content.id === contentId)
       if (existingContent) {
-        console.log('Content found in local state:', contentId)
         return existingContent
       }
       
@@ -376,8 +307,6 @@ export function useNostrLongForm() {
       if (!event) {
         throw new Error('Content not found on relays')
       }
-      
-      console.log('Content fetched from relays:', contentId)
       
       // Process the event
       const contentItem = processLongFormEvent(event)
@@ -396,7 +325,7 @@ export function useNostrLongForm() {
       return contentItem
     } catch (err) {
       console.error('Failed to fetch content by ID:', err)
-      error.value = 'Failed to fetch content: ' + err.message
+      error.value = getUserFriendlyError(err)
       throw err
     } finally {
       isLoading.value = false
@@ -409,15 +338,6 @@ export function useNostrLongForm() {
     error.value = ''
   }
 
-  const viewContent = (content) => {
-    selectedContent.value = content
-    currentView.value = 'view'
-  }
-
-  const previewContent = (content) => {
-    selectedContent.value = content
-    currentView.value = 'preview'
-  }
 
   // Format date for display
   const formatDate = (timestamp) => {
@@ -477,8 +397,6 @@ export function useNostrLongForm() {
     isLoading,
     error,
     currentView,
-    selectedContent,
-    editingContent,
 
     // Actions
     fetchUserLongFormContent,
@@ -487,8 +405,6 @@ export function useNostrLongForm() {
     
     // View management
     setView,
-    viewContent,
-    previewContent,
     
     // Utilities
     formatDate,

@@ -4,8 +4,10 @@ import { useContentZaps } from './useContentZaps.js'
 import { nostrService } from '../../services/nostr/NostrService.js'
 import { signerService } from '../../services/nostr/SignerService.js'
 import { useNostrLongForm } from './useNostrLongForm.js'
-import { finalizeEvent, verifyEvent } from '../../services/nostr/nostrImports.js'
+import { publishService } from '../../services/nostr/PublishService.js'
 import { useMentions } from './useMentions.js'
+import { getUserFriendlyError } from '../../services/nostr/errors.js'
+import { storageService } from '../../services/StorageService.js'
 
 // Content types
 const CONTENT_TYPES = {
@@ -51,29 +53,66 @@ const error = ref('')
 const publishingStatus = ref('')
 const publishingProgress = ref(0)
 
-// Load content from localStorage
+// Load content from storage
 const loadContentFromStorage = () => {
-  try {
-    const stored = localStorage.getItem(CONTENT_STORAGE_KEY)
-    if (stored) {
-      const parsedContent = JSON.parse(stored)
-      contentItems.value = Array.isArray(parsedContent) ? parsedContent : []
-      console.log('Loaded content from storage:', contentItems.value.length, 'items')
-    }
-  } catch (error) {
-    console.error('Failed to load content from storage:', error)
-    contentItems.value = []
-  }
+  const parsedContent = storageService.get(CONTENT_STORAGE_KEY, [])
+  contentItems.value = Array.isArray(parsedContent) ? parsedContent : []
 }
 
-// Save content to localStorage
+// Save content to storage
 const saveContentToStorage = () => {
-  try {
-    localStorage.setItem(CONTENT_STORAGE_KEY, JSON.stringify(contentItems.value))
-    console.log('Saved content to storage:', contentItems.value.length, 'items')
-  } catch (error) {
-    console.error('Failed to save content to storage:', error)
+  storageService.set(CONTENT_STORAGE_KEY, contentItems.value)
+}
+
+// ── Shared accessors for other content composables ──────────────────────
+// These prevent useNostrLongForm / useContentZaps from directly hitting localStorage.
+
+/** Read-only access to the content items array (for EngagementAnalytics, etc.) */
+export const getContentItems = () => contentItems.value
+
+/** Get the published content event IDs (for zap tracking initialization) */
+export const getPublishedContentEventIds = () => {
+  return contentItems.value
+    .filter(item => item.status === 'published' && item.nostrEventId)
+    .map(item => item.nostrEventId)
+}
+
+/** Upsert a content item from relay data (used by useNostrLongForm) */
+export const upsertContentItem = (contentItem) => {
+  const existingIndex = contentItems.value.findIndex(item =>
+    item.nostrEventId === contentItem.id || item.id === contentItem.id
+  )
+
+  if (existingIndex !== -1) {
+    contentItems.value[existingIndex] = {
+      ...contentItems.value[existingIndex],
+      nostrEventId: contentItem.id,
+      title: contentItem.title,
+      description: contentItem.description,
+      type: contentItem.type,
+      monetizationModel: contentItem.monetizationModel,
+      price: contentItem.price,
+      previewText: contentItem.previewText,
+      fullContent: contentItem.fullContent,
+      tags: contentItem.tags,
+      coverImage: contentItem.coverImage,
+      status: 'published',
+      publishedToRelays: contentItem.publishedToRelays || contentItems.value[existingIndex].publishedToRelays || 1,
+      publishedAt: contentItem.publishedAt,
+      updatedAt: new Date().toISOString()
+    }
+  } else {
+    contentItems.value.push({ ...contentItem, id: contentItem.id })
   }
+  debouncedSaveContent()
+}
+
+/** Remove a content item by ID (used by useNostrLongForm) */
+export const removeContentItem = (contentId) => {
+  contentItems.value = contentItems.value.filter(item =>
+    item.nostrEventId !== contentId && item.id !== contentId
+  )
+  debouncedSaveContent()
 }
 
 // Watch for changes and save to storage (debounced, length-based to avoid deep watching)
@@ -213,7 +252,7 @@ export function useContent() {
       currentView.value = 'list'
       return newContent
     } catch (err) {
-      error.value = 'Failed to create content: ' + err.message
+      error.value = getUserFriendlyError(err)
       throw err
     } finally {
       isLoading.value = false
@@ -245,7 +284,7 @@ export function useContent() {
 
       return contentItems.value[index]
     } catch (err) {
-      error.value = 'Failed to update content: ' + err.message
+      error.value = getUserFriendlyError(err)
       throw err
     } finally {
       isLoading.value = false
@@ -272,10 +311,8 @@ export function useContent() {
       const contentToDelete = contentItems.value[index]
       
       // If content was published to Nostr, publish a deletion request
-      if (contentToDelete.nostrEventId && signerService.isExtensionAvailable()) {
+      if (contentToDelete.nostrEventId && signerService.isConnected) {
         try {
-          console.log('Publishing deletion request for content:', contentToDelete.nostrEventId)
-          
           // Create deletion event (kind:5)
           const deletionEvent = {
             kind: 5, // Deletion
@@ -284,25 +321,9 @@ export function useContent() {
             content: 'Content deleted by author'
           }
 
-          // Sign the deletion event
-          const signedDeletionEvent = await signerService.signEvent(deletionEvent)
-          
-          // Verify the signed deletion event
-          const isDeletionValid = verifyEvent(signedDeletionEvent)
-          if (!isDeletionValid) {
-            console.warn('Deletion event signature verification failed, but continuing with local deletion...')
-          } else {
-            // Publish deletion event to Nostr relays
-            const deletionResult = await nostrService.publish(signedDeletionEvent)
-            
-            if (deletionResult.successful > 0) {
-              console.log('✅ Deletion request published successfully to', deletionResult.successful, 'relays')
-            } else {
-              console.warn('⚠️ Failed to publish deletion request, but continuing with local deletion')
-            }
-          }
+          const { result: deletionResult } = await publishService.signAndPublish(deletionEvent)
         } catch (deletionError) {
-          console.warn('⚠️ Failed to publish deletion request:', deletionError.message, 'but continuing with local deletion')
+          console.warn('⚠️ Failed to publish deletion request:', deletionError.userMessage || deletionError.message, 'but continuing with local deletion')
         }
       }
 
@@ -323,7 +344,7 @@ export function useContent() {
 
       return true
     } catch (err) {
-      error.value = 'Failed to delete content: ' + err.message
+      error.value = getUserFriendlyError(err)
       throw err
     } finally {
       isLoading.value = false
@@ -357,7 +378,7 @@ export function useContent() {
 
   // Enhanced Nostr publishing functionality
   const publishToNostr = async (contentId) => {
-    if (!isAuthenticated.value || !signerService.isExtensionAvailable()) {
+    if (!isAuthenticated.value || !signerService.isConnected) {
       throw new Error('Nostr authentication required')
     }
 
@@ -404,29 +425,12 @@ export function useContent() {
       eventTemplate.tags.push(['content-type', content.type])
       eventTemplate.tags.push(['client', 'ZapTracker'])
 
-      publishingStatus.value = 'Signing with your Nostr key...'
+      publishingStatus.value = 'Signing and broadcasting...'
       publishingProgress.value = 50
 
-      // Sign the event
-      const signedEvent = await signerService.signEvent(eventTemplate)
-      
-      // Verify the signed event
-      const isValid = verifyEvent(signedEvent)
-      if (!isValid) {
-        throw new Error('Event signature verification failed')
-      }
+      const { event: signedEvent, result } = await publishService.signAndPublish(eventTemplate)
 
-      publishingStatus.value = 'Broadcasting to relays...'
-      publishingProgress.value = 75
-
-      // Publish to relays
-      const result = await nostrService.publish(signedEvent)
-      
       publishingProgress.value = 100
-
-      if (result.successful === 0) {
-        throw new Error('Failed to publish to any relays')
-      }
 
       // Update content status
       await updateContent(contentId, {
@@ -448,8 +452,8 @@ export function useContent() {
       }
 
     } catch (err) {
-      error.value = 'Failed to publish: ' + err.message
-      publishingStatus.value = 'Publishing failed: ' + err.message
+      error.value = getUserFriendlyError(err)
+      publishingStatus.value = 'Publishing failed: ' + getUserFriendlyError(err)
       throw err
     } finally {
       isLoading.value = false

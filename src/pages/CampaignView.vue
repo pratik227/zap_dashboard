@@ -942,6 +942,7 @@ import { useNotifications } from '../composables/core/useNotifications.js'
 import { nostrService } from '../services/nostr/NostrService.js'
 import { signerService } from '../services/nostr/SignerService.js'
 import { makeZapRequest, decodeLnurl, nip19 } from '../services/nostr/nostrImports.js'
+import { DEFAULT_RELAY_URLS } from '../utils/constants.js'
 import { payInvoice } from '../utils/wallet/nwcClient.js'
 import CampaignShareModal from '../components/campaigns/CampaignShareModal.vue'
 import UserProfileModal from '../components/modals/UserProfileModal.vue'
@@ -1301,13 +1302,7 @@ const generateInvoice = async () => {
       comment: zapComment.value ?
         `${zapComment.value} (Campaign: ${campaign.value.title})` :
         `Supporting campaign: ${campaign.value.title}`,
-      relays: campaign.value.relays || [
-        'wss://relay.damus.io',
-        'wss://nos.lol',
-        'wss://relay.snort.social',
-        'wss://relay.primal.net',
-        'wss://nostr-01.yakihonne.com',
-      ]
+      relays: campaign.value.relays || DEFAULT_RELAY_URLS.slice(0, 5)
     })
 
     // CRITICAL: Add goal and event tags for proper campaign tracking
@@ -1322,7 +1317,7 @@ const generateInvoice = async () => {
     zapRequest.tags.push(['e', campaign.value.id])
 
     // NIP-57 requires the zap request to be signed before sending
-    if (!signerService.isExtensionAvailable()) {
+    if (!signerService.isConnected) {
       throw new Error('No Nostr signer available. Please install a NIP-07 extension.')
     }
     const signedZapRequest = await signerService.signEvent(zapRequest)

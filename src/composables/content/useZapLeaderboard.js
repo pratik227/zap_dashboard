@@ -2,7 +2,8 @@ import { ref, computed } from 'vue'
 import { generateAvatar } from '../../utils/profile/avatarGenerator.js'
 import { nostrService } from '../../services/nostr/NostrService.js'
 import { parseZapReceipt } from '../../utils/zaps/parseZapReceipt.js'
-import { batchFetchProfiles, profileCache } from '../../utils/profile/profileFetcher.js'
+import { profileService } from '../../services/nostr/ProfileService.js'
+import { getUserFriendlyError } from '../../services/nostr/errors.js'
 
 export function useZapLeaderboard() {
   const isLoading = ref(false)
@@ -124,12 +125,11 @@ export function useZapLeaderboard() {
 
     progress.value = `Loading ${grouped.size} profiles...`
     const pubkeys = Array.from(grouped.keys())
-    await batchFetchProfiles(pubkeys)
+    await profileService.batch(pubkeys)
 
     const entries = []
     for (const [pubkey, data] of grouped) {
-      const cached = profileCache.get(pubkey)
-      const profile = cached?.profile || null
+      const profile = profileService.getCached(pubkey) || null
       entries.push({
         pubkey,
         name: profile?.name || `user:${pubkey.substring(0, 8)}`,
@@ -185,7 +185,7 @@ export function useZapLeaderboard() {
 
     } catch (err) {
       console.error('Contest resolution failed:', err)
-      error.value = err.message || 'Failed to resolve contest'
+      error.value = getUserFriendlyError(err)
     } finally {
       isLoading.value = false
     }

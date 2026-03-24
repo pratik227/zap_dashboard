@@ -33,8 +33,7 @@ import {
 import { useNostrAuth } from '../composables/auth/useNostrAuth.js'
 import { useAudience } from '../composables/audience/useAudience.js'
 import { nostrService } from '../services/nostr/NostrService.js'
-import { signerService } from '../services/nostr/SignerService.js'
-import { verifyEvent } from '../services/nostr/nostrImports.js'
+import { publishService } from '../services/nostr/PublishService.js'
 import ProfileCard from '../components/profile/ProfileCard.vue'
 import ProfileModal from '../components/modals/ProfileModal.vue'
 import FollowListModal from '../components/audience/FollowListModal.vue'
@@ -74,10 +73,10 @@ const {
   // Getters
   getProfile,
   isFollowing,
-  getMutualFollows,
   getFollowersCount,
   getFollowingCount,
-  fetchProfile
+  fetchProfile,
+  followersLimitReached
 } = useAudience()
 
 // UI State
@@ -91,6 +90,10 @@ const showBulkActions = ref(false)
 const selectedUsers = ref(new Set())
 const selectedBadge = ref(null)
 const showBadgeModal = ref(false)
+
+// Pagination for large lists
+const followersVisible = ref(50)
+const followingVisible = ref(50)
 
 // Inline status banner
 const statusMessage = ref(null)
@@ -131,7 +134,7 @@ const filteredFollowing = computed(() => {
 
 const filteredFollowers = computed(() => {
   let users = followers.value
-  
+
   // Apply search filter
   if (searchQuery.value) {
     const query = searchQuery.value.toLowerCase()
@@ -142,8 +145,16 @@ const filteredFollowers = computed(() => {
              pubkey.toLowerCase().includes(query)
     })
   }
-  
+
   return users
+})
+
+const paginatedFollowers = computed(() => {
+  return filteredFollowers.value.slice(0, followersVisible.value)
+})
+
+const paginatedFollowing = computed(() => {
+  return filteredFollowing.value.slice(0, followingVisible.value)
 })
 
 // Handle Nostr login
@@ -153,9 +164,9 @@ const handleNostrLogin = async () => {
   } catch (error) {
     console.error('Login failed:', error)
     if (error.message.includes('No Nostr extension')) {
-      alert('No Nostr Extension Found\n\nPlease install a NIP-07 browser extension like:\n• Alby (getalby.com)\n• nos2x\n• Flamingo\n\nThen refresh this page.')
+      showStatus('error', 'No Nostr extension found. Please install a NIP-07 browser extension (Alby, nos2x, or Flamingo) and refresh this page.')
     } else {
-      alert('Login failed: ' + error.message)
+      showStatus('error', 'Login failed: ' + error.message)
     }
   }
 }
@@ -168,7 +179,6 @@ const handleProfileClick = (pubkey) => {
 
 // Handle badge click
 const handleBadgeClick = (badge) => {
-  console.log('Badge clicked:', badge)
   selectedBadge.value = badge
   showBadgeModal.value = true
 }
@@ -206,8 +216,6 @@ const handleBulkFollow = async () => {
   if (selectedUsers.value.size === 0) return
   
   try {
-    console.log('Starting bulk follow operation for', selectedUsers.value.size, 'users')
-    
     const kind3Filters = { kinds: [3], authors: [currentUser.value.pubkey], limit: 1 }
     const currentFollowingEvent = await nostrService.queryOne(kind3Filters)
 
@@ -241,17 +249,7 @@ const handleBulkFollow = async () => {
     }
 
     // Sign and publish the event
-    const signedEvent = await signerService.signEvent(eventTemplate)
-    
-    if (!verifyEvent(signedEvent)) {
-      throw new Error('Event signature verification failed')
-    }
-
-    const result = await nostrService.publish(signedEvent)
-    
-    if (result.successful === 0) {
-      throw new Error('Failed to publish to any relays')
-    }
+    const { result } = await publishService.signAndPublish(eventTemplate)
 
     // Invalidate cached kind 3 so subsequent operations see updated list
     nostrService.clearEventCache(kind3Filters)
@@ -329,6 +327,10 @@ watch(isAuthenticated, (authenticated) => {
   }
 })
 
+onUnmounted(() => {
+  clearTimeout(statusTimer)
+})
+
 </script>
 
 <template>
@@ -363,10 +365,13 @@ watch(isAuthenticated, (authenticated) => {
       <!-- Tab Navigation -->
       <div class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm overflow-hidden">
         <div class="overflow-x-auto scrollbar-thin">
-          <nav class="flex space-x-8 px-6 min-w-max" aria-label="Audience tabs">
+          <nav class="flex space-x-8 px-6 min-w-max" role="tablist" aria-label="Audience tabs">
             <button
               v-for="tab in tabs"
               :key="tab.id"
+              role="tab"
+              :aria-selected="activeTab === tab.id"
+              :aria-controls="`tabpanel-${tab.id}`"
               @click="activeTab = tab.id; clearSelection()"
               :class="[
                 'flex items-center space-x-2 py-4 px-1 border-b-2 font-medium text-sm transition-all duration-200 whitespace-nowrap',
@@ -389,6 +394,8 @@ watch(isAuthenticated, (authenticated) => {
       <transition name="slide-down">
         <div
           v-if="statusMessage"
+          role="status"
+          aria-live="polite"
           :class="[
             'rounded-lg px-4 py-3 flex items-center gap-3',
             statusMessage.type === 'success'
@@ -402,6 +409,7 @@ watch(isAuthenticated, (authenticated) => {
           <button
             @click="statusMessage = null"
             class="p-1 rounded hover:bg-black/5 flex-shrink-0"
+            aria-label="Dismiss status message"
           >
             <IconX class="w-4 h-4" />
           </button>
@@ -455,7 +463,7 @@ watch(isAuthenticated, (authenticated) => {
       <!-- Tab Content -->
       <div class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm">
         <!-- Overview Tab -->
-        <div v-if="activeTab === 'overview'" class="p-6">
+        <div v-if="activeTab === 'overview'" id="tabpanel-overview" role="tabpanel" class="p-6">
           <AudienceOverview 
             @create-list="handleCreateList"
             @switch-tab="activeTab = $event"
@@ -463,7 +471,7 @@ watch(isAuthenticated, (authenticated) => {
         </div>
 
         <!-- Following Tab -->
-        <div v-if="activeTab === 'following'" class="p-6">
+        <div v-if="activeTab === 'following'" id="tabpanel-following" role="tabpanel" class="p-6">
           <!-- Search and Filters -->
           <div class="flex flex-col sm:flex-row gap-4 mb-6">
             <div class="relative flex-1">
@@ -590,26 +598,38 @@ watch(isAuthenticated, (authenticated) => {
             </div>
           </div>
 
-          <div v-else class="space-y-3">
-            <ProfileCard
-              v-for="pubkey in filteredFollowing"
-              :key="pubkey"
-              :pubkey="pubkey"
-              :profile="getProfile(pubkey)"
-              :is-following="true"
-              :is-selected="selectedUsers.has(pubkey)"
-              :show-selection="showBulkActions"
-              @click="handleProfileClick(pubkey)"
-              @follow="followUser(pubkey)"
-              @unfollow="unfollowUser(pubkey)"
-              @toggle-selection="toggleUserSelection(pubkey)"
-              @badge-click="handleBadgeClick"
-            />
+          <div v-else>
+            <div class="space-y-3">
+              <ProfileCard
+                v-for="pubkey in paginatedFollowing"
+                :key="pubkey"
+                :pubkey="pubkey"
+                :profile="getProfile(pubkey)"
+                :is-following="true"
+                :is-selected="selectedUsers.has(pubkey)"
+                :show-selection="showBulkActions"
+                @click="handleProfileClick(pubkey)"
+                @follow="followUser(pubkey)"
+                @unfollow="unfollowUser(pubkey)"
+                @toggle-selection="toggleUserSelection(pubkey)"
+                @badge-click="handleBadgeClick"
+              />
+            </div>
+
+            <!-- Load More for following -->
+            <div v-if="filteredFollowing.length > followingVisible" class="text-center mt-4">
+              <button
+                @click="followingVisible += 50"
+                class="text-sm text-orange-600 hover:text-orange-800 font-medium px-4 py-2 rounded-lg hover:bg-orange-50 transition-colors"
+              >
+                Show more ({{ filteredFollowing.length - followingVisible }} remaining)
+              </button>
+            </div>
           </div>
         </div>
 
         <!-- Followers Tab -->
-        <div v-if="activeTab === 'followers'" class="p-6">
+        <div v-if="activeTab === 'followers'" id="tabpanel-followers" role="tabpanel" class="p-6">
           <!-- Search -->
           <div class="relative mb-6">
             <input
@@ -637,27 +657,48 @@ watch(isAuthenticated, (authenticated) => {
             </p>
           </div>
 
-          <div v-else class="space-y-3">
-            <ProfileCard
-              v-for="pubkey in filteredFollowers"
-              :key="pubkey"
-              :pubkey="pubkey"
-              :profile="getProfile(pubkey)"
-              :is-following="isFollowing(pubkey)"
-              @click="handleProfileClick(pubkey)"
-              @follow="followUser(pubkey)"
-              @unfollow="unfollowUser(pubkey)"
-              @badge-click="handleBadgeClick"
-            />
+          <div v-else>
+            <!-- Data cap indicator -->
+            <div v-if="followersLimitReached" class="mb-4 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+              <span class="text-blue-800 text-xs">Showing {{ followers.length }}+ followers (query limit reached — actual count may be higher)</span>
+            </div>
+
+            <!-- Paginated followers list -->
+            <div class="space-y-3">
+              <ProfileCard
+                v-for="pubkey in paginatedFollowers"
+                :key="pubkey"
+                :pubkey="pubkey"
+                :profile="getProfile(pubkey)"
+                :is-following="isFollowing(pubkey)"
+                @click="handleProfileClick(pubkey)"
+                @follow="followUser(pubkey)"
+                @unfollow="unfollowUser(pubkey)"
+                @badge-click="handleBadgeClick"
+              />
+            </div>
+
+            <!-- Load More / pagination -->
+            <div v-if="filteredFollowers.length > followersVisible" class="text-center mt-4">
+              <button
+                @click="followersVisible += 50"
+                class="text-sm text-orange-600 hover:text-orange-800 font-medium px-4 py-2 rounded-lg hover:bg-orange-50 transition-colors"
+              >
+                Show more ({{ filteredFollowers.length - followersVisible }} remaining)
+              </button>
+            </div>
+            <div v-else-if="filteredFollowers.length > 50" class="text-center mt-3">
+              <span class="text-xs text-gray-400">Showing all {{ filteredFollowers.length }} followers</span>
+            </div>
           </div>
         </div>
 
         <!-- Lists Tab -->
-        <div v-if="activeTab === 'lists'" class="p-6">
+        <div v-if="activeTab === 'lists'" id="tabpanel-lists" role="tabpanel" class="p-6">
           <FollowListManager />
         </div>
 
-        <div v-if="activeTab === 'suggestions'" class="p-6">
+        <div v-if="activeTab === 'suggestions'" id="tabpanel-suggestions" role="tabpanel" class="p-6">
           <SuggestionsTab
             @profile-click="handleProfileClick"
             @switch-tab="activeTab = $event"

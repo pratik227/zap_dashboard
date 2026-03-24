@@ -4,15 +4,11 @@
 import { initializeNWC } from '../wallet/nwcClient.js'
 import { nostrService } from '../../services/nostr/NostrService.js'
 import { npubEncode } from '../../services/nostr/nostrImports.js'
+import { DEFAULT_RELAY_CONFIGS } from '../constants.js'
+import { storageService } from '../../services/StorageService.js'
 
-// Default reliable relays for fresh initialization
-const DEFAULT_RELAYS = [
-  { url: 'wss://relay.damus.io', read: true, write: true },
-  { url: 'wss://nos.lol', read: true, write: true },
-  { url: 'wss://relay.snort.social', read: true, write: true },
-  { url: 'wss://relay.primal.net', read: true, write: true },
-  { url: 'wss://nostr.wine', read: true, write: true }
-]
+// Use shared relay config from constants.js
+const DEFAULT_RELAYS = DEFAULT_RELAY_CONFIGS
 
 /**
  * Clear all NWC related data from localStorage
@@ -20,8 +16,6 @@ const DEFAULT_RELAYS = [
  */
 export const clearNWCData = () => {
   try {
-    console.log('🧹 Clearing all NWC data...')
-    
     // NWC specific storage keys
     const nwcKeys = [
       'nwc_url',
@@ -37,11 +31,8 @@ export const clearNWCData = () => {
     
     // Remove all NWC related keys
     nwcKeys.forEach(key => {
-      localStorage.removeItem(key)
-      console.log(`✅ Removed ${key} from localStorage`)
+      storageService.remove(key)
     })
-    
-    console.log('✅ All NWC data cleared successfully')
     return true
   } catch (error) {
     console.error('❌ Failed to clear NWC data:', error)
@@ -55,8 +46,6 @@ export const clearNWCData = () => {
  */
 export const clearNostrData = () => {
   try {
-    console.log('🧹 Clearing all Nostr data...')
-    
     // Nostr specific storage keys
     const nostrKeys = [
       'nostrUser',
@@ -70,11 +59,8 @@ export const clearNostrData = () => {
     
     // Remove all Nostr related keys
     nostrKeys.forEach(key => {
-      localStorage.removeItem(key)
-      console.log(`✅ Removed ${key} from localStorage`)
+      storageService.remove(key)
     })
-    
-    console.log('✅ All Nostr data cleared successfully')
     return true
   } catch (error) {
     console.error('❌ Failed to clear Nostr data:', error)
@@ -98,8 +84,6 @@ export const initializeNewNWCSession = async (nwcUrl, name = 'My Lightning Walle
   }
   
   try {
-    console.log('🔌 Initializing new NWC session...')
-    
     // Create connection data structure
     const connection = {
       id: Date.now().toString(36) + Math.random().toString(36).substring(2),
@@ -112,8 +96,8 @@ export const initializeNewNWCSession = async (nwcUrl, name = 'My Lightning Walle
     }
     
     // Save to localStorage
-    localStorage.setItem('nostr_connections', JSON.stringify([connection]))
-    localStorage.setItem('active_connection_id', connection.id)
+    storageService.set('nostr_connections', [connection])
+    storageService.setRaw('active_connection_id', connection.id)
     
     // Initialize NWC client
     const client = await initializeNWC(nwcUrl)
@@ -121,7 +105,6 @@ export const initializeNewNWCSession = async (nwcUrl, name = 'My Lightning Walle
       throw new Error('Failed to initialize NWC client')
     }
     
-    console.log('✅ NWC session initialized successfully')
     return { success: true, connection }
   } catch (error) {
     console.error('❌ Failed to initialize NWC session:', error)
@@ -141,8 +124,6 @@ export const initializeNostrAccount = async (pubkey, customRelays = null) => {
   }
   
   try {
-    console.log('🔑 Initializing new Nostr account...')
-    
     // Create minimal user data
     const npub = npubEncode(pubkey)
     
@@ -165,16 +146,15 @@ export const initializeNostrAccount = async (pubkey, customRelays = null) => {
     }
     
     // Save user data
-    localStorage.setItem('nostrUser', JSON.stringify(userData))
+    storageService.set('nostrUser', userData)
     
     // Initialize relays
     const relays = customRelays || DEFAULT_RELAYS
-    localStorage.setItem('nostrRelays', JSON.stringify(relays))
+    storageService.set('nostrRelays', relays)
     
     // Initialize relay manager with the relays
     await nostrService.initialize(relays)
     
-    console.log('✅ Nostr account initialized successfully')
     return { success: true, userData, relays }
   } catch (error) {
     console.error('❌ Failed to initialize Nostr account:', error)
@@ -188,8 +168,6 @@ export const initializeNostrAccount = async (pubkey, customRelays = null) => {
  */
 export const performCompleteReset = async () => {
   try {
-    console.log('🔄 Starting complete account reset...')
-    
     // List of all storage keys to clear
     const keysToRemove = [
       // NWC related
@@ -220,8 +198,7 @@ export const performCompleteReset = async () => {
     // Clear all keys
     keysToRemove.forEach(key => {
       try {
-        localStorage.removeItem(key)
-        console.log(`✅ Removed ${key} from localStorage`)
+        storageService.remove(key)
       } catch (err) {
         console.warn(`⚠️ Failed to remove ${key}:`, err)
       }
@@ -230,7 +207,6 @@ export const performCompleteReset = async () => {
     // Clear NWC client
     try {
       initializeNWC(null)
-      console.log('✅ Cleared NWC client')
     } catch (err) {
       console.warn('⚠️ Failed to clear NWC client:', err)
     }
@@ -238,12 +214,10 @@ export const performCompleteReset = async () => {
     // Clean up relay manager
     try {
       nostrService.cleanup()
-      console.log('✅ Cleaned up relay manager')
     } catch (err) {
       console.warn('⚠️ Failed to clean up relay manager:', err)
     }
     
-    console.log('✅ Complete account reset successful')
     return { success: true, message: 'All account data has been reset' }
   } catch (error) {
     console.error('❌ Failed to perform complete reset:', error)
@@ -257,8 +231,6 @@ export const performCompleteReset = async () => {
  */
 export const verifyConnectionStatus = async () => {
   try {
-    console.log('🔍 Verifying connection status...')
-
     // Check if localStorage is empty for key items
     const criticalKeys = [
       'nostr_connections',
@@ -266,7 +238,7 @@ export const verifyConnectionStatus = async () => {
       'active_connection_id'
     ]
     
-    const remainingKeys = criticalKeys.filter(key => localStorage.getItem(key) !== null)
+    const remainingKeys = criticalKeys.filter(key => storageService.getRaw(key) !== null)
     if (remainingKeys.length > 0) {
       console.warn('⚠️ Some keys still exist after reset:', remainingKeys)
     }
@@ -274,19 +246,19 @@ export const verifyConnectionStatus = async () => {
     // Check NWC connection
     const nwcConnections = []
     try {
-      const stored = localStorage.getItem('nostr_connections')
+      const stored = storageService.getRaw('nostr_connections')
       if (stored) nwcConnections.push(...JSON.parse(stored))
     } catch (e) {
       console.warn('Failed to parse NWC connections:', e)
     }
     
-    const activeConnectionId = localStorage.getItem('active_connection_id')
+    const activeConnectionId = storageService.getRaw('active_connection_id')
     const hasActiveNWC = activeConnectionId && nwcConnections.some(conn => conn.id === activeConnectionId)
     
     // Check Nostr connection
     let nostrUser = null
     try {
-      const stored = localStorage.getItem('nostrUser')
+      const stored = storageService.getRaw('nostrUser')
       if (stored) nostrUser = JSON.parse(stored)
     } catch (e) {
       console.warn('Failed to parse Nostr user:', e)
@@ -294,7 +266,7 @@ export const verifyConnectionStatus = async () => {
     
     let nostrRelays = []
     try {
-      const stored = localStorage.getItem('nostrRelays')
+      const stored = storageService.getRaw('nostrRelays')
       if (stored) nostrRelays = JSON.parse(stored)
     } catch (e) {
       console.warn('Failed to parse Nostr relays:', e)
@@ -335,8 +307,6 @@ export const verifyConnectionStatus = async () => {
  */
 export const validateStorageIntegrity = async () => {
   try {
-    console.log('🔍 Validating storage integrity...')
-    
     // Check that cleared items are actually gone
     const keysToCheck = [
       'nwc_url',
@@ -344,14 +314,13 @@ export const validateStorageIntegrity = async () => {
       'nostrRelays'
     ]
     
-    const missingKeys = keysToCheck.filter(key => localStorage.getItem(key) !== null)
+    const missingKeys = keysToCheck.filter(key => storageService.getRaw(key) !== null)
     
     if (missingKeys.length > 0) {
       console.warn('⚠️ Some keys were not properly cleared:', missingKeys)
       return false
     }
     
-    console.log('✅ Storage integrity validated successfully')
     return true
   } catch (error) {
     console.error('❌ Failed to validate storage integrity:', error)

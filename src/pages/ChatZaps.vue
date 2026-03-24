@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, nextTick, watch } from 'vue'
+import { ref, computed, nextTick, watch, onUnmounted } from 'vue'
 import {
   IconPlus,
   IconX,
@@ -54,6 +54,19 @@ const messageAreaRef = ref(null)
 const inputBarRef = ref(null)
 const sendError = ref('')
 
+// Inline status for login errors
+const inlineStatus = ref(null)
+let _statusTimer = null
+const showStatus = (message, type = 'error') => {
+  clearTimeout(_statusTimer)
+  inlineStatus.value = { message, type }
+  _statusTimer = setTimeout(() => { inlineStatus.value = null }, 4000)
+}
+
+onUnmounted(() => {
+  clearTimeout(_statusTimer)
+})
+
 // Methods
 const handleNostrLogin = async () => {
   try {
@@ -61,9 +74,9 @@ const handleNostrLogin = async () => {
   } catch (error) {
     console.error('Login failed:', error)
     if (error.message.includes('No Nostr extension')) {
-      alert('No Nostr Extension Found\n\nPlease install a NIP-07 browser extension like:\n• Alby (getalby.com)\n• nos2x\n• Flamingo\n\nThen refresh this page.')
+      showStatus('No Nostr extension found. Please install a NIP-07 browser extension (Alby, nos2x, or Flamingo) and refresh this page.')
     } else {
-      alert('Login failed: ' + error.message)
+      showStatus('Login failed: ' + error.message)
     }
   }
 }
@@ -171,6 +184,19 @@ watch(activeConversation, (conv) => {
 </script>
 
 <template>
+  <div>
+    <!-- Inline Status Banner -->
+    <transition name="slide-down">
+      <div v-if="inlineStatus" role="status" aria-live="polite" :class="[
+        'mb-4 px-4 py-3 rounded-lg text-sm font-medium',
+        inlineStatus.type === 'error' ? 'bg-red-50 text-red-800 border border-red-200' :
+        inlineStatus.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' :
+        'bg-blue-50 text-blue-800 border border-blue-200'
+      ]">
+        {{ inlineStatus.message }}
+      </div>
+    </transition>
+
   <div class="h-[calc(100vh-160px)] sm:h-[calc(100vh-180px)] lg:h-[calc(100vh-200px)] flex bg-white rounded-xl border border-orange-100/50 shadow-sm overflow-hidden">
 
     <!-- Auth Banner -->
@@ -402,6 +428,7 @@ watch(activeConversation, (conv) => {
       :user-profile-data="selectedProfile"
       @close="showProfileModal = false; selectedProfile = null"
     />
+  </div>
   </div>
 </template>
 

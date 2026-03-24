@@ -8,7 +8,7 @@
  * concurrency, event caching, publishing, and event listeners.
  */
 
-import { RelayPool, verifyEvent } from 'nostr-core'
+import { RelayPool, verifyEvent, nip11, nip65 } from './nostrImports.js'
 import { cacheManager } from './CacheManager.js'
 import {
   RELAY_CONNECTION_TIMEOUT, RELAY_MAX_RETRIES, RELAY_RETRY_DELAY,
@@ -16,6 +16,7 @@ import {
   DEFERRED_SUB_TIMEOUT, PUBLISH_TIMEOUT,
   DEFAULT_RELAY_CONFIGS, MAX_CONCURRENT_SUBS,
   SUBSCRIBE_TIMEOUT, SUBSCRIBE_EOSE_GRACE,
+  OUTBOX_RELAY_LIST_TTL, OUTBOX_MAX_RELAYS_PER_PUBKEY, RELAY_INFO_TTL,
 } from '../../utils/constants.js'
 
 /**
@@ -47,6 +48,20 @@ class NostrService {
     // Subscription concurrency
     this._activeSubscriptions = new Set()
     this._subscriptionQueue = []
+
+    // Subscription registry — tracks live subscriptions for re-open on reconnect
+    // Map<id, { filters, callbacks, options, sub, closed }>
+    this._subscriptionRegistry = new Map()
+    this._subIdCounter = 0
+
+    // Outbox model: NIP-65 relay list cache
+    // pubkey → { relays: [{url, read, write}], fetchedAt: timestamp }
+    this._relayListCache = new Map()
+    this._relayListFetches = new Map() // pubkey → Promise (dedup in-flight)
+
+    // NIP-11 relay info cache
+    // url → { info: RelayInfo, fetchedAt: timestamp }
+    this._relayInfoCache = new Map()
   }
 
   _createReadyGate() {
@@ -108,8 +123,33 @@ class NostrService {
     })
   }
 
+  /**
+   * Close all registered subscriptions without tearing down the service.
+   * Use this on page navigation or when you want to stop all data flows.
+   */
+  closeAllSubscriptions() {
+    for (const [id, entry] of this._subscriptionRegistry) {
+      entry.closed = true
+      for (const sub of entry.subs) {
+        try { sub.close() } catch { /* ignore */ }
+      }
+    }
+    this._subscriptionRegistry.clear()
+    this._activeSubscriptions.clear()
+    this._subscriptionQueue.length = 0
+    this.emit('allSubscriptionsClosed', {})
+  }
+
+  /**
+   * Get count of active subscriptions (for debugging/UI).
+   */
+  getActiveSubscriptionCount() {
+    return this._subscriptionRegistry.size
+  }
+
   async cleanup() {
     this._stopHealthCheck()
+    this.closeAllSubscriptions()
 
     const allUrls = Array.from(this.relayStatuses.keys())
     if (allUrls.length > 0) {
@@ -120,9 +160,10 @@ class NostrService {
     this.relayStatuses.clear()
     this._connectionPromises.clear()
     this._eventListeners.clear()
-    this._activeSubscriptions.clear()
-    this._subscriptionQueue.length = 0
     this._relayBackoff.clear()
+    this._relayListCache.clear()
+    this._relayListFetches.clear()
+    this._relayInfoCache.clear()
     cacheManager.clear()
 
     this._initialized = false
@@ -238,7 +279,9 @@ class NostrService {
 
     const readRelays = this._getHealthyReadRelayUrls()
     if (readRelays.length === 0) {
-      throw new Error('No read-enabled relays available')
+      // Return cached data if available, otherwise null — don't crash
+      this.emit('noRelaysAvailable', { filter })
+      return cached !== undefined ? cached : null
     }
 
     try {
@@ -282,7 +325,8 @@ class NostrService {
       ? targetRelays.map(r => r.url || r)
       : this._getHealthyWriteRelayUrls()
     if (relayUrls.length === 0) {
-      throw new Error('No write-enabled relays available')
+      this.emit('noRelaysAvailable', { eventId: event.id })
+      throw new Error('Cannot publish: no relays are connected. Check your internet connection and try again.')
     }
 
     let pubTimeoutId
@@ -384,6 +428,226 @@ class NostrService {
     } catch (err) {
       console.warn(`Failed to reconnect to ${url}:`, err.message)
     }
+  }
+
+  // ── Outbox Model (NIP-65) ───────────────────────────────────────
+
+  /**
+   * Fetch and cache a user's NIP-65 relay list (kind:10002).
+   * Uses nostr-core's parseRelayList for parsing.
+   * @param {string} pubkey — hex pubkey
+   * @returns {Promise<Array<{url, read, write}>>}
+   */
+  async fetchRelayList(pubkey) {
+    // Check cache
+    const cached = this._relayListCache.get(pubkey)
+    if (cached && (Date.now() - cached.fetchedAt) < OUTBOX_RELAY_LIST_TTL) {
+      return cached.relays
+    }
+
+    // Dedup in-flight
+    if (this._relayListFetches.has(pubkey)) {
+      return this._relayListFetches.get(pubkey)
+    }
+
+    const promise = this._fetchRelayListFromRelays(pubkey)
+    this._relayListFetches.set(pubkey, promise)
+
+    try {
+      return await promise
+    } finally {
+      this._relayListFetches.delete(pubkey)
+    }
+  }
+
+  async _fetchRelayListFromRelays(pubkey) {
+    try {
+      const event = await this.queryOne({
+        kinds: [10002], authors: [pubkey], limit: 1
+      })
+
+      if (!event) {
+        this._relayListCache.set(pubkey, { relays: [], fetchedAt: Date.now() })
+        return []
+      }
+
+      const relays = nip65.parseRelayList(event)
+      this._relayListCache.set(pubkey, { relays, fetchedAt: Date.now() })
+      return relays
+    } catch (err) {
+      console.warn(`Failed to fetch relay list for ${pubkey.substring(0, 8)}:`, err.message)
+      return []
+    }
+  }
+
+  /**
+   * Get outbox relays for a set of pubkeys — their WRITE relays
+   * (where they publish events). Use these relays to READ their events.
+   * @param {string[]} pubkeys
+   * @returns {Promise<string[]>} deduplicated relay URLs
+   */
+  async getOutboxRelays(pubkeys) {
+    const relayUrls = new Set()
+    const fetches = pubkeys.map(pk => this.fetchRelayList(pk))
+    const results = await Promise.allSettled(fetches)
+
+    for (const result of results) {
+      if (result.status !== 'fulfilled') continue
+      const relays = result.value
+      const writeRelays = nip65.getWriteRelays(relays)
+      for (const url of writeRelays.slice(0, OUTBOX_MAX_RELAYS_PER_PUBKEY)) {
+        relayUrls.add(url)
+      }
+    }
+
+    return Array.from(relayUrls)
+  }
+
+  /**
+   * Get inbox relays for a set of pubkeys — their READ relays
+   * (where they read events). Use these relays to PUBLISH events to them.
+   * @param {string[]} pubkeys
+   * @returns {Promise<string[]>} deduplicated relay URLs
+   */
+  async getInboxRelays(pubkeys) {
+    const relayUrls = new Set()
+    const fetches = pubkeys.map(pk => this.fetchRelayList(pk))
+    const results = await Promise.allSettled(fetches)
+
+    for (const result of results) {
+      if (result.status !== 'fulfilled') continue
+      const relays = result.value
+      const readRelays = nip65.getReadRelays(relays)
+      for (const url of readRelays.slice(0, OUTBOX_MAX_RELAYS_PER_PUBKEY)) {
+        relayUrls.add(url)
+      }
+    }
+
+    return Array.from(relayUrls)
+  }
+
+  /**
+   * Query with outbox model: fetch events from the target pubkeys'
+   * write relays in addition to our own read relays.
+   * @param {Array<object>} filters — must contain `authors` field
+   * @param {object} [opts] — same as query() options
+   * @returns {Promise<Array>}
+   */
+  async queryOutbox(filters, opts = {}) {
+    await this.ready()
+
+    // Extract pubkeys from filters
+    const pubkeys = new Set()
+    for (const f of filters) {
+      if (f.authors) f.authors.forEach(pk => pubkeys.add(pk))
+      if (f['#p']) f['#p'].forEach(pk => pubkeys.add(pk))
+    }
+
+    if (pubkeys.size === 0) {
+      return this.query(filters, opts)
+    }
+
+    // Fetch outbox relays for targets
+    const outboxUrls = await this.getOutboxRelays(Array.from(pubkeys))
+
+    // Ensure we're connected to outbox relays (best-effort)
+    const newRelays = outboxUrls.filter(url => !this.relayConnections.has(url))
+    if (newRelays.length > 0) {
+      await Promise.allSettled(
+        newRelays.map(url => this.connectToRelay(url, { read: true, write: false }))
+      )
+    }
+
+    // Query across our relays + outbox relays
+    return this.query(filters, opts)
+  }
+
+  /**
+   * Publish with inbox model: publish to the target recipients'
+   * read relays in addition to our own write relays.
+   * @param {object} event — signed Nostr event
+   * @param {string[]} recipientPubkeys — target recipients
+   * @returns {Promise<{successful, failed, total}>}
+   */
+  async publishInbox(event, recipientPubkeys = []) {
+    await this.ready()
+
+    if (recipientPubkeys.length === 0) {
+      return this.publish(event)
+    }
+
+    // Fetch inbox relays for recipients
+    const inboxUrls = await this.getInboxRelays(recipientPubkeys)
+
+    // Ensure connected to inbox relays (best-effort)
+    const newRelays = inboxUrls.filter(url => !this.relayConnections.has(url))
+    if (newRelays.length > 0) {
+      await Promise.allSettled(
+        newRelays.map(url => this.connectToRelay(url, { read: false, write: true }))
+      )
+    }
+
+    // Publish to our write relays + inbox relays
+    const allWriteUrls = new Set([
+      ...this._getHealthyWriteRelayUrls(),
+      ...inboxUrls
+    ])
+    const targetRelays = Array.from(allWriteUrls).map(url => ({ url }))
+    return this.publish(event, targetRelays)
+  }
+
+  // ── NIP-11: Relay Information ─────────────────────────────────
+
+  /**
+   * Fetch relay information document (NIP-11).
+   * Caches results for 1 hour.
+   * @param {string} relayUrl — wss:// relay URL
+   * @returns {Promise<object|null>} RelayInfo or null
+   */
+  async fetchRelayInfo(relayUrl) {
+    const cached = this._relayInfoCache.get(relayUrl)
+    if (cached && (Date.now() - cached.fetchedAt) < RELAY_INFO_TTL) {
+      return cached.info
+    }
+
+    try {
+      const info = await nip11.fetchRelayInfo(relayUrl)
+      this._relayInfoCache.set(relayUrl, { info, fetchedAt: Date.now() })
+      return info
+    } catch (err) {
+      console.warn(`Failed to fetch NIP-11 info for ${relayUrl}:`, err.message)
+      return null
+    }
+  }
+
+  /**
+   * Check if a relay supports a specific NIP.
+   * @param {string} relayUrl
+   * @param {number} nipNumber
+   * @returns {Promise<boolean>}
+   */
+  async relaySupportsNip(relayUrl, nipNumber) {
+    const info = await this.fetchRelayInfo(relayUrl)
+    if (!info) return false
+    return nip11.supportsNip(info, nipNumber)
+  }
+
+  /**
+   * Fetch NIP-11 info for all connected relays.
+   * @returns {Promise<Map<string, object>>} url → RelayInfo
+   */
+  async fetchAllRelayInfo() {
+    const connected = this.getConnectedRelays()
+    const results = new Map()
+
+    await Promise.allSettled(
+      connected.map(async (relay) => {
+        const info = await this.fetchRelayInfo(relay.url)
+        if (info) results.set(relay.url, info)
+      })
+    )
+
+    return results
   }
 
   // ── Event Cache ─────────────────────────────────────────────────
@@ -521,11 +785,14 @@ class NostrService {
   }
 
   async _performHealthCheck() {
+    let hadRecovery = false
     const statuses = this.getRelayStatuses()
+
     await Promise.allSettled(statuses.map(async (relayStatus) => {
       try {
         if (!this.relayConnections.has(relayStatus.url)) {
           await this.reconnectRelay(relayStatus.url)
+          hadRecovery = true
           return
         }
 
@@ -545,13 +812,65 @@ class NostrService {
         if (relayStatus.status !== 'connected') {
           this.setRelayStatus(relayStatus.url, 'connected', relayStatus.config)
           this.emit('relayHealthy', { url: relayStatus.url })
+          hadRecovery = true
         }
       } catch (error) {
-        this.setRelayStatus(relayStatus.url, 'unhealthy', relayStatus.config, error.message)
-        this.emit('relayUnhealthy', { url: relayStatus.url, error: error.message })
+        // Mark relay as disconnected (not just unhealthy) so UI shows accurate state
+        this.relayConnections.delete(relayStatus.url)
+        this.setRelayStatus(relayStatus.url, 'disconnected', relayStatus.config, error.message)
+        this.emit('relayDisconnected', { url: relayStatus.url, error: error.message })
         setTimeout(() => this.reconnectRelay(relayStatus.url), RELAY_RETRY_DELAY)
       }
     }))
+
+    // After health check, re-open any subscriptions that were waiting for relays
+    if (hadRecovery) {
+      this._reopenSubscriptions()
+    }
+  }
+
+  /**
+   * Re-open subscriptions that were registered but had no relays,
+   * or whose relays disconnected. Called after a relay reconnects.
+   */
+  _reopenSubscriptions() {
+    const healthyRelays = this._getHealthyReadRelayUrls()
+    if (healthyRelays.length === 0) return
+
+    for (const [id, entry] of this._subscriptionRegistry) {
+      if (entry.closed) {
+        this._subscriptionRegistry.delete(id)
+        continue
+      }
+
+      // If the subscription has no open subs (was created with 0 relays),
+      // or if we want to refresh it, open it now.
+      const hasOpenSubs = entry.subs.length > 0
+      if (!hasOpenSubs) {
+        try {
+          // Close any existing subs first
+          for (const sub of entry.subs) {
+            try { sub.close() } catch { /* ignore */ }
+          }
+          entry.subs = []
+
+          // Re-open with current healthy relays
+          for (const filter of entry.filters) {
+            const sub = this.pool.subscribe(healthyRelays, filter, {
+              onevent: (event) => entry.callbacks.onevent?.(event),
+              oneose: () => entry.callbacks.oneose?.(),
+              onclose: () => {},
+              maxWait: entry.options.maxWait || 10_000,
+            })
+            entry.subs.push(sub)
+          }
+
+          this.emit('subscriptionReopened', { id, filters: entry.filters })
+        } catch (err) {
+          console.warn(`Failed to reopen subscription ${id}:`, err.message)
+        }
+      }
+    }
   }
 
   // ── Internal: Backoff ───────────────────────────────────────────
@@ -650,15 +969,32 @@ class NostrService {
    * nostr-core RelayPool.subscribe takes a single Filter, not an array.
    * For multiple filters, we open one pool subscription per filter and
    * aggregate EOSE across all of them.
+   *
+   * Registered in the subscription registry so it can be re-opened
+   * after a relay reconnects.
    */
   _openSubscription(filters, callbacks, options) {
     const relayUrls = this._getHealthyReadRelayUrls()
     if (relayUrls.length === 0) {
-      throw new Error('No read-enabled relays available (all may be rate-limited or unhealthy)')
+      // Instead of throwing, return a no-op sub and emit a warning.
+      // The subscription is still registered so it can be opened
+      // when relays come back online.
+      this.emit('noRelaysAvailable', { filters })
+      const registryId = ++this._subIdCounter
+      const entry = { filters, callbacks, options, subs: [], closed: false }
+      this._subscriptionRegistry.set(registryId, entry)
+
+      return {
+        close: () => {
+          entry.closed = true
+          this._subscriptionRegistry.delete(registryId)
+        },
+      }
     }
 
     const subId = Symbol('sub')
     this._activeSubscriptions.add(subId)
+    const registryId = ++this._subIdCounter
 
     let cleaned = false
     const cleanupSub = () => {
@@ -709,8 +1045,14 @@ class NostrService {
       subs.push(sub)
     }
 
+    // Register for potential re-open on reconnect
+    const entry = { filters, callbacks, options, subs, closed: false }
+    this._subscriptionRegistry.set(registryId, entry)
+
     // Composite close handle
     const compositeClose = () => {
+      entry.closed = true
+      this._subscriptionRegistry.delete(registryId)
       cleanupSub()
       for (const sub of subs) {
         try { sub.close() } catch { /* ignore */ }

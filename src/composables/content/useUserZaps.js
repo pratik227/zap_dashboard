@@ -2,7 +2,7 @@ import { ref, computed, watch } from 'vue'
 import { useNostrAuth } from '../auth/useNostrAuth.js'
 import { nostrService } from '../../services/nostr/NostrService.js'
 import { parseZapReceipt } from '../../utils/zaps/parseZapReceipt.js'
-import { fetchProfile, batchFetchProfiles, profileCache } from '../../utils/profile/profileFetcher.js'
+import { profileService } from '../../services/nostr/ProfileService.js'
 import { generateAvatar } from '../../utils/profile/avatarGenerator.js'
 
 // Module-scope state (shared across all component instances)
@@ -70,12 +70,12 @@ export function useUserZaps() {
 
       // Phase 3: Batch fetch profiles for all unique zappers
       const uniquePubkeys = [...new Set(parsedZaps.map(z => z.zapperPubkey))]
-      await batchFetchProfiles(uniquePubkeys)
+      await profileService.batch(uniquePubkeys)
 
       // Phase 4: Enrich zaps with profile data
       const enriched = parsedZaps.map(parsed => {
-        const cached = profileCache.get(parsed.zapperPubkey)
-        return enrichZap(parsed, cached?.profile || null)
+        const cached = profileService.getCached(parsed.zapperPubkey)
+        return enrichZap(parsed, cached || null)
       })
 
       // Sort newest first
@@ -101,7 +101,7 @@ export function useUserZaps() {
             // Fetch profile for the new zapper
             let profile = null
             try {
-              profile = await fetchProfile(parsed.zapperPubkey)
+              profile = await profileService.get(parsed.zapperPubkey)
             } catch { /* use fallback */ }
 
             const enriched = enrichZap(parsed, profile)

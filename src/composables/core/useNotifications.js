@@ -1,6 +1,7 @@
 import { ref, computed, watch } from 'vue'
 import { useNostrConnections } from './useNostrConnections.js'
 import { fetchTransactions, getBalance } from '../../utils/wallet/nwcClient.js'
+import { storageService, STORAGE_KEYS } from '../../services/StorageService.js'
 
 // Global notification state
 const notifications = ref([])
@@ -33,12 +34,7 @@ const NOTIFICATION_TYPES = {
   CALENDAR_EVENT_START: 'calendar_event_start'
 }
 
-// Storage keys
-const NOTIFICATION_SETTINGS_KEY = 'notification_settings'
-const LAST_TRANSACTION_KEY = 'last_transaction_timestamp'
-const LAST_BALANCE_KEY = 'last_balance'
-const PROCESSED_TRANSACTIONS_KEY = 'processed_transactions'
-const NOTIFICATIONS_KEY = 'notifications_list'
+// Storage key for calendar events (no STORAGE_KEYS constant for this one)
 const NOTIFIED_EVENTS_KEY = 'notified_calendar_events'
 
 // Generate unique notification ID
@@ -46,59 +42,38 @@ const generateNotificationId = () => Date.now().toString(36) + Math.random().toS
 
 // Load settings from localStorage
 const loadNotificationSettings = () => {
-  try {
-    const stored = localStorage.getItem(NOTIFICATION_SETTINGS_KEY)
-    if (stored) {
-      const parsed = JSON.parse(stored)
-      notificationSettings.value = { ...notificationSettings.value, ...parsed }
-    }
-  } catch (error) {
-    console.error('Failed to load notification settings:', error)
+  const parsed = storageService.get(STORAGE_KEYS.NOTIFICATION_SETTINGS)
+  if (parsed) {
+    notificationSettings.value = { ...notificationSettings.value, ...parsed }
   }
 }
 
 // Load notifications from localStorage
 const loadNotifications = () => {
-  try {
-    const stored = localStorage.getItem(NOTIFICATIONS_KEY)
-    if (stored) {
-      const parsed = JSON.parse(stored)
-      notifications.value = Array.isArray(parsed) ? parsed : []
-    }
-  } catch (error) {
-    console.error('Failed to load notifications:', error)
-    notifications.value = []
-  }
+  const parsed = storageService.get(STORAGE_KEYS.NOTIFICATIONS_LIST, [])
+  notifications.value = Array.isArray(parsed) ? parsed : []
 }
 
 // Save notifications to localStorage
 const saveNotifications = () => {
-  try {
-    // Always keep calendar notifications, limit others
-    const calendarNotifs = notifications.value.filter(n =>
-      n.type === NOTIFICATION_TYPES.CALENDAR_INVITE ||
-      n.type === NOTIFICATION_TYPES.CALENDAR_EVENT_START
-    )
-    const otherNotifs = notifications.value.filter(n =>
-      n.type !== NOTIFICATION_TYPES.CALENDAR_INVITE &&
-      n.type !== NOTIFICATION_TYPES.CALENDAR_EVENT_START
-    )
+  // Always keep calendar notifications, limit others
+  const calendarNotifs = notifications.value.filter(n =>
+    n.type === NOTIFICATION_TYPES.CALENDAR_INVITE ||
+    n.type === NOTIFICATION_TYPES.CALENDAR_EVENT_START
+  )
+  const otherNotifs = notifications.value.filter(n =>
+    n.type !== NOTIFICATION_TYPES.CALENDAR_INVITE &&
+    n.type !== NOTIFICATION_TYPES.CALENDAR_EVENT_START
+  )
 
-    // Keep all calendar notifications + up to 200 other notifications
-    const notificationsToSave = [...calendarNotifs, ...otherNotifs.slice(0, 200)]
-    localStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(notificationsToSave))
-  } catch (error) {
-    console.error('Failed to save notifications:', error)
-  }
+  // Keep all calendar notifications + up to 200 other notifications
+  const notificationsToSave = [...calendarNotifs, ...otherNotifs.slice(0, 200)]
+  storageService.set(STORAGE_KEYS.NOTIFICATIONS_LIST, notificationsToSave)
 }
 
 // Save settings to localStorage
 const saveNotificationSettings = () => {
-  try {
-    localStorage.setItem(NOTIFICATION_SETTINGS_KEY, JSON.stringify(notificationSettings.value))
-  } catch (error) {
-    console.error('Failed to save notification settings:', error)
-  }
+  storageService.set(STORAGE_KEYS.NOTIFICATION_SETTINGS, notificationSettings.value)
 }
 
 // Watch specific settings properties (avoid deep watch)
@@ -450,24 +425,20 @@ const startTransactionMonitoring = async () => {
   }
 
   // Load last known state from localStorage
-  try {
-    const storedTimestamp = localStorage.getItem(LAST_TRANSACTION_KEY)
-    const storedBalance = localStorage.getItem(LAST_BALANCE_KEY)
-    const storedProcessedTransactions = localStorage.getItem(PROCESSED_TRANSACTIONS_KEY)
+  const storedTimestamp = storageService.getRaw(STORAGE_KEYS.LAST_TX_TIMESTAMP)
+  const storedBalance = storageService.getRaw(STORAGE_KEYS.LAST_BALANCE)
+  const storedProcessedTransactions = storageService.get(STORAGE_KEYS.PROCESSED_TX)
 
-    if (storedTimestamp) {
-      lastTransactionTimestamp = parseInt(storedTimestamp)
-    }
+  if (storedTimestamp) {
+    lastTransactionTimestamp = parseInt(storedTimestamp)
+  }
 
-    if (storedBalance) {
-      lastBalance = parseInt(storedBalance)
-    }
+  if (storedBalance) {
+    lastBalance = parseInt(storedBalance)
+  }
 
-    if (storedProcessedTransactions) {
-      processedTransactions = new Set(JSON.parse(storedProcessedTransactions))
-    }
-  } catch (error) {
-    console.warn('Failed to load last transaction state:', error)
+  if (storedProcessedTransactions) {
+    processedTransactions = new Set(storedProcessedTransactions)
   }
 
   // Flag to prevent initial balance notification
@@ -518,12 +489,12 @@ const startTransactionMonitoring = async () => {
 
         // Save state if we processed new transactions
         if (hasNewTransactions) {
-          localStorage.setItem(LAST_TRANSACTION_KEY, lastTransactionTimestamp.toString())
+          storageService.setRaw(STORAGE_KEYS.LAST_TX_TIMESTAMP, lastTransactionTimestamp.toString())
 
           // Keep only recent transaction hashes (last 1000)
           const recentTransactions = Array.from(processedTransactions).slice(-1000)
           processedTransactions = new Set(recentTransactions)
-          localStorage.setItem(PROCESSED_TRANSACTIONS_KEY, JSON.stringify(Array.from(processedTransactions)))
+          storageService.set(STORAGE_KEYS.PROCESSED_TX, Array.from(processedTransactions))
         }
       }
 
@@ -537,7 +508,7 @@ const startTransactionMonitoring = async () => {
         }
 
         lastBalance = currentBalance
-        localStorage.setItem(LAST_BALANCE_KEY, lastBalance.toString())
+        storageService.setRaw(STORAGE_KEYS.LAST_BALANCE, lastBalance.toString())
         isInitialBalanceCheck = false
       }
     } catch (error) {
@@ -560,24 +531,16 @@ let eventMonitoring = null
 let notifiedEvents = new Set()
 
 const loadNotifiedEvents = () => {
-  try {
-    const stored = localStorage.getItem(NOTIFIED_EVENTS_KEY)
-    if (stored) {
-      notifiedEvents = new Set(JSON.parse(stored))
-    }
-  } catch (error) {
-    console.warn('Failed to load notified events:', error)
+  const stored = storageService.get(NOTIFIED_EVENTS_KEY)
+  if (stored) {
+    notifiedEvents = new Set(stored)
   }
 }
 
 const saveNotifiedEvents = () => {
-  try {
-    const recentEvents = Array.from(notifiedEvents).slice(-500)
-    notifiedEvents = new Set(recentEvents)
-    localStorage.setItem(NOTIFIED_EVENTS_KEY, JSON.stringify(Array.from(notifiedEvents)))
-  } catch (error) {
-    console.warn('Failed to save notified events:', error)
-  }
+  const recentEvents = Array.from(notifiedEvents).slice(-500)
+  notifiedEvents = new Set(recentEvents)
+  storageService.set(NOTIFIED_EVENTS_KEY, Array.from(notifiedEvents))
 }
 
 const startEventMonitoring = (getEventsCallback) => {

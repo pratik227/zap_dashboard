@@ -1,5 +1,5 @@
 <script setup>
-import { computed, inject, ref, onMounted } from 'vue'
+import { computed, inject, ref, onMounted, onUnmounted } from 'vue'
 import { IconClock, IconUsers, IconTrendingUp, IconAlertCircle } from '@iconify-prerendered/vue-tabler'
 import { useNostrAuth } from '../composables/auth/useNostrAuth.js'
 import { filterZapsByTimeRange } from '../utils/core/timeFilter.js'
@@ -14,15 +14,28 @@ const emit = defineEmits(['show-help'])
 
 const { login } = useNostrAuth()
 
+// Inline status for login errors
+const inlineStatus = ref(null)
+let _statusTimer = null
+const showStatus = (message, type = 'error') => {
+  clearTimeout(_statusTimer)
+  inlineStatus.value = { message, type }
+  _statusTimer = setTimeout(() => { inlineStatus.value = null }, 4000)
+}
+
+onUnmounted(() => {
+  clearTimeout(_statusTimer)
+})
+
 const handleConnectNostr = async () => {
   try {
     await login()
   } catch (error) {
     console.error('Login failed:', error.message)
     if (error.message.includes('No Nostr extension')) {
-      alert('No Nostr Extension Found\n\nPlease install a NIP-07 browser extension like:\n• Alby (getalby.com)\n• nos2x\n• Flamingo\n\nThen refresh this page.')
+      showStatus('No Nostr extension found. Please install a NIP-07 browser extension (Alby, nos2x, or Flamingo) and refresh this page.')
     } else {
-      alert('Login failed: ' + error.message)
+      showStatus('Login failed: ' + error.message)
     }
   }
 }
@@ -31,8 +44,10 @@ const handleConnectNostr = async () => {
 const VChart = ref(null)
 const echartsError = ref(null)
 const isEchartsLoaded = ref(false)
+const isRetryingCharts = ref(false)
 
-onMounted(async () => {
+const loadEcharts = async () => {
+  echartsError.value = null
   try {
     const { use } = await import('echarts/core')
     const { CanvasRenderer } = await import('echarts/renderers')
@@ -51,14 +66,22 @@ onMounted(async () => {
       TooltipComponent,
       GridComponent
     ])
-    
+
     VChart.value = VChartComponent
     isEchartsLoaded.value = true
   } catch (error) {
     console.error('Failed to load ECharts:', error)
     echartsError.value = error.message
   }
-})
+}
+
+const retryLoadCharts = async () => {
+  isRetryingCharts.value = true
+  await loadEcharts()
+  isRetryingCharts.value = false
+}
+
+onMounted(loadEcharts)
 
 const combinedZapData = inject('combinedZapData')
 const profileStore = inject('profileStore')
@@ -500,6 +523,18 @@ const summaryStats = computed(() => {
 </script>
 
 <template>
+  <!-- Inline Status Banner -->
+  <transition name="slide-down">
+    <div v-if="inlineStatus" role="status" aria-live="polite" :class="[
+      'mb-4 px-4 py-3 rounded-lg text-sm font-medium',
+      inlineStatus.type === 'error' ? 'bg-red-50 text-red-800 border border-red-200' :
+      inlineStatus.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' :
+      'bg-blue-50 text-blue-800 border border-blue-200'
+    ]">
+      {{ inlineStatus.message }}
+    </div>
+  </transition>
+
   <!-- Empty State - Not Authenticated -->
   <EmptyStateAnalytics
     v-if="!isAuthenticated"
@@ -536,9 +571,18 @@ const summaryStats = computed(() => {
 
     <!-- ECharts Loading Error -->
     <div v-if="echartsError" class="bg-red-50 border border-red-200 rounded-lg p-4">
-      <div class="flex items-center space-x-2">
-        <IconAlertCircle class="w-5 h-5 text-red-600" />
-        <span class="text-red-800">Failed to load charts: {{ echartsError }}</span>
+      <div class="flex items-center justify-between">
+        <div class="flex items-center space-x-2">
+          <IconAlertCircle class="w-5 h-5 text-red-600 flex-shrink-0" />
+          <span class="text-red-800">Failed to load charts: {{ echartsError }}</span>
+        </div>
+        <button
+          @click="retryLoadCharts"
+          :disabled="isRetryingCharts"
+          class="ml-4 px-4 py-1.5 text-sm font-medium text-red-700 bg-red-100 hover:bg-red-200 rounded-lg transition-colors flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {{ isRetryingCharts ? 'Retrying...' : 'Retry' }}
+        </button>
       </div>
     </div>
 

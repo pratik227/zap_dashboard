@@ -1,11 +1,12 @@
 import { ref, computed, watch, onMounted } from 'vue'
-import { nip19 } from '../../services/nostr/nostrImports.js'
+import { nip19, parseRelayList } from '../../services/nostr/nostrImports.js'
 import { nostrService } from '../../services/nostr/NostrService.js'
 import { signerService } from '../../services/nostr/SignerService.js'
 import { initializeNWC } from '../../utils/wallet/nwcClient.js'
-import { fetchProfile } from '../../utils/profile/profileFetcher.js'
+import { profileService } from '../../services/nostr/ProfileService.js'
 import { DEFAULT_RELAY_CONFIGS_WITH_STATUS } from '../../utils/constants.js'
 import { stopRefreshCycle } from '../../utils/refreshCycle.js'
+import { storageService, STORAGE_KEYS } from '../../services/StorageService.js'
 
 // Global state for Nostr authentication
 const currentUser = ref(null)
@@ -13,10 +14,6 @@ const isLoading = ref(false)
 const authError = ref('')
 const userRelays = ref([])
 const relayError = ref('')
-
-// Storage keys
-const NOSTR_USER_KEY = 'nostrUser'
-const NOSTR_RELAYS_KEY = 'nostrRelays'
 
 // Initialization guard to prevent multiple setups
 let isInitialized = false
@@ -29,52 +26,32 @@ const DEFAULT_RELAYS = DEFAULT_RELAY_CONFIGS_WITH_STATUS
 
 // Load user from localStorage
 const loadUserFromStorage = () => {
-  try {
-    const stored = localStorage.getItem(NOSTR_USER_KEY)
-    if (stored) {
-      const userData = JSON.parse(stored)
-      currentUser.value = userData
-      return true
-    }
-  } catch (error) {
-    console.error('Failed to load user from storage:', error)
-    authError.value = 'Failed to load saved user data'
+  const userData = storageService.get(STORAGE_KEYS.USER)
+  if (userData) {
+    currentUser.value = userData
+    return true
   }
   return false
 }
 
 // Save user to localStorage
 const saveUserToStorage = (userData) => {
-  try {
-    localStorage.setItem(NOSTR_USER_KEY, JSON.stringify(userData))
-  } catch (error) {
-    console.error('Failed to save user to storage:', error)
-  }
+  storageService.set(STORAGE_KEYS.USER, userData)
 }
 
 // Load relays from localStorage
 const loadRelaysFromStorage = () => {
-  try {
-    const stored = localStorage.getItem(NOSTR_RELAYS_KEY)
-    if (stored) {
-      const relayData = JSON.parse(stored)
-      userRelays.value = relayData
-      return true
-    }
-  } catch (error) {
-    console.error('Failed to load relays from storage:', error)
-    relayError.value = 'Failed to load saved relay data'
+  const relayData = storageService.get(STORAGE_KEYS.RELAYS)
+  if (relayData) {
+    userRelays.value = relayData
+    return true
   }
   return false
 }
 
 // Save relays to localStorage
 const saveRelaysToStorage = (relayData) => {
-  try {
-    localStorage.setItem(NOSTR_RELAYS_KEY, JSON.stringify(relayData))
-  } catch (error) {
-    console.error('Failed to save relays to storage:', error)
-  }
+  storageService.set(STORAGE_KEYS.RELAYS, relayData)
 }
 
 // Sync relay statuses from relay manager
@@ -116,7 +93,7 @@ const syncRelayStatuses = () => {
   saveRelaysToStorage(userRelays.value)
 }
 
-// Fetch user profile using centralized profileFetcher
+// Fetch user profile using ProfileService
 const fetchAndStoreProfile = async (pubkey) => {
   if (!pubkey) {
     throw new Error('No pubkey provided')
@@ -126,20 +103,13 @@ const fetchAndStoreProfile = async (pubkey) => {
 
   // First, check what we have stored (so we don't overwrite good data with bad)
   let existingProfile = null
-  const existingUser = localStorage.getItem(NOSTR_USER_KEY)
-  if (existingUser) {
-    try {
-      const existing = JSON.parse(existingUser)
-      if (existing.pubkey === pubkey && existing.profile?.picture) {
-        existingProfile = existing
-      }
-    } catch (e) {
-      // ignore parse error
-    }
+  const existing = storageService.get(STORAGE_KEYS.USER)
+  if (existing?.pubkey === pubkey && existing?.profile?.picture) {
+    existingProfile = existing
   }
 
   try {
-    const profile = await fetchProfile(pubkey)
+    const profile = await profileService.get(pubkey)
 
     // If fetched profile has no picture but we have existing with picture, keep existing
     if (!profile?.picture && existingProfile) {
@@ -308,11 +278,11 @@ const removeRelay = (url) => {
 }
 
 // Fetch user's NIP-65 relay list (kind 10002) from Nostr
+// Uses nostr-core's parseRelayList for spec-correct parsing.
 const fetchUserRelayList = async (pubkey) => {
   if (!pubkey) return null
 
   try {
-    // Query for kind 10002 (NIP-65 relay list) from the user
     const relayListEvent = await nostrService.queryOne({
       kinds: [10002],
       authors: [pubkey],
@@ -323,24 +293,14 @@ const fetchUserRelayList = async (pubkey) => {
       return null
     }
 
-    // Parse relay list from tags
-    // Format: ["r", "wss://relay.example.com", "read"] or ["r", "wss://relay.example.com", "write"] or ["r", "wss://relay.example.com"]
-    const relays = []
-    for (const tag of relayListEvent.tags) {
-      if (tag[0] === 'r' && tag[1]) {
-        const url = tag[1]
-        const marker = tag[2] // "read", "write", or undefined (both)
-        
-        relays.push({
-          url,
-          read: !marker || marker === 'read',
-          write: !marker || marker === 'write',
-          status: 'disconnected'
-        })
-      }
-    }
-
-    return relays
+    // nostr-core parseRelayList returns [{url, read, write}]
+    const parsed = parseRelayList(relayListEvent)
+    return parsed.map(r => ({
+      url: r.url,
+      read: r.read,
+      write: r.write,
+      status: 'disconnected'
+    }))
   } catch (error) {
     console.error('Failed to fetch NIP-65 relay list:', error)
     return null
@@ -449,7 +409,7 @@ const waitForRelayManager = async (timeoutMs = 5000) => {
   return result
 }
 
-// Login function - NIP-07 browser extension only
+// Login function - NIP-07 browser extension
 const login = async () => {
   // Check if user is already logged in with complete profile
   if (isAuthenticated.value && currentUser.value && isProfileComplete(currentUser.value)) {
@@ -467,33 +427,28 @@ const login = async () => {
   authError.value = ''
 
   try {
-    // Get public key from extension
-    const pubkey = await signerService.getPublicKey()
+    // Connect to browser extension and get public key
+    const pubkey = await signerService.connectExtension()
 
     // Check if this user is already stored with complete profile
-    const existingUser = localStorage.getItem(NOSTR_USER_KEY)
-    if (existingUser) {
-      try {
-        const userData = JSON.parse(existingUser)
-        if (userData.pubkey === pubkey && isProfileComplete(userData)) {
-          currentUser.value = userData
+    const storedUser = storageService.get(STORAGE_KEYS.USER)
+    if (storedUser) {
+      if (storedUser.pubkey === pubkey && isProfileComplete(storedUser)) {
+        currentUser.value = storedUser
 
-          // Background tasks (don't block — relay manager ready() is awaited internally)
-          nostrService.ready().then(() => {
-            startUserEventListener(pubkey)
-            updateRelaysFromNip65(pubkey).catch(e => {
-              console.warn('NIP-65 relay update failed:', e.message)
-            })
-          }).catch(() => {
-            console.warn('Relay manager failed to become ready, skipping NIP-65 + listener')
+        // Background tasks (don't block — relay manager ready() is awaited internally)
+        nostrService.ready().then(() => {
+          startUserEventListener(pubkey)
+          updateRelaysFromNip65(pubkey).catch(e => {
+            console.warn('NIP-65 relay update failed:', e.message)
           })
-          return userData
-        } else if (userData.pubkey === pubkey) {
-          // Set the incomplete profile for now so UI shows something
-          currentUser.value = userData
-        }
-      } catch (e) {
-        console.warn('Failed to parse stored user:', e)
+        }).catch(() => {
+          console.warn('Relay manager failed to become ready, skipping NIP-65 + listener')
+        })
+        return storedUser
+      } else if (storedUser.pubkey === pubkey) {
+        // Set the incomplete profile for now so UI shows something
+        currentUser.value = storedUser
       }
     }
 
@@ -543,6 +498,49 @@ const login = async () => {
   }
 }
 
+// Login with NIP-46 remote signer (Amber, nsec.app, etc.)
+const loginWithRemote = async (connectionUri) => {
+  if (!connectionUri?.trim()) {
+    const error = 'Please enter a bunker:// or nostrconnect:// URI'
+    authError.value = error
+    throw new Error(error)
+  }
+
+  isLoading.value = true
+  authError.value = ''
+
+  try {
+    // Connect via NIP-46
+    const pubkey = await signerService.connectRemote(connectionUri.trim())
+
+    // Store connection type for session restore
+    storageService.setRaw(STORAGE_KEYS.SIGNER_TYPE, 'remote')
+    storageService.setRaw(STORAGE_KEYS.REMOTE_URI, connectionUri.trim())
+
+    // Check if relay manager is ready
+    if (!nostrService.isInitialized) {
+      await waitForRelayManager(5000)
+    }
+
+    // Fetch profile
+    const userData = await fetchAndStoreProfile(pubkey)
+
+    // Background tasks
+    startUserEventListener(pubkey)
+    updateRelaysFromNip65(pubkey).catch(e => {
+      console.warn('NIP-65 relay update failed:', e.message)
+    })
+
+    return userData
+  } catch (error) {
+    console.error('Remote login error:', error)
+    authError.value = error.message || 'Remote signer connection failed'
+    throw error
+  } finally {
+    isLoading.value = false
+  }
+}
+
 // Schedule a profile refresh when relay manager becomes ready
 const scheduleProfileRefresh = async (pubkey) => {
   try {
@@ -565,37 +563,13 @@ const logout = () => {
     // Clear authentication-related localStorage data
     // NOTE: We intentionally preserve user-created content (campaigns, follow packs, relays)
     // so they can be restored after re-login
-    const nostrKeys = [
-      // Authentication data
-      NOSTR_USER_KEY, // 'nostrUser'
-      // NOSTR_RELAYS_KEY is intentionally NOT cleared - relays persist across sessions
-      
-      // Connection data
-      'nostr_connections',
-      'active_connection_id',
-      'nwc_url',
-      
-      // Notification data
-      'notification_settings',
-      'last_transaction_timestamp',
-      'last_balance',
-      'processed_transactions',
-      'notifications_list',
-      
-      // Content data
-      'user_content_items'
-    ]
-    
     // PRESERVE these keys across logout/login:
     // - 'user_campaigns' (campaigns persist in Nostr relays)
     // - 'campaign_aggregated_zaps' (zap data for campaigns)
     // - 'follow_lists_my' (user's follow packs)
     // - 'follow_lists_discovered' (discovered follow packs)
     // - 'follow_lists_profiles' (cached profiles for follow pack members)
-    
-    nostrKeys.forEach(key => {
-      localStorage.removeItem(key)
-    })
+    storageService.clearAuthData()
     
     // Close user event listener subscription
     if (userEventSub) {
@@ -603,7 +577,8 @@ const logout = () => {
       userEventSub = null
     }
 
-    // Stop refresh cycle, NWC client, and relay manager
+    // Disconnect signer, stop refresh cycle, NWC client, and relay manager
+    signerService.disconnect().catch(() => {})
     stopRefreshCycle()
     initializeNWC(null)
     nostrService.cleanup()
@@ -651,45 +626,55 @@ const initAuthAndRelays = async () => {
     // Sync initial statuses
     syncRelayStatuses()
 
-    // If user is stored and extension is available, verify/restore session
-    if (hasUser && signerService.isExtensionAvailable()) {
-      try {
-        const pubkey = await signerService.getPublicKey()
-        if (currentUser.value?.pubkey === pubkey) {
-          // Check if profile is complete (has picture)
-          if (!isProfileComplete(currentUser.value)) {
-            try {
-              await fetchAndStoreProfile(pubkey)
-            } catch (e) {
-              console.warn('Failed to refresh profile:', e)
-            }
-          }
+    // Restore signer session — supports NIP-07 extension and NIP-46 remote signer
+    if (hasUser) {
+      const storedSignerType = storageService.getRaw(STORAGE_KEYS.SIGNER_TYPE)
+      const storedRemoteUri = storageService.getRaw(STORAGE_KEYS.REMOTE_URI)
+      let restoredPubkey = null
 
-          startUserEventListener(pubkey)
-          updateRelaysFromNip65(pubkey).catch(e => {
-            console.warn('NIP-65 relay update failed:', e.message)
-          })
-        } else {
-          currentUser.value = null
-          localStorage.removeItem(NOSTR_USER_KEY)
+      try {
+        if (storedSignerType === 'remote' && storedRemoteUri) {
+          // NIP-46: reconnect to remote signer
+          restoredPubkey = await signerService.connectRemote(storedRemoteUri)
+        } else if (signerService.isExtensionAvailable()) {
+          // NIP-07: reconnect to browser extension
+          restoredPubkey = await signerService.connectExtension()
         }
       } catch (e) {
-        // Extension may need unlock — keep stored profile for display
+        // Signer may need unlock or be unavailable — keep stored profile for display
+        console.warn('Signer session restore failed:', e.message)
       }
-    } else if (hasUser) {
-      // User stored but no extension - keep for display, login required for actions
-      if (!isProfileComplete(currentUser.value) && currentUser.value?.pubkey) {
-        fetchAndStoreProfile(currentUser.value.pubkey).catch(e => {
-          console.warn('Background profile fetch failed:', e.message)
-        })
-      }
-    }
 
-    // Start event listener for stored-only user (no extension verified above)
-    if (currentUser.value && !signerService.isExtensionAvailable()) {
-      setTimeout(() => {
-        startUserEventListener(currentUser.value.pubkey)
-      }, 2000)
+      if (restoredPubkey && currentUser.value?.pubkey === restoredPubkey) {
+        // Signer matched stored user — refresh profile if incomplete
+        if (!isProfileComplete(currentUser.value)) {
+          fetchAndStoreProfile(restoredPubkey).catch(e => {
+            console.warn('Failed to refresh profile:', e)
+          })
+        }
+
+        startUserEventListener(restoredPubkey)
+        updateRelaysFromNip65(restoredPubkey).catch(e => {
+          console.warn('NIP-65 relay update failed:', e.message)
+        })
+      } else if (restoredPubkey && currentUser.value?.pubkey !== restoredPubkey) {
+        // Different pubkey from signer — clear stale user
+        currentUser.value = null
+        storageService.remove(STORAGE_KEYS.USER)
+      } else {
+        // No signer available — keep profile for display, fetch if incomplete
+        if (!isProfileComplete(currentUser.value) && currentUser.value?.pubkey) {
+          fetchAndStoreProfile(currentUser.value.pubkey).catch(e => {
+            console.warn('Background profile fetch failed:', e.message)
+          })
+        }
+        // Start event listener with delay for display-only mode
+        if (currentUser.value) {
+          setTimeout(() => {
+            startUserEventListener(currentUser.value.pubkey)
+          }, 2000)
+        }
+      }
     }
   } catch (error) {
     console.error('Failed to initialize auth and relays:', error)
@@ -746,6 +731,7 @@ export function useNostrAuth() {
     
     // Actions
     login,
+    loginWithRemote,
     logout,
     fetchAndStoreProfile,
     refreshUserProfile: async () => {

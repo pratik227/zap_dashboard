@@ -171,13 +171,10 @@ const fetchWalletBalance = async () => {
 
   isLoadingBalance.value = true
   try {
-    console.log('[Sidebar] Fetching wallet balance...')
     const balanceData = await getBalance()
-    console.log('[Sidebar] Balance data received:', balanceData)
 
     if (balanceData && typeof balanceData.balance === 'number') {
       walletBalance.value = balanceData.balance
-      console.log('[Sidebar] Balance set to:', balanceData.balance, 'msats')
     } else {
       console.warn('[Sidebar] Invalid balance data:', balanceData)
       walletBalance.value = 0
@@ -217,7 +214,6 @@ watch(isWalletConnected, (connected) => {
 
 watch(activeConnection, (newConnection, oldConnection) => {
   if (newConnection && newConnection !== oldConnection) {
-    console.log('[Sidebar] Active connection changed, refreshing balance...')
     setTimeout(() => {
       fetchWalletBalance()
     }, 1000)
@@ -253,7 +249,7 @@ onMounted(() => {
     </div>
 
     <!-- Navigation -->
-    <nav class="flex-1 px-2.5 py-3 overflow-y-auto overflow-x-hidden">
+    <nav class="flex-1 px-2.5 py-3 overflow-y-auto overflow-x-hidden" aria-label="Main navigation">
       <ul class="space-y-1">
         <li v-for="item in menuItems" :key="item.id">
           <!-- Main Menu Item -->

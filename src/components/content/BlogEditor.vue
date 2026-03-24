@@ -39,7 +39,7 @@ import { useMentions } from '../../composables/content/useMentions.js'
 import MentionInput from './MentionInput.vue'
 import MentionRenderer from './MentionRenderer.vue'
 import { nip19 } from '../../services/nostr/nostrImports.js'
-import { fetchProfile } from '../../utils/profile/profileFetcher.js'
+import { profileService } from '../../services/nostr/ProfileService.js'
 
 const props = defineProps({
   form: {
@@ -109,7 +109,6 @@ const mentionProfiles = ref(new Map())
 
 // Handle mention added
 const handleMentionAdded = (user) => {
-  console.log('Mention added to long-form content:', user)
   // Cache the profile for preview rendering
   if (user.pubkey) {
     mentionProfiles.value.set(user.pubkey, user)
@@ -123,7 +122,7 @@ const fetchMentionProfile = async (pubkey) => {
   }
 
   try {
-    const profile = await fetchProfile(pubkey)
+    const profile = await profileService.get(pubkey)
     if (profile) {
       mentionProfiles.value.set(pubkey, profile)
       return profile
@@ -137,7 +136,7 @@ const fetchMentionProfile = async (pubkey) => {
 
 // Handle mention click in preview
 const handleMentionClick = ({ pubkey, profile }) => {
-  console.log('Mention clicked:', pubkey, profile)
+  // Placeholder for future mention click handling
 }
 
 // Watch for content changes and pre-fetch mention profiles

@@ -234,9 +234,7 @@ const fetchFullContent = async (paymentProof) => {
     const contentData = await contentService.getFullContent(articleEvent.value.id, paymentProof)
     fullContent.value = contentData.content
     
-    if (contentData.encrypted) {
-      console.log('✅ Content decrypted successfully')
-    }
+    // Content decrypted if contentData.encrypted is truthy
   } catch (error) {
     console.error('Failed to fetch full content:', error)
     error.value = 'Failed to load full content: ' + error.message
@@ -287,7 +285,6 @@ const fetchArticle = async () => {
     }
 
     articleEvent.value = event
-    console.log('Article loaded:', event)
 
     // Check if content was already paid for
     if (isPaidContent.value && contentService.isPaymentVerified(eventId)) {

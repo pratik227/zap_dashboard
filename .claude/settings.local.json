@@ -28,7 +28,17 @@
       "Bash(cat:*)",
       "Bash(echo:*)",
       "Bash(npm info:*)",
-      "Read(//Users/drshift/projects/nostr-core/**)"
+      "Read(//Users/drshift/projects/nostr-core/**)",
+      "Bash(find /Users/drshift/projects/zap_dashboard_hackathon/src -name main.js -o -name *router* -o -name *route*)",
+      "Bash(while read:*)",
+      "Bash(do basename:*)",
+      "Bash(done)",
+      "Bash(do echo:*)",
+      "Read(//Users/drshift/projects/zap_dashboard_hackathon/**)",
+      "WebFetch(domain:nostr-core.netlify.app)",
+      "Bash(npm view:*)",
+      "Bash(npm pack:*)",
+      "Bash(npx vitest:*)"
     ]
   }
 }

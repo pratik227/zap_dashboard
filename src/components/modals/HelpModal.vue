@@ -19,6 +19,7 @@ import {
   IconBook,
   IconExternalLink
 } from '@iconify-prerendered/vue-tabler'
+import { storageService, STORAGE_KEYS } from '../../services/StorageService.js'
 
 const props = defineProps({
   autoShow: {
@@ -33,11 +34,11 @@ const currentSlide = ref(0)
 const totalSlides = 12
 
 const hasSeenWelcome = () => {
-  return localStorage.getItem('zaptracker_welcome_seen') === 'true'
+  return storageService.getRaw(STORAGE_KEYS.WELCOME_SEEN) === 'true'
 }
 
 const markWelcomeSeen = () => {
-  localStorage.setItem('zaptracker_welcome_seen', 'true')
+  storageService.setRaw(STORAGE_KEYS.WELCOME_SEEN, 'true')
 }
 
 const slides = [

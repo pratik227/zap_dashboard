@@ -1,5 +1,6 @@
 import { ref, reactive, computed, triggerRef } from 'vue'
 import { nostrService } from '../../services/nostr/NostrService.js'
+import { getUserFriendlyError } from '../../services/nostr/errors.js'
 
 // Global badge cache
 const badgeDefinitions = ref(new Map()) // Map<badgeId, badgeDefinition>
@@ -156,30 +157,24 @@ const fetchBadgeDefinitions = async (badgeRefs) => {
 
     if (filters.length === 0) return
 
-    // Subscribe to badge definition events
-    const sub = nostrService.subscribe(filters, {
-      onevent: (event) => {
-        try {
-          const badge = parseBadgeDefinition(event)
-          if (badge.d) {
-            const badgeRef = `30009:${event.pubkey}:${badge.d}`
-            badgeDefinitions.value.set(badgeRef, badge)
-            badgeUpdateTrigger.value++
-          }
-        } catch (err) {
-          console.error('Error parsing badge definition:', err)
+    // Use outbox model — badge definitions live on their creator's write relays
+    const events = await nostrService.queryOutbox(filters, { timeout: 15000, eoseGrace: 2000 })
+    for (const event of events) {
+      try {
+        const badge = parseBadgeDefinition(event)
+        if (badge.d) {
+          const badgeRef = `30009:${event.pubkey}:${badge.d}`
+          badgeDefinitions.value.set(badgeRef, badge)
+          badgeUpdateTrigger.value++
         }
-      },
-      oneose: () => {
-        // Close after a short grace period for late-arriving events
-        setTimeout(() => { sub?.close() }, 2000)
-      },
-      onclose: () => {}
-    })
+      } catch (err) {
+        console.error('Error parsing badge definition:', err)
+      }
+    }
 
   } catch (err) {
     console.error('Error fetching badge definitions:', err)
-    error.value = 'Failed to fetch badge definitions'
+    error.value = getUserFriendlyError(err)
   } finally {
     isLoading.value = false
   }
@@ -192,38 +187,37 @@ const fetchBadgeAwards = async (badgeRef) => {
   if (!badgeRef) return
 
   try {
+    // Extract issuer pubkey from badgeRef (format: "30009:pubkey:d") for outbox routing
+    const issuerPubkey = badgeRef.split(':')[1]
     const filter = {
       kinds: [BADGE_AWARD_KIND],
-      '#a': [badgeRef]
+      '#a': [badgeRef],
+      ...(issuerPubkey ? { authors: [issuerPubkey] } : {})
     }
 
-    const sub = nostrService.subscribe([filter], {
-      onevent: (event) => {
-        try {
-          const award = parseBadgeAward(event)
+    // Use outbox model — badge awards live on the issuer's write relays
+    const events = await nostrService.queryOutbox([filter], { timeout: 15000, eoseGrace: 2000 })
+    for (const event of events) {
+      try {
+        const award = parseBadgeAward(event)
 
-          award.awardedTo.forEach(({ pubkey }) => {
-            if (!badgeAwards.value.has(pubkey)) {
-              badgeAwards.value.set(pubkey, [])
-            }
+        award.awardedTo.forEach(({ pubkey }) => {
+          if (!badgeAwards.value.has(pubkey)) {
+            badgeAwards.value.set(pubkey, [])
+          }
 
-            const existingAwards = badgeAwards.value.get(pubkey)
-            const exists = existingAwards.some(a => a.id === award.id)
+          const existingAwards = badgeAwards.value.get(pubkey)
+          const exists = existingAwards.some(a => a.id === award.id)
 
-            if (!exists) {
-              existingAwards.push(award)
-              badgeUpdateTrigger.value++
-            }
-          })
-        } catch (err) {
-          console.error('Error parsing badge award:', err)
-        }
-      },
-      oneose: () => {
-        setTimeout(() => { sub?.close() }, 2000)
-      },
-      onclose: () => {}
-    })
+          if (!exists) {
+            existingAwards.push(award)
+            badgeUpdateTrigger.value++
+          }
+        })
+      } catch (err) {
+        console.error('Error parsing badge award:', err)
+      }
+    }
 
   } catch (err) {
     console.error('Error fetching badge awards:', err)
@@ -246,30 +240,26 @@ const fetchProfileBadges = async (pubkey) => {
       '#d': ['profile_badges']
     }
 
-    const sub = nostrService.subscribe([filter], {
-      onevent: (event) => {
-        try {
-          const profileBadge = parseProfileBadges(event)
-          profileBadges.value.set(pubkey, profileBadge.badges)
-          badgeUpdateTrigger.value++
+    // Use outbox model — profile badges live on the user's write relays
+    const events = await nostrService.queryOutbox([filter], { timeout: 15000, eoseGrace: 2000 })
+    for (const event of events) {
+      try {
+        const profileBadge = parseProfileBadges(event)
+        profileBadges.value.set(pubkey, profileBadge.badges)
+        badgeUpdateTrigger.value++
 
-          const badgeRefs = profileBadge.badges.map(b => b.badgeDefinition)
-          if (badgeRefs.length > 0) {
-            fetchBadgeDefinitions(badgeRefs)
-          }
-        } catch (err) {
-          console.error('Error parsing profile badges:', err)
+        const badgeRefs = profileBadge.badges.map(b => b.badgeDefinition)
+        if (badgeRefs.length > 0) {
+          fetchBadgeDefinitions(badgeRefs)
         }
-      },
-      oneose: () => {
-        setTimeout(() => { sub?.close() }, 2000)
-      },
-      onclose: () => {}
-    })
+      } catch (err) {
+        console.error('Error parsing profile badges:', err)
+      }
+    }
 
   } catch (err) {
     console.error('Error fetching profile badges:', err)
-    error.value = 'Failed to fetch profile badges'
+    error.value = getUserFriendlyError(err)
   } finally {
     isLoading.value = false
   }

@@ -36,7 +36,6 @@ const error = ref('')
 onMounted(() => {
   const urlParams = new URLSearchParams(window.location.search)
   const invoiceParam = urlParams.get('invoice')
-  console.log(invoiceParam)
   if (invoiceParam) {
     invoice.value = decodeURIComponent(invoiceParam)
     parseInvoice()
@@ -64,7 +63,6 @@ const parseInvoice = () => {
 
 // Computed properties
 const qrCodeValue = computed(() => {
-  console.log(invoice.value)
   // For Lightning invoices, we can use lightning: URI scheme
   return `lightning:${invoice.value}`
 })
@@ -160,8 +158,6 @@ const downloadQR = () => {
       return
     }
 
-    console.log('Found QR code canvas, generating download...')
-
     // Convert canvas to blob and download
     canvas.toBlob((blob) => {
       if (!blob) {
@@ -182,8 +178,6 @@ const downloadQR = () => {
       
       // Clean up the blob URL
       URL.revokeObjectURL(url)
-      
-      console.log('QR code download initiated')
     }, 'image/png', 1.0)
 
   } catch (error) {

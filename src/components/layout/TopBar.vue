@@ -25,7 +25,9 @@ import {
 import NotificationDropdown from '../shared/NotificationDropdown.vue'
 import ThreadsPromo from '../shared/ThreadsPromo.vue'
 import { useNostrAuth } from '../../composables/auth/useNostrAuth.js'
+import { useConnectionStatus } from '../../composables/core/useConnectionStatus.js'
 import { generateAvatar } from '../../utils/profile/avatarGenerator.js'
+import { storageService, STORAGE_KEYS } from '../../services/StorageService.js'
 
 const zapData = inject('zapData')
 const isRefreshingData = inject('isRefreshingData')
@@ -37,6 +39,8 @@ const emit = defineEmits(['show-connection', 'toggle-mobile-menu', 'change-page'
 
 // Use Nostr authentication
 const { isAuthenticated, userProfile, currentUser, logout, login, authError } = useNostrAuth()
+
+const { status: connectionStatus, connectionLabel, isOffline } = useConnectionStatus()
 
 const showProfileDropdown = ref(false)
 const profileDropdownRef = ref(null)
@@ -116,7 +120,7 @@ const pageInfo = computed(() => {
 
 // Watch for connection status based on zapData
 const hasConnection = computed(() => {
-  return localStorage.getItem('nwc_url') !== null
+  return storageService.has(STORAGE_KEYS.NWC_URL)
 })
 
 // Get user avatar with Nostr profile fallback
@@ -207,7 +211,6 @@ const handleProfileAction = (action) => {
       window.open('https://docs-zaptracker.netlify.app', '_blank', 'noopener,noreferrer')
       break
     case 'account':
-      console.log('Navigate to account')
       break
     case 'signout':
       logout()
@@ -235,16 +238,8 @@ const handleRefresh = () => {
 }
 
 const handleLoginClick = async () => {
-  try {
-    await login()
-  } catch (error) {
-    // Show user-friendly error message
-    if (error.message.includes('No Nostr extension')) {
-      alert('No Nostr Extension Found\n\nPlease install a NIP-07 browser extension like:\n• Alby (getalby.com)\n• nos2x\n• Flamingo\n\nThen refresh this page.')
-    } else {
-      alert('Login failed: ' + error.message)
-    }
-  }
+  // Errors propagate to App.vue's global login error handler
+  await login()
 }
 </script>
 
@@ -257,6 +252,7 @@ const handleLoginClick = async () => {
         <button 
           @click="emit('toggle-mobile-menu')"
           class="lg:hidden p-2 text-gray-600 hover:text-orange-600 transition-colors touch-target hover:bg-orange-50 rounded-lg"
+          aria-label="Toggle navigation menu"
         >
           <IconMenu2 class="w-6 h-6" />
         </button>
@@ -273,11 +269,46 @@ const handleLoginClick = async () => {
       
       <!-- Right Side Actions -->
       <div class="flex items-center space-x-2 sm:space-x-3">
+        <!-- Relay Connection Status Indicator -->
+        <div
+          v-if="isAuthenticated"
+          class="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium cursor-pointer hover:bg-gray-50 transition-colors"
+          :class="{
+            'text-green-700': connectionStatus === 'online',
+            'text-yellow-700': connectionStatus === 'degraded',
+            'text-red-700': connectionStatus === 'offline',
+            'text-gray-400': connectionStatus === 'connecting',
+          }"
+          @click="emit('change-page', 'settings')"
+          :title="`Relays: ${connectionLabel} connected`"
+        >
+          <div
+            class="w-2 h-2 rounded-full"
+            :class="{
+              'bg-green-500': connectionStatus === 'online',
+              'bg-yellow-500 animate-pulse': connectionStatus === 'degraded',
+              'bg-red-500 animate-pulse': connectionStatus === 'offline',
+              'bg-gray-300 animate-pulse': connectionStatus === 'connecting',
+            }"
+          ></div>
+          <span>{{ connectionLabel }}</span>
+        </div>
+
+        <!-- Offline Banner (mobile) -->
+        <div
+          v-if="isOffline && isAuthenticated"
+          class="sm:hidden flex items-center gap-1 px-2 py-1 bg-red-50 text-red-600 rounded-lg text-xs font-medium"
+        >
+          <div class="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></div>
+          Offline
+        </div>
+
         <!-- Docs Button - Desktop - Always Visible -->
         <button
           @click="handleDocsClick"
           class="hidden md:flex items-center space-x-2 p-2 text-gray-500 hover:text-orange-600 rounded-lg transition-all duration-200 hover:bg-orange-50 group touch-target"
           title="Documentation"
+          aria-label="Documentation"
         >
           <IconBook class="w-5 h-5" />
         </button>
@@ -295,6 +326,7 @@ const handleLoginClick = async () => {
         <button
           @click="emit('show-help')"
           class="sm:hidden relative text-gray-500 hover:text-orange-600 p-2 rounded-xl transition-all duration-200 hover:bg-orange-50 group flex items-center justify-center touch-target"
+          aria-label="How to start"
         >
           <IconHelp class="w-5 h-5" />
         </button>
@@ -336,6 +368,7 @@ const handleLoginClick = async () => {
             @click="handleRefresh"
             :disabled="isRefreshingData"
             :title="isRefreshingData ? 'Refreshing...' : 'Refresh data'"
+            :aria-label="isRefreshingData ? 'Refreshing data' : 'Refresh data'"
             class="p-2 text-gray-500 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-all duration-200 touch-target group disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
           >
             <IconRefresh :class="[
@@ -360,6 +393,7 @@ const handleLoginClick = async () => {
             @click="toggleProfileDropdown"
             class="relative p-0.5 rounded-full hover:bg-orange-50 transition-all duration-200 group touch-target"
             :title="getUserName"
+            aria-label="User profile menu"
           >
             <div class="relative">
               <img

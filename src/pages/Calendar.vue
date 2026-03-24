@@ -111,31 +111,11 @@ const showPendingInvitationsModal = ref(false)
 const invitedEvents = computed(() => {
   if (!currentUser.value?.pubkey) return []
   
-  console.log('🔍 Checking invited events. Total events:', events.value.length)
-  console.log('🔍 Current user pubkey:', currentUser.value.pubkey.substring(0, 8))
-  console.log('🔍 All event titles:', events.value.map(e => e.title))
-  
   const invited = events.value.filter(event => {
     const isNotCreator = event.pubkey !== currentUser.value.pubkey
     const isParticipant = event.participants?.some(p => p.pubkey === currentUser.value.pubkey)
-    
-    console.log(`🔍 Event "${event.title}":`, {
-      creator: event.pubkey.substring(0, 8),
-      isNotCreator,
-      hasParticipants: !!event.participants,
-      participantCount: event.participants?.length || 0,
-      isParticipant,
-      participantPubkeys: event.participants?.map(p => p.pubkey.substring(0, 8))
-    })
-    
-    if (isNotCreator && isParticipant) {
-      console.log('✅ INVITED EVENT FOUND:', event.title)
-    }
-    
     return isNotCreator && isParticipant
   })
-  
-  console.log('📨 Total invited events:', invited.length)
   return invited
 })
 
@@ -171,13 +151,6 @@ const fullCalendarEvents = computed(() => {
         end = null
       }
     }
-    console.log(`Event ${event.id} - Start: ${start}, End: ${end}`, {
-      title: event.title,
-      creator: event.pubkey?.substring(0, 8),
-      hasParticipants: !!event.participants,
-      participantCount: event.participants?.length || 0
-    })
-    
     // Check if this is an invited event
     const isInvited = event.pubkey !== currentUser.value?.pubkey && 
                       event.participants?.some(p => p.pubkey === currentUser.value?.pubkey)
@@ -472,9 +445,12 @@ const openNewEventModal = () => {
   }
   
   showEventModal.value = true
+  resetFormTouched()
 }
 
 const handleEventFormSubmit = async () => {
+  formSubmitAttempted.value = true
+  if (!isFormValid.value) return
   try {
     if (isEditingEvent.value && selectedEvent.value) {
       await updateEvent(selectedEvent.value.id, { ...modalEventForm.value })
@@ -581,15 +557,28 @@ const getEventTypeBadge = (type) => {
     : 'bg-green-100 text-green-700'
 }
 
+// Inline status for login errors
+const inlineStatus = ref(null)
+let _statusTimer = null
+const showStatus = (message, type = 'error') => {
+  clearTimeout(_statusTimer)
+  inlineStatus.value = { message, type }
+  _statusTimer = setTimeout(() => { inlineStatus.value = null }, 4000)
+}
+
+onUnmounted(() => {
+  clearTimeout(_statusTimer)
+})
+
 const handleNostrLogin = async () => {
   try {
     await login()
   } catch (error) {
     console.error('Login failed:', error)
     if (error.message.includes('No Nostr extension')) {
-      alert('No Nostr Extension Found\n\nPlease install a NIP-07 browser extension like:\n• Alby (getalby.com)\n• nos2x\n• Flamingo\n\nThen refresh this page.')
+      showStatus('No Nostr extension found. Please install a NIP-07 browser extension (Alby, nos2x, or Flamingo) and refresh this page.')
     } else {
-      alert('Login failed: ' + error.message)
+      showStatus('Login failed: ' + error.message)
     }
   }
 }
@@ -677,7 +666,6 @@ const copyNostrEventLink = async (event) => {
     try {
       await navigator.clipboard.writeText(link)
       // You could add a toast notification here
-      console.log('Link copied to clipboard:', link)
     } catch (err) {
       console.error('Failed to copy link:', err)
     }
@@ -718,18 +706,14 @@ const getRSVPStatusIcon = (status) => {
 }
 
 const openRSVPModal = (event) => {
-  console.log('📝 Opening RSVP modal for event:', event?.title, event?.id)
-  
   if (!event) {
-    console.error('❌ Cannot open RSVP modal: event is null or undefined')
+    console.error('Cannot open RSVP modal: event is null or undefined')
     return
   }
-  
+
   selectedEvent.value = event
   const existingRSVP = getUserRSVP(event.id)
-  
-  console.log('📝 Existing RSVP:', existingRSVP)
-  
+
   if (existingRSVP) {
     rsvpForm.value = {
       status: existingRSVP.status,
@@ -745,7 +729,6 @@ const openRSVPModal = (event) => {
   }
   
   showRSVPModal.value = true
-  console.log('✅ RSVP modal opened. showRSVPModal:', showRSVPModal.value)
 }
 
 const closeRSVPModal = () => {
@@ -759,19 +742,13 @@ const closeRSVPModal = () => {
 }
 
 const handleViewInvitations = () => {
-  console.log('🔔 View Invitations clicked. Pending count:', pendingInvitations.value.length)
-  console.log('🔔 Pending invitations:', pendingInvitations.value)
-  
   if (pendingInvitations.value.length === 0) {
-    console.warn('⚠️ No pending invitations to show')
     return
   }
-  
+
   if (pendingInvitations.value.length === 1) {
-    console.log('✅ Opening RSVP modal for single invitation')
     openRSVPModal(pendingInvitations.value[0])
   } else {
-    console.log('✅ Opening pending invitations modal for multiple invitations')
     showPendingInvitationsModal.value = true
   }
 }
@@ -813,6 +790,20 @@ const isFormValid = computed(() => {
          modalEventForm.value.start_date &&
          (modalEventForm.value.type === 'date-based' || modalEventForm.value.start_time)
 })
+
+// Form touched state for inline validation
+const formTouched = ref({
+  title: false,
+  start_date: false,
+  start_time: false
+})
+
+const formSubmitAttempted = ref(false)
+
+const resetFormTouched = () => {
+  formTouched.value = { title: false, start_date: false, start_time: false }
+  formSubmitAttempted.value = false
+}
 
 // Helper function to get profile picture with fallback
 const getProfilePicture = (user) => {
@@ -880,7 +871,6 @@ const eventMessages = computed(() => {
 // Watch for events changes to refetch RSVPs
 watch(() => events.value.length, (newLength, oldLength) => {
   if (newLength > 0 && newLength !== oldLength) {
-    console.log('Events loaded, fetching RSVPs for all events...')
     // Small delay to ensure events are fully processed
     setTimeout(() => {
       fetchRSVPs()
@@ -899,6 +889,18 @@ onMounted(() => {
 
 <template>
   <div class="space-y-6">
+    <!-- Inline Status Banner -->
+    <transition name="slide-down">
+      <div v-if="inlineStatus" role="status" aria-live="polite" :class="[
+        'mb-4 px-4 py-3 rounded-lg text-sm font-medium',
+        inlineStatus.type === 'error' ? 'bg-red-50 text-red-800 border border-red-200' :
+        inlineStatus.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' :
+        'bg-blue-50 text-blue-800 border border-blue-200'
+      ]">
+        {{ inlineStatus.message }}
+      </div>
+    </transition>
+
     <!-- Authentication Required Banner -->
     <div v-if="!isAuthenticated" class="bg-gradient-to-r from-purple-400 to-pink-400 text-white p-6 rounded-xl shadow-lg">
       <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -1111,7 +1113,9 @@ onMounted(() => {
                     type="text"
                     placeholder="Event name"
                     class="w-full px-0 py-3 bg-transparent border-0 border-b-2 border-gray-200 focus:border-orange-400 focus:outline-none focus:ring-0 transition-colors text-xl font-semibold text-gray-900 placeholder-gray-300"
+                    @blur="formTouched.title = true"
                   />
+                  <p v-if="!modalEventForm.title.trim() && (formTouched.title || formSubmitAttempted)" class="text-xs text-red-500 mt-1">Title is required</p>
 
                   <!-- Date/Time + Type — all in one compact card -->
                   <div class="mt-4 bg-gray-50/80 rounded-xl border border-gray-200/80 overflow-hidden">
@@ -1150,7 +1154,9 @@ onMounted(() => {
                           v-model="modalEventForm.start_date"
                           type="date"
                           class="w-full px-2.5 py-2 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400/30 focus:border-orange-400 transition-all text-sm"
+                          @blur="formTouched.start_date = true"
                         />
+                        <p v-if="!modalEventForm.start_date && (formTouched.start_date || formSubmitAttempted)" class="text-xs text-red-500 mt-1">Start date is required</p>
                       </div>
                       <div>
                         <label class="block text-[11px] font-medium text-gray-400 uppercase tracking-wider mb-1">End</label>
@@ -1169,7 +1175,9 @@ onMounted(() => {
                           v-model="modalEventForm.start_time"
                           type="time"
                           class="w-full px-2.5 py-2 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400/30 focus:border-orange-400 transition-all text-sm"
+                          @blur="formTouched.start_time = true"
                         />
+                        <p v-if="!modalEventForm.start_time && (formTouched.start_time || formSubmitAttempted)" class="text-xs text-red-500 mt-1">Start time is required</p>
                       </div>
                       <div>
                         <label class="block text-[11px] font-medium text-gray-400 uppercase tracking-wider mb-1">Until</label>

@@ -1,10 +1,10 @@
 <script setup>
 import { ref, provide, watch, onMounted, nextTick, computed, onUnmounted, defineAsyncComponent } from 'vue'
-import { IconAlertTriangle, IconX } from '@iconify-prerendered/vue-tabler'
+import { IconAlertTriangle, IconX, IconWifi, IconWifiOff, IconRefresh } from '@iconify-prerendered/vue-tabler'
 import Sidebar from './components/layout/Sidebar.vue'
 import { useContentZaps } from './composables/content/useContentZaps.js'
 import { generateAvatar } from './utils/profile/avatarGenerator.js'
-import { fetchProfile, batchFetchProfiles, profileCache as sharedProfileCache } from './utils/profile/profileFetcher.js'
+import { profileService } from './services/nostr/ProfileService.js'
 import { useUserZaps } from './composables/content/useUserZaps.js'
 import TopBar from './components/layout/TopBar.vue'
 import Dashboard from './pages/Dashboard.vue'
@@ -20,6 +20,8 @@ import Settings from './pages/Settings.vue'
 import NWCConnection from './components/wallet/NWCConnection.vue'
 import ErrorBoundary from './components/shared/ErrorBoundary.vue'
 import { useNostrConnections } from './composables/core/useNostrConnections.js'
+import { storageService } from './services/StorageService.js'
+import { useConnectionStatus } from './composables/core/useConnectionStatus.js'
 import { useNotifications } from './composables/core/useNotifications.js'
 import { nostrService } from './services/nostr/NostrService.js'
 import { useNostrNotes } from './composables/content/useNostrNotes.js'
@@ -72,7 +74,7 @@ const loadingPhase = ref('session')
 const loadingTimedOut = ref(false)
 
 // Read stored user for loading screen
-const storedUserRaw = localStorage.getItem('nostrUser')
+const storedUserRaw = storageService.getRaw('nostrUser')
 const hasStoredUser = !!storedUserRaw
 const storedUserName = ref('')
 const storedUserAvatar = ref('')
@@ -89,13 +91,22 @@ if (!hasStoredUser) {
   appReady.value = true
 }
 
+// Inline status for login errors (replaces browser alert dialogs)
+const loginError = ref(null)
+let _loginStatusTimer = null
+const showLoginStatus = (message, type = 'error') => {
+  clearTimeout(_loginStatusTimer)
+  loginError.value = { message, type }
+  _loginStatusTimer = setTimeout(() => { loginError.value = null }, 6000)
+}
+
 // UI state for dismissible banners
 const showLargeDatasetBanner = ref(true)
 let largeDatasetBannerTimeout = null
 
-// Fetch author profile using shared profileFetcher
+// Fetch author profile using ProfileService
 const fetchAuthorProfile = async (pubkey, forceRefresh = false) => {
-  const profile = await fetchProfile(pubkey, forceRefresh ? { ttl: 0 } : {})
+  const profile = await profileService.get(pubkey, forceRefresh ? { forceFresh: true } : {})
   if (!profile) {
     return {
       pubkey,
@@ -144,6 +155,9 @@ const {
 
 // Use the Nostr auth composable
 const { isAuthenticated, login } = useNostrAuth()
+
+// Relay connection health
+const { status: relayStatus, isOffline: isRelayOffline, isConnecting: isRelayConnecting, connectionLabel: relayLabel } = useConnectionStatus()
 
 // Use the notifications composable
 const {
@@ -245,26 +259,25 @@ const isPageLoading = ref(false)
 // Reactive profile store
 const profileStore = ref(new Map())
 
-// Profile fetching with batching using shared profileFetcher
+// Profile fetching with batching using ProfileService
 const fetchProfilesInBatches = async (pubkeys) => {
   const totalProfiles = pubkeys.length
 
   dataLoadingProgress.value.currentStep = `Loading profiles (0/${totalProfiles})`
 
-  await batchFetchProfiles(pubkeys)
+  await profileService.batch(pubkeys)
 
   // After batch fetch, populate profileStore from shared cache
   let loaded = 0
   for (const pubkey of pubkeys) {
-    const cached = sharedProfileCache.get(pubkey)
-    if (cached?.profile) {
-      const p = cached.profile
+    const cached = profileService.getCached(pubkey)
+    if (cached) {
       profileStore.value.set(pubkey, {
-        pubkey: p.pubkey,
-        name: p.name,
-        picture: p.picture || generateAvatar(pubkey),
-        nip05: p.nip05,
-        about: p.about
+        pubkey: cached.pubkey,
+        name: cached.name,
+        picture: cached.picture || generateAvatar(pubkey),
+        nip05: cached.nip05,
+        about: cached.about
       })
     }
     loaded++
@@ -531,7 +544,7 @@ onMounted(async () => {
   }
 
   // Check if this is first visit - show HelpModal
-  const hasSeenHelp = localStorage.getItem('zaptracker_welcome_seen')
+  const hasSeenHelp = storageService.getRaw('zaptracker_welcome_seen')
   if (!hasSeenHelp && !isAuthenticated.value) {
     showHelpModal.value = true
   }
@@ -581,6 +594,7 @@ const startPeriodicHealthCheck = () => {
 
 // Cleanup on unmount
 onUnmounted(() => {
+  clearTimeout(_loginStatusTimer)
   if (healthCheckInterval) {
     clearInterval(healthCheckInterval)
   }
@@ -744,9 +758,9 @@ const handleHelpClose = () => {
 
 const showLoginError = (error) => {
   if (error.message.includes('No Nostr extension')) {
-    alert('No Nostr Extension Found\n\nPlease install a NIP-07 browser extension like:\n• Alby (getalby.com)\n• nos2x\n• Flamingo\n\nThen refresh this page.')
+    showLoginStatus('No Nostr extension found. Please install a NIP-07 browser extension (Alby, nos2x, or Flamingo) and refresh this page.')
   } else {
-    alert('Login failed: ' + error.message)
+    showLoginStatus('Login failed: ' + error.message)
   }
 }
 
@@ -829,7 +843,7 @@ const handleTriggerLogin = async () => {
     await login()
 
     // After login, read the freshly stored user for the loader display
-    const raw = localStorage.getItem('nostrUser')
+    const raw = storageService.getRaw('nostrUser')
     if (raw) {
       try {
         const parsed = JSON.parse(raw)
@@ -935,8 +949,54 @@ const handleChecklistTaskAction = async (action) => {
       
       <!-- Scrollable Main Content -->
       <main :class="['flex-1 overflow-y-auto scrollbar-thin', isWritingMode ? 'p-0' : 'p-3 sm:p-4 lg:p-6']">
+        <!-- Offline Banner — prominent, above all page content -->
+        <transition name="slide-down">
+          <div v-if="isRelayOffline && isAuthenticated" class="mx-3 sm:mx-4 lg:mx-6 mt-3 sm:mt-4 lg:mt-6 mb-0">
+            <div class="bg-red-50 border border-red-200 rounded-lg p-3 sm:p-4">
+              <div class="flex items-center justify-between gap-3">
+                <div class="flex items-center space-x-3">
+                  <div class="p-2 bg-red-100 rounded-full">
+                    <IconWifiOff class="w-4 h-4 text-red-600" />
+                  </div>
+                  <div>
+                    <span class="text-red-800 text-sm font-medium">No relay connections</span>
+                    <p class="text-red-600 text-xs">Showing cached data. Live updates paused.</p>
+                  </div>
+                </div>
+                <button
+                  @click="changePage('settings')"
+                  class="text-xs font-medium text-red-700 hover:text-red-900 px-3 py-1.5 rounded-lg hover:bg-red-100 transition-colors whitespace-nowrap"
+                >
+                  Check Settings
+                </button>
+              </div>
+            </div>
+          </div>
+        </transition>
+
+        <!-- Degraded Connection Banner -->
+        <transition name="slide-down">
+          <div v-if="relayStatus === 'degraded' && isAuthenticated && !isRelayOffline" class="mx-3 sm:mx-4 lg:mx-6 mt-3 sm:mt-4 lg:mt-6 mb-0">
+            <div class="bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2">
+              <div class="flex items-center space-x-2">
+                <IconWifi class="w-4 h-4 text-yellow-600" />
+                <span class="text-yellow-800 text-xs">Degraded connection — {{ relayLabel }} relays online</span>
+              </div>
+            </div>
+          </div>
+        </transition>
+
+        <!-- Login Error Banner -->
+        <transition name="slide-down">
+          <div v-if="loginError" class="mx-3 sm:mx-4 lg:mx-6 mt-3 sm:mt-4 lg:mt-6 mb-0" role="alert" aria-live="assertive">
+            <div class="bg-red-50 text-red-800 border border-red-200 rounded-lg px-4 py-3 text-sm font-medium">
+              {{ loginError.message }}
+            </div>
+          </div>
+        </transition>
+
         <div class="p-3 sm:p-4 lg:p-6">
-          <!-- Connection Status Bar -->
+          <!-- Connection Status Bar (legacy, commented out) -->
         <!--  <transition name="slide-down">
             <div v-if="!isWalletConnected && currentPage === 'wallet'" class="mb-4 lg:mb-6">
               <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 sm:p-4 animate-pulse-subtle">
@@ -1141,6 +1201,7 @@ const handleChecklistTaskAction = async (action) => {
               <button
                 @click="showConnectionModal = false"
                 class="text-gray-500 flex items-center justify-center flex items-center hover:text-gray-700 p-1 touch-target hover:bg-gray-100 rounded-full transition-all duration-200 hover:scale-110"
+                aria-label="Close"
               >
                 <IconX class="w-5 h-5" />
               </button>

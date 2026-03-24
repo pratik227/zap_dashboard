@@ -12,7 +12,7 @@ import {
   IconPhoto
 } from '@iconify-prerendered/vue-tabler'
 import { nip19 } from '../../services/nostr/nostrImports.js'
-import { fetchProfile } from '../../utils/profile/profileFetcher.js'
+import { profileService } from '../../services/nostr/ProfileService.js'
 import { generateAvatar } from '../../utils/profile/avatarGenerator.js'
 
 const props = defineProps({
@@ -121,7 +121,7 @@ const loadIssuerProfile = async () => {
 
   loadingIssuer.value = true
   try {
-    const profile = await fetchProfile(pubkey)
+    const profile = await profileService.get(pubkey)
     if (profile) issuerProfile.value = profile
   } catch {
     // Silently fail — we still show npub fallback

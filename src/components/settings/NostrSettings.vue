@@ -8,9 +8,15 @@ import {
   IconAlertCircle,
   IconShield,
   IconUser,
-  IconLoader
+  IconLoader,
+  IconInfoCircle,
+  IconX,
+  IconCheck,
+  IconServer,
+  IconCode
 } from '@iconify-prerendered/vue-tabler'
 import { useNostrAuth } from '../../composables/auth/useNostrAuth.js'
+import { useRelayInfo } from '../../composables/core/useRelayInfo.js'
 
 const {
   currentUser,
@@ -28,14 +34,28 @@ const {
   initAuthAndRelays
 } = useNostrAuth()
 
+const {
+  relayInfo,
+  fetchInfo,
+  fetchAllInfo,
+  supportsNip,
+  getLimitations,
+  getSoftware,
+  getSupportedNips
+} = useRelayInfo()
+
 // Local state
 const newRelayUrl = ref('')
 const relayFormError = ref('')
-const refreshingIndividualRelay = ref(new Set())
+const refreshingIndividualRelay = ref({})
+const selectedRelayUrl = ref(null)
+const loadingRelayInfo = ref(false)
 
 // Initialize on mount
 onMounted(async () => {
   await initAuthAndRelays()
+  // Fetch relay info for all connected relays in background
+  fetchAllInfo().catch(() => {})
 })
 
 // Handle add relay
@@ -64,6 +84,7 @@ const handleAddRelay = async () => {
 const handleRemoveRelay = async (url) => {
   try {
     removeRelay(url)
+    if (selectedRelayUrl.value === url) selectedRelayUrl.value = null
   } catch (error) {
     console.error('Failed to remove relay:', error)
   }
@@ -72,17 +93,45 @@ const handleRemoveRelay = async (url) => {
 // Handle refresh all relays
 const handleRefreshRelays = async () => {
   await checkAllRelayStatuses()
+  fetchAllInfo().catch(() => {})
 }
 
 // Handle refresh single relay
 const handleRefreshRelay = async (url) => {
-  refreshingIndividualRelay.value.add(url)
+  refreshingIndividualRelay.value = { ...refreshingIndividualRelay.value, [url]: true }
   try {
     await checkRelayStatus(url)
+    await fetchInfo(url)
   } finally {
-    refreshingIndividualRelay.value.delete(url)
+    const next = { ...refreshingIndividualRelay.value }
+    delete next[url]
+    refreshingIndividualRelay.value = next
   }
 }
+
+// Open relay info card
+const openRelayInfo = async (url) => {
+  if (selectedRelayUrl.value === url) {
+    selectedRelayUrl.value = null
+    return
+  }
+  selectedRelayUrl.value = url
+  if (!relayInfo.value.get(url)) {
+    loadingRelayInfo.value = true
+    try {
+      await fetchInfo(url)
+    } finally {
+      loadingRelayInfo.value = false
+    }
+  }
+}
+
+const closeRelayInfo = () => {
+  selectedRelayUrl.value = null
+}
+
+// Get relay info for selected relay
+const selectedInfo = () => relayInfo.value.get(selectedRelayUrl.value)
 
 // Get relay status color
 const getRelayStatusColor = (status) => {
@@ -102,6 +151,34 @@ const formatRelayUrl = (url) => {
     return url
   }
 }
+
+// Known NIP descriptions for display
+const nipDescriptions = {
+  1: 'Basic protocol',
+  2: 'Follow list',
+  4: 'Encrypted DMs',
+  9: 'Event deletion',
+  11: 'Relay info',
+  13: 'Proof of Work',
+  15: 'Marketplace',
+  17: 'Private DMs',
+  22: 'Comments',
+  23: 'Long-form',
+  25: 'Reactions',
+  28: 'Channels',
+  40: 'Expiration',
+  42: 'Authentication',
+  45: 'Event counts',
+  50: 'Search',
+  56: 'Reporting',
+  57: 'Zaps',
+  58: 'Badges',
+  65: 'Relay lists',
+  70: 'Protected events',
+  94: 'File metadata',
+}
+
+const getNipLabel = (nip) => nipDescriptions[nip] || `NIP-${nip}`
 </script>
 
 <template>
@@ -192,36 +269,177 @@ const formatRelayUrl = (url) => {
               <p class="text-sm text-gray-500">No relays configured</p>
             </div>
 
-            <div
-              v-for="relay in userRelays"
-              :key="relay.url"
-              class="group flex items-center justify-between p-2.5 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-            >
-              <div class="flex items-center gap-2.5 flex-1 min-w-0">
-                <div :class="['w-2 h-2 rounded-full flex-shrink-0', getRelayStatusColor(relay.status)]"></div>
-                <div class="flex-1 min-w-0">
-                  <div class="flex items-center gap-1.5">
-                    <h5 class="text-xs font-medium text-gray-900 truncate">{{ formatRelayUrl(relay.url) }}</h5>
-                    <span v-if="relay.read" class="px-1 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-bold leading-none">R</span>
-                    <span v-if="relay.write" class="px-1 py-0.5 bg-green-100 text-green-700 rounded text-xs font-bold leading-none">W</span>
+            <div v-for="relay in userRelays" :key="relay.url">
+              <!-- Relay Row -->
+              <div
+                class="group flex items-center justify-between p-2.5 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
+                :class="{ 'bg-blue-50 hover:bg-blue-100': selectedRelayUrl === relay.url }"
+                @click="openRelayInfo(relay.url)"
+              >
+                <div class="flex items-center gap-2.5 flex-1 min-w-0">
+                  <div :class="['w-2 h-2 rounded-full flex-shrink-0', getRelayStatusColor(relay.status)]"></div>
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-1.5">
+                      <h5 class="text-xs font-medium text-gray-900 truncate">{{ formatRelayUrl(relay.url) }}</h5>
+                      <span v-if="relay.read" class="px-1 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-bold leading-none">R</span>
+                      <span v-if="relay.write" class="px-1 py-0.5 bg-green-100 text-green-700 rounded text-xs font-bold leading-none">W</span>
+                      <IconInfoCircle
+                        v-if="relayInfo.get(relay.url)"
+                        class="w-3 h-3 text-blue-400 flex-shrink-0"
+                      />
+                    </div>
                   </div>
+                </div>
+
+                <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity" @click.stop>
+                  <button
+                    @click="handleRefreshRelay(relay.url)"
+                    class="w-7 h-7 flex items-center justify-center text-gray-600 hover:bg-white rounded-lg transition-colors"
+                  >
+                    <IconRefresh :class="['w-3.5 h-3.5', refreshingIndividualRelay[relay.url] && 'animate-spin']" />
+                  </button>
+                  <button
+                    @click="handleRemoveRelay(relay.url)"
+                    class="w-7 h-7 flex items-center justify-center text-gray-600 hover:text-red-600 hover:bg-white rounded-lg transition-colors"
+                  >
+                    <IconTrash class="w-3.5 h-3.5" />
+                  </button>
                 </div>
               </div>
 
-              <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button
-                  @click="handleRefreshRelay(relay.url)"
-                  class="w-7 h-7 flex items-center justify-center text-gray-600 hover:bg-white rounded-lg transition-colors"
+              <!-- Relay Info Card (expandable) -->
+              <transition
+                enter-active-class="transition-all duration-200 ease-out"
+                enter-from-class="opacity-0 max-h-0"
+                enter-to-class="opacity-100 max-h-96"
+                leave-active-class="transition-all duration-150 ease-in"
+                leave-from-class="opacity-100 max-h-96"
+                leave-to-class="opacity-0 max-h-0"
+              >
+                <div
+                  v-if="selectedRelayUrl === relay.url"
+                  class="overflow-hidden"
                 >
-                  <IconRefresh :class="['w-3.5 h-3.5', refreshingIndividualRelay.has(relay.url) && 'animate-spin']" />
-                </button>
-                <button
-                  @click="handleRemoveRelay(relay.url)"
-                  class="w-7 h-7 flex items-center justify-center text-gray-600 hover:text-red-600 hover:bg-white rounded-lg transition-colors"
-                >
-                  <IconTrash class="w-3.5 h-3.5" />
-                </button>
-              </div>
+                  <div class="ml-4 mt-1 mb-2 p-4 bg-white border border-gray-200 rounded-xl shadow-sm">
+                    <!-- Loading -->
+                    <div v-if="loadingRelayInfo && !relayInfo.get(relay.url)" class="flex items-center justify-center py-4 gap-2 text-gray-400">
+                      <IconLoader class="w-4 h-4 animate-spin" />
+                      <span class="text-xs">Loading relay info...</span>
+                    </div>
+
+                    <!-- No info available -->
+                    <div v-else-if="!relayInfo.get(relay.url)" class="text-center py-3">
+                      <p class="text-xs text-gray-400">NIP-11 info not available for this relay</p>
+                    </div>
+
+                    <!-- Relay Info Content -->
+                    <template v-else>
+                      <div class="space-y-3">
+                        <!-- Header with name -->
+                        <div class="flex items-start justify-between">
+                          <div class="flex-1 min-w-0">
+                            <h4 class="text-sm font-semibold text-gray-900">
+                              {{ relayInfo.get(relay.url).name || formatRelayUrl(relay.url) }}
+                            </h4>
+                            <p v-if="relayInfo.get(relay.url).description" class="text-xs text-gray-500 mt-0.5 line-clamp-2">
+                              {{ relayInfo.get(relay.url).description }}
+                            </p>
+                          </div>
+                          <button
+                            @click.stop="closeRelayInfo"
+                            class="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-gray-600 rounded"
+                          >
+                            <IconX class="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+
+                        <!-- Software & Contact -->
+                        <div class="flex flex-wrap gap-2">
+                          <span
+                            v-if="relayInfo.get(relay.url).software"
+                            class="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-100 text-gray-600 rounded-md text-xs"
+                          >
+                            <IconCode class="w-3 h-3" />
+                            {{ relayInfo.get(relay.url).software?.split('/').pop() }}
+                            <span v-if="relayInfo.get(relay.url).version" class="text-gray-400">
+                              v{{ relayInfo.get(relay.url).version }}
+                            </span>
+                          </span>
+                          <span
+                            v-if="relayInfo.get(relay.url).contact"
+                            class="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-100 text-gray-600 rounded-md text-xs"
+                          >
+                            <IconUser class="w-3 h-3" />
+                            {{ relayInfo.get(relay.url).contact }}
+                          </span>
+                        </div>
+
+                        <!-- Limitations -->
+                        <div v-if="relayInfo.get(relay.url).limitation" class="bg-gray-50 rounded-lg p-2.5">
+                          <p class="text-xs font-medium text-gray-700 mb-1.5">Limits</p>
+                          <div class="grid grid-cols-2 gap-x-4 gap-y-1">
+                            <div v-if="relayInfo.get(relay.url).limitation.max_message_length" class="text-xs text-gray-500">
+                              Max message: <span class="text-gray-700 font-medium">{{ (relayInfo.get(relay.url).limitation.max_message_length / 1024).toFixed(0) }}KB</span>
+                            </div>
+                            <div v-if="relayInfo.get(relay.url).limitation.max_subscriptions" class="text-xs text-gray-500">
+                              Max subs: <span class="text-gray-700 font-medium">{{ relayInfo.get(relay.url).limitation.max_subscriptions }}</span>
+                            </div>
+                            <div v-if="relayInfo.get(relay.url).limitation.max_event_tags" class="text-xs text-gray-500">
+                              Max tags: <span class="text-gray-700 font-medium">{{ relayInfo.get(relay.url).limitation.max_event_tags }}</span>
+                            </div>
+                            <div v-if="relayInfo.get(relay.url).limitation.max_content_length" class="text-xs text-gray-500">
+                              Max content: <span class="text-gray-700 font-medium">{{ (relayInfo.get(relay.url).limitation.max_content_length / 1024).toFixed(0) }}KB</span>
+                            </div>
+                            <div class="text-xs text-gray-500">
+                              Auth required:
+                              <span :class="relayInfo.get(relay.url).limitation.auth_required ? 'text-orange-600' : 'text-green-600'" class="font-medium">
+                                {{ relayInfo.get(relay.url).limitation.auth_required ? 'Yes' : 'No' }}
+                              </span>
+                            </div>
+                            <div class="text-xs text-gray-500">
+                              Payment required:
+                              <span :class="relayInfo.get(relay.url).limitation.payment_required ? 'text-orange-600' : 'text-green-600'" class="font-medium">
+                                {{ relayInfo.get(relay.url).limitation.payment_required ? 'Yes' : 'No' }}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <!-- Supported NIPs -->
+                        <div v-if="relayInfo.get(relay.url).supported_nips?.length > 0">
+                          <p class="text-xs font-medium text-gray-700 mb-1.5">Supported NIPs</p>
+                          <div class="flex flex-wrap gap-1">
+                            <span
+                              v-for="nip in relayInfo.get(relay.url).supported_nips.slice(0, 20)"
+                              :key="nip"
+                              class="px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded text-xs font-mono"
+                              :title="getNipLabel(nip)"
+                            >
+                              {{ nip }}
+                            </span>
+                            <span
+                              v-if="relayInfo.get(relay.url).supported_nips.length > 20"
+                              class="px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded text-xs"
+                            >
+                              +{{ relayInfo.get(relay.url).supported_nips.length - 20 }} more
+                            </span>
+                          </div>
+                        </div>
+
+                        <!-- Countries / Languages -->
+                        <div class="flex flex-wrap gap-2">
+                          <div v-if="relayInfo.get(relay.url).relay_countries?.length" class="text-xs text-gray-500">
+                            Countries: <span class="text-gray-700">{{ relayInfo.get(relay.url).relay_countries.join(', ') }}</span>
+                          </div>
+                          <div v-if="relayInfo.get(relay.url).language_tags?.length" class="text-xs text-gray-500">
+                            Languages: <span class="text-gray-700">{{ relayInfo.get(relay.url).language_tags.join(', ') }}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </template>
+                  </div>
+                </div>
+              </transition>
             </div>
           </div>
         </div>
@@ -236,7 +454,7 @@ const formatRelayUrl = (url) => {
           <div>
             <h4 class="font-medium text-gray-900 text-sm mb-1">Privacy & Security</h4>
             <p class="text-xs text-gray-600 leading-relaxed">
-              Your keys are managed by your browser extension. ZapTracker only reads your public profile. Private keys never leave your device.
+              Your keys are managed by your browser extension or remote signer. ZapTracker only reads your public profile. Private keys never leave your device.
             </p>
           </div>
         </div>
@@ -248,5 +466,11 @@ const formatRelayUrl = (url) => {
 <style scoped>
 button:active:not(:disabled) {
   transform: scale(0.98);
+}
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 </style>

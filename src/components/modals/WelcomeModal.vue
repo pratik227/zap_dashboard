@@ -12,24 +12,26 @@ import {
   IconMessageCircle,
   IconTarget,
   IconUsers,
-  IconEye,
   IconLogin
 } from '@iconify-prerendered/vue-tabler'
 import { useNostrAuth } from '../../composables/auth/useNostrAuth.js'
+import { storageService, STORAGE_KEYS } from '../../services/StorageService.js'
 
-const emit = defineEmits(['close', 'view-only'])
+const emit = defineEmits(['close'])
 
-const { login } = useNostrAuth()
+const { login, loginWithRemote, isLoading, authError } = useNostrAuth()
+const showBunkerInput = ref(false)
+const bunkerUri = ref('')
 
 const currentSlide = ref(0)
 const totalSlides = 10
 
 const hasSeenWelcome = () => {
-  return localStorage.getItem('zaptracker_welcome_seen') === 'true'
+  return storageService.getRaw(STORAGE_KEYS.WELCOME_SEEN) === 'true'
 }
 
 const markWelcomeSeen = () => {
-  localStorage.setItem('zaptracker_welcome_seen', 'true')
+  storageService.setRaw(STORAGE_KEYS.WELCOME_SEEN, 'true')
 }
 
 const slides = [
@@ -205,19 +207,22 @@ const handleGetStarted = async () => {
     try {
       await login()
     } catch (error) {
-      if (error.message.includes('No Nostr extension')) {
-        alert('No Nostr Extension Found\n\nPlease install a NIP-07 browser extension like:\n• Alby (getalby.com)\n• nos2x\n• Flamingo\n\nThen refresh this page.')
-      } else {
-        alert('Login failed: ' + error.message)
-      }
+      console.error('Extension login failed:', error)
     }
   }, 300)
 }
 
-const handleViewOnly = () => {
+const handleBunkerLogin = async () => {
+  if (!bunkerUri.value.trim()) return
   markWelcomeSeen()
   emit('close')
-  emit('view-only')
+  setTimeout(async () => {
+    try {
+      await loginWithRemote(bunkerUri.value.trim())
+    } catch (error) {
+      console.error('Remote login failed:', error)
+    }
+  }, 300)
 }
 
 onMounted(() => {
@@ -422,27 +427,52 @@ onMounted(() => {
               </p>
 
               <!-- CTAs -->
-              <div class="flex flex-col sm:flex-row gap-4 justify-center mt-8">
+              <div v-if="!showBunkerInput" class="flex flex-col gap-3 justify-center mt-8 max-w-md mx-auto">
                 <button
                   @click="handleGetStarted"
-                  class="px-10 py-5 bg-gradient-to-r from-orange-500 to-amber-500 text-white text-lg rounded-xl font-bold hover:shadow-2xl transform hover:scale-105 transition-all duration-200 flex items-center justify-center space-x-3"
+                  class="px-8 py-4 bg-gradient-to-r from-orange-500 to-amber-500 text-white text-base rounded-xl font-bold hover:shadow-2xl transform hover:scale-[1.02] transition-all duration-200 flex items-center justify-center space-x-3"
                 >
-                  <IconLogin class="w-6 h-6" />
-                  <span>Connect with Nostr</span>
+                  <IconLogin class="w-5 h-5" />
+                  <span>Browser Extension</span>
                 </button>
                 <button
-                  @click="handleViewOnly"
-                  class="px-10 py-5 bg-white border-2 border-gray-300 text-gray-700 text-lg rounded-xl font-semibold hover:bg-gray-50 transition-all duration-200 flex items-center justify-center space-x-3"
+                  @click="showBunkerInput = true"
+                  class="px-8 py-4 bg-gradient-to-r from-purple-500 to-purple-600 text-white text-base rounded-xl font-bold hover:shadow-2xl transform hover:scale-[1.02] transition-all duration-200 flex items-center justify-center space-x-3"
                 >
-                  <IconEye class="w-6 h-6" />
-                  <span>View-Only Mode</span>
+                  <IconBolt class="w-5 h-5" />
+                  <span>Amber / Remote Signer</span>
                 </button>
               </div>
 
-              <div class="mt-8 pt-6 border-t border-gray-200 space-y-2">
-                <p class="text-sm text-gray-500">
-                  View-only mode lets you explore with any public npub
-                </p>
+              <!-- Bunker URI Input -->
+              <div v-else class="mt-8 max-w-md mx-auto space-y-3">
+                <p class="text-sm font-semibold text-gray-900">Connect with Remote Signer (NIP-46)</p>
+                <p class="text-xs text-gray-500">Paste your bunker:// URI from Amber, nsec.app, or another signer</p>
+                <input
+                  v-model="bunkerUri"
+                  type="text"
+                  placeholder="bunker://... or nostrconnect://..."
+                  class="w-full px-4 py-3 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                  @keyup.enter="handleBunkerLogin"
+                />
+                <div class="flex gap-2">
+                  <button
+                    @click="showBunkerInput = false; bunkerUri = ''"
+                    class="flex-1 px-4 py-3 bg-gray-100 text-gray-700 rounded-xl text-sm font-semibold hover:bg-gray-200 transition-colors"
+                  >
+                    Back
+                  </button>
+                  <button
+                    @click="handleBunkerLogin"
+                    :disabled="!bunkerUri.trim()"
+                    class="flex-1 px-4 py-3 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-xl text-sm font-bold hover:shadow-lg transition-all disabled:opacity-50"
+                  >
+                    Connect
+                  </button>
+                </div>
+              </div>
+
+              <div class="mt-8 pt-6 border-t border-gray-200">
                 <a
                   href="https://usenostr.org"
                   target="_blank"

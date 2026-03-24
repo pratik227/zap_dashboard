@@ -10,7 +10,7 @@ import {
 import BadgeList from '../badges/BadgeList.vue'
 import { useBadges } from '../../composables/social/useBadges.js'
 import { generateAvatar } from '../../utils/profile/avatarGenerator.js'
-import { fetchProfile } from '../../utils/profile/profileFetcher.js'
+import { profileService } from '../../services/nostr/ProfileService.js'
 import { nip19 } from '../../services/nostr/nostrImports.js'
 
 const { badgeUpdateTrigger } = useBadges()
@@ -106,7 +106,7 @@ const updatePosition = () => {
 const loadProfile = async () => {
   isLoadingProfile.value = true
   try {
-    const p = await fetchProfile(props.pubkey)
+    const p = await profileService.get(props.pubkey)
     if (p) {
       profile.value = p
     }

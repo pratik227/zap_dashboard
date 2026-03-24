@@ -2,13 +2,9 @@
  * nostrImports.js — Single source of truth for all Nostr protocol imports.
  *
  * Every file in the codebase that needs Nostr primitives should import
- * from HERE, never directly from 'nostr-core' or 'nostr-tools'.
+ * from HERE, never directly from 'nostr-core'.
  *
- * This file re-exports nostr-core v0.6.0 functions, mapping them to
- * the API shapes the codebase already uses (from nostr-tools).
- *
- * When nostr-core's API differs from nostr-tools, compatibility shims
- * are provided at the bottom of this file.
+ * Re-exports the full nostr-core v0.6.0 API surface.
  */
 
 // ── Event handling ────────────────────────────────────────────────
@@ -40,6 +36,16 @@ export {
   createSecretKeySigner,
   Nip07Error,
   Nip07NotAvailableError,
+} from 'nostr-core'
+
+// ── NIP-46: Remote Signer (Nostr Connect / Bunker) ───────────────
+export {
+  NostrConnect,
+  parseConnectionURI,
+  Nip46Error,
+  Nip46TimeoutError,
+  Nip46ConnectionError,
+  Nip46RemoteError,
 } from 'nostr-core'
 
 // ── NWC (Nostr Wallet Connect) ───────────────────────────────────
@@ -101,7 +107,7 @@ export {
 } from 'nostr-core'
 
 // ── NIP namespace re-exports ─────────────────────────────────────
-// These match the `import * as nipXX from 'nostr-tools/nipXX'` pattern
+// Full NIP module access: import { nip57 } from '...'
 export {
   nip02,
   nip04,
@@ -132,19 +138,17 @@ export {
   nip48,
   nip50,
   nip51,
+  nip52,
   nip56,
   nip57,
   nip58,
   nip59,
   nip65,
+  nip75,
   nip98,
 } from 'nostr-core'
 
-// ── Commonly used NIP functions (direct exports for convenience) ──
-
-// NIP-19: bech32 encoding — re-exported from the nip19 namespace for convenience.
-// Files that do `import * as nip19 from '...'` use the namespace above.
-// Files that do `import { npubEncode } from '...'` use these direct exports.
+// ── NIP-19: bech32 convenience exports ───────────────────────────
 import { nip19 as _nip19 } from 'nostr-core'
 export const npubEncode = _nip19.npubEncode
 export const nsecEncode = _nip19.nsecEncode
@@ -154,7 +158,7 @@ export const naddrEncode = _nip19.naddrEncode
 export const nprofileEncode = _nip19.nprofileEncode
 export const nip19Decode = _nip19.decode
 
-// NIP-57: zaps
+// ── NIP-57: zaps ─────────────────────────────────────────────────
 export {
   createZapRequestEventTemplate,
   createZapRequestEvent,
@@ -163,7 +167,7 @@ export {
   fetchZapInvoice,
 } from 'nostr-core'
 
-// NIP-65: relay lists
+// ── NIP-65: relay lists ──────────────────────────────────────────
 export {
   parseRelayList,
   createRelayListEventTemplate,
@@ -172,14 +176,14 @@ export {
   getWriteRelays,
 } from 'nostr-core'
 
-// NIP-05: DNS identity
+// ── NIP-05: DNS identity ─────────────────────────────────────────
 export {
   queryNip05,
   verifyNip05,
   parseNip05Address,
 } from 'nostr-core'
 
-// NIP-02: contacts
+// ── NIP-02: contacts ─────────────────────────────────────────────
 export {
   createFollowListEventTemplate,
   createFollowListEvent,
@@ -188,7 +192,7 @@ export {
   getFollowedPubkeys,
 } from 'nostr-core'
 
-// NIP-58: badges
+// ── NIP-58: badges ───────────────────────────────────────────────
 export {
   createBadgeDefinitionTemplate,
   createBadgeDefinitionEvent,
@@ -201,40 +205,138 @@ export {
   parseProfileBadges,
 } from 'nostr-core'
 
-// NIP-23: long-form content
+// ── NIP-23: long-form content ────────────────────────────────────
 export {
   createLongFormEventTemplate,
   createLongFormEvent,
   parseLongForm,
 } from 'nostr-core'
 
-// NIP-25: reactions
+// ── NIP-25: reactions ────────────────────────────────────────────
 export {
   createReactionEventTemplate,
   createReactionEvent,
   parseReaction,
 } from 'nostr-core'
 
-// NIP-09: deletion
+// ── NIP-09: deletion ─────────────────────────────────────────────
 export {
   createDeletionEventTemplate,
   createDeletionEvent,
 } from 'nostr-core'
 
-// NIP-46: remote signer
+// ── NIP-18: reposts ──────────────────────────────────────────────
 export {
-  NostrConnect,
-  parseConnectionURI,
+  createRepostEventTemplate,
+  createRepostEvent,
+  parseRepost,
 } from 'nostr-core'
 
-// ── Compatibility shims ──────────────────────────────────────────
+// ── NIP-59: sealed events (gift wrap) ────────────────────────────
+export {
+  createRumor,
+  createSeal,
+  createWrap,
+} from 'nostr-core'
+
+// ── NIP-17: private DMs ──────────────────────────────────────────
+export {
+  wrapDirectMessage,
+  unwrapDirectMessage,
+} from 'nostr-core'
+
+// ── NIP-51: lists ────────────────────────────────────────────────
+export {
+  createListTemplate as createListEventTemplate,
+  createListEvent,
+} from 'nostr-core'
+
+// ── NIP-13: proof of work ────────────────────────────────────────
+export {
+  countLeadingZeroBits,
+  getPowDifficulty,
+  verifyPow,
+  minePow,
+} from 'nostr-core'
+
+// ── NIP-75: zap goals ───────────────────────────────────────────
+export {
+  createZapGoalTemplate,
+  createZapGoalEvent,
+  parseZapGoal,
+  isZapGoalOpen,
+  calculateZapGoalProgress,
+  buildGoalTag,
+} from 'nostr-core'
+
+// ── NIP-98: HTTP auth ────────────────────────────────────────────
+export {
+  createHttpAuthEventTemplate,
+  createHttpAuthEvent,
+  getAuthorizationHeader,
+  verifyHttpAuthEvent,
+} from 'nostr-core'
+
+// ── NIP-42: relay auth ───────────────────────────────────────────
+export {
+  createAuthEventTemplate,
+  createAuthEvent,
+  verifyAuthEvent,
+} from 'nostr-core'
+
+// ── Blossom: media uploads (NIP-B7) ────────────────────────────
+export {
+  blossom,
+} from 'nostr-core'
+
+// ── BOLT-11: invoice decoding ──────────────────────────────────
+// Shim: wraps light-bolt11-decoder to match nostr-core's future bolt11.decode() API.
+// TODO: Replace with `export { bolt11, decodeBolt11 } from 'nostr-core'` once nostr-core ships the module.
+import { decode as _decodeBolt11 } from 'light-bolt11-decoder'
+
+export const bolt11 = {
+  /**
+   * Decode a BOLT-11 invoice string.
+   * Returns the same shape nostr-core's bolt11.decode() will provide:
+   *   { amountMsat, amountSat, paymentHash, expiry, expiresAt, isExpired,
+   *     description, payeeNodeKey, timestamp }
+   */
+  decode(invoice) {
+    const sections = _decodeBolt11(invoice).sections
+    const get = (name) => sections.find((s) => s.name === name)?.value
+
+    const amountMsat = get('amount') ? Number(get('amount')) : null
+    const amountSat = amountMsat != null ? Math.round(amountMsat / 1000) : null
+    const timestamp = get('timestamp') ?? null
+    const expiry = get('expiry') ?? 3600 // BOLT-11 default
+    const expiresAt = timestamp != null ? timestamp + expiry : null
+    const isExpired = expiresAt != null ? Date.now() / 1000 > expiresAt : false
+    const description = get('description') ?? null
+    const paymentHash = get('payment_hash') ?? null
+    const payeeNodeKey = get('payee') ?? null
+
+    return {
+      amountMsat,
+      amountSat,
+      paymentHash,
+      expiry,
+      expiresAt,
+      isExpired,
+      description,
+      payeeNodeKey,
+      timestamp,
+    }
+  },
+}
+
+/** Convenience alias matching the expected nostr-core named export */
+export const decodeBolt11 = bolt11.decode
+
+// ── Utility functions ────────────────────────────────────────────
 
 /**
- * queryProfile — nostr-tools nip05 compatibility.
- * nostr-tools: queryProfile(address) → { pubkey, relays } | null
- * nostr-core:  queryNip05(address)   → { pubkey, relays } (throws on error)
- *
- * This shim catches errors and returns null (matching nostr-tools behavior).
+ * queryProfile — resolve a NIP-05 address to { pubkey, relays }.
+ * Returns null on error (safe wrapper around queryNip05).
  */
 import { queryNip05 as _queryNip05, decodeLnurl as _decodeLnurl } from 'nostr-core'
 export async function queryProfile(address) {
@@ -246,8 +348,7 @@ export async function queryProfile(address) {
 }
 
 /**
- * isNip05 — nostr-tools nip05 compatibility.
- * Simple regex check for name@domain format.
+ * isNip05 — check if a string looks like a NIP-05 address (name@domain).
  */
 const NIP05_REGEX = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
 export function isNip05(value) {
@@ -255,15 +356,12 @@ export function isNip05(value) {
 }
 
 /**
- * makeZapRequest — nostr-tools nip57 compatibility.
- * nostr-tools: makeZapRequest({ profile, event, amount, relays, comment })
- * nostr-core:  createZapRequestEventTemplate({ recipientPubkey, eventId, amount, relays, content })
- *
- * This shim maps the old API shape to the new one.
+ * makeZapRequest — create a zap request event template.
+ * Maps the legacy { profile, event, amount, relays, comment } shape
+ * to nostr-core's { recipientPubkey, eventId, amount, relays, content }.
  */
 import { createZapRequestEventTemplate as _createZapRequest } from 'nostr-core'
 export function makeZapRequest({ profile, event, amount, relays, comment = '' }) {
-  // Callers may pass an event ID string or a full event object
   const eventId = typeof event === 'string' ? event : event?.id
   return _createZapRequest({
     recipientPubkey: profile,
@@ -275,10 +373,8 @@ export function makeZapRequest({ profile, event, amount, relays, comment = '' })
 }
 
 /**
- * getZapEndpoint — nostr-tools nip57 compatibility.
- * Extracts the LNURL/Lightning Address callback URL from a profile event.
- * nostr-tools had this built in; nostr-core doesn't have an exact equivalent,
- * so we implement it here.
+ * getZapEndpoint — extract the LNURL-pay callback URL from a profile event.
+ * Resolves lud16 (Lightning Address) or lud06 (LNURL) to the zap endpoint.
  */
 export async function getZapEndpoint(profileEvent) {
   try {
@@ -316,5 +412,5 @@ export async function getZapEndpoint(profileEvent) {
   }
 }
 
-// ── Kind constants (replacing nostr-tools/kinds) ──────────────────
+// ── Kind constants ───────────────────────────────────────────────
 export const LongFormArticle = 30023

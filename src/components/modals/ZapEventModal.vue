@@ -183,8 +183,6 @@ const fetchEvent = async () => {
   specificZap.value = null
 
   try {
-    console.log(`Fetching event: ${props.eventId}`)
-
     const fetchedEvent = await nostrService.queryOne({
       ids: [props.eventId]
     })
@@ -194,15 +192,12 @@ const fetchEvent = async () => {
     }
 
     event.value = fetchedEvent
-    console.log('Event fetched:', fetchedEvent)
 
     await fetchAuthorProfile(fetchedEvent.pubkey)
 
     if (props.specificZapId) {
-      console.log('Looking for specific zap:', props.specificZapId)
       const zap = combinedZapData.value.find(z => z.id === props.specificZapId)
       if (zap) {
-        console.log('Found specific zap:', zap)
         specificZap.value = zap
       } else {
         console.warn('Specific zap not found:', props.specificZapId)

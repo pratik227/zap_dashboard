@@ -319,8 +319,7 @@ import {
   IconShield
 } from '@iconify-prerendered/vue-tabler'
 import { useNostrAuth } from '../../composables/auth/useNostrAuth.js'
-import { finalizeEvent, verifyEvent } from '../../services/nostr/nostrImports.js'
-import { nostrService } from '../../services/nostr/NostrService.js'
+import { publishService } from '../../services/nostr/PublishService.js'
 import { signerService } from '../../services/nostr/SignerService.js'
 // Props
 const props = defineProps({
@@ -393,7 +392,6 @@ const initializeForm = () => {
 // Watch for profile changes and modal show state
 watch(() => userProfile.value, initializeForm, { immediate: true })
 watch(() => props.show, (newShow) => {
-  console.log('NostrProfileEditor show prop changed:', newShow);
   if (newShow) {
     initializeForm();
     nextTick(() => {
@@ -532,28 +530,13 @@ const saveProfile = async () => {
       content: JSON.stringify(profileContent)
     };
     
-    // Sign the event
-    if (!signerService.isExtensionAvailable()) {
+    // Sign and publish
+    if (!signerService.isConnected) {
       throw new Error('Nostr extension not available for signing');
     }
-    
-    const signedEvent = await signerService.signEvent(eventTemplate);
-    
-    // Verify the signed event
-    const isValid = verifyEvent(signedEvent);
-    if (!isValid) {
-      throw new Error('Event signature verification failed');
-    }
-    
-    // Publish to relays
-    const result = await nostrService.publish(signedEvent);
-    
-    if (result.successful === 0) {
-      throw new Error('Failed to publish to any relays');
-    }
-    
-    console.log('Profile updated successfully:', result);
-    
+
+    const { event: signedEvent, result } = await publishService.signAndPublish(eventTemplate);
+
     // Refresh profile data
     await refreshUserProfile();
     
@@ -567,7 +550,7 @@ const saveProfile = async () => {
     
   } catch (err) {
     console.error('Failed to update profile:', err);
-    error.value = `Failed to update profile: ${err.message}`;
+    error.value = `Failed to update profile: ${err.userMessage || err.message}`;
   } finally {
     isLoading.value = false;
   }
