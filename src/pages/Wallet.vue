@@ -736,7 +736,7 @@ const extractTextFromArray = (noteArray) => {
         </div>
         
         <div v-else-if="sortedTransactions.length === 0" class="p-8 text-center">
-          <IconBolt class="w-12 h-12 mx-auto text-gray-300 mb-3" />
+          <IconBolt class="w-12 h-12 mx-auto text-gray-400 mb-3" />
           <h4 class="text-lg font-medium text-gray-900 mb-2">No transactions yet</h4>
           <p class="text-gray-600 mb-4">Transactions will appear here once you send or receive Lightning payments. Use the buttons above to create an invoice or send a payment.</p>
           <div class="flex items-center justify-center space-x-3">

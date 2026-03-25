@@ -1,5 +1,6 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, toRef, onMounted, onUnmounted } from 'vue'
+import { useFocusTrap } from '../../composables/core/useFocusTrap.js'
 import {
   IconBell,
   IconBellRinging,
@@ -18,6 +19,9 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['close', 'mark-read', 'mark-all-read', 'remove', 'clear-all'])
+
+const modalRoot = ref(null)
+useFocusTrap(toRef(props, 'show'), modalRoot)
 
 const filterType = ref('all')
 
@@ -104,8 +108,11 @@ const handleNotificationClick = (notification) => {
     <transition name="modal">
       <div
         v-if="show"
+        ref="modalRoot"
         class="fixed inset-0 bg-black/50 backdrop-blur-lg z-[9999] flex items-center justify-center p-4"
         @click.self="emit('close')"
+        @keydown.escape="emit('close')"
+        tabindex="-1"
       >
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[85vh] flex flex-col overflow-hidden">
           <!-- Header -->

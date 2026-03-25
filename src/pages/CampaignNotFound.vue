@@ -31,7 +31,7 @@ const goBack = () => {
           class="btn-primary"
         >
           <IconArrowLeft class="w-4 h-4" />
-          Back to Campaigns
+          Back to campaigns
         </button>
       </div>
     </div>

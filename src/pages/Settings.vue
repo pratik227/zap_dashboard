@@ -47,6 +47,7 @@ const activeTab = ref('profile')
 const showBadgeDetailModal = ref(false)
 const selectedBadge = ref(null)
 const copySuccess = ref('')
+const localLoginError = ref('')
 const showProfileEditor = ref(false)
 const showLoginOptions = ref(false)
 const bunkerUri = ref('')
@@ -170,22 +171,22 @@ watch(() => props.initialTab, (newTab) => {
 <template>
   <div class="space-y-6">
     <!-- Elegant Settings Container -->
-    <div class="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
-      <!-- Modern Tab Navigation -->
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-200/60 overflow-hidden">
+      <!-- Tab Navigation -->
       <div class="border-b border-gray-100 bg-gray-50/50">
-        <nav class="flex space-x-2 px-6 py-4 overflow-x-auto scrollbar-hide" aria-label="Settings tabs">
+        <nav class="flex space-x-1 px-4 sm:px-6 py-3 overflow-x-auto scrollbar-hide" aria-label="Settings tabs">
           <button
             v-for="tab in tabs"
             :key="tab.id"
             @click="activeTab = tab.id"
             :class="[
-              'flex items-center gap-2.5 px-5 py-3 font-semibold text-sm whitespace-nowrap transition-all duration-300 rounded-2xl flex-shrink-0',
+              'flex items-center gap-2 px-4 py-2 font-medium text-sm whitespace-nowrap transition-all duration-150 rounded-xl flex-shrink-0',
               activeTab === tab.id
-                ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/30'
+                ? 'bg-orange-500 text-white shadow-sm'
                 : 'text-gray-600 hover:text-gray-900 hover:bg-white'
             ]"
           >
-            <component :is="tab.icon" class="w-5 h-5" />
+            <component :is="tab.icon" class="w-4.5 h-4.5" />
             <span>{{ tab.label }}</span>
           </button>
         </nav>
@@ -197,7 +198,7 @@ watch(() => props.initialTab, (newTab) => {
         <div v-if="activeTab === 'profile'" class="space-y-5">
           <!-- Not Authenticated -->
           <div v-if="!isAuthenticated" class="max-w-md mx-auto">
-            <div class="bg-white rounded-3xl p-10 sm:p-12 text-center shadow-sm border border-gray-100">
+            <div class="bg-white rounded-2xl p-10 sm:p-12 text-center shadow-sm border border-gray-200/60">
               <div class="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 bg-gradient-to-br from-orange-100 to-orange-50">
                 <img src="/nostr-logo/nostr10.png" alt="Nostr Logo" class="w-12 h-12 object-contain" />
               </div>
@@ -277,14 +278,14 @@ watch(() => props.initialTab, (newTab) => {
               </div>
 
               <!-- Error display -->
-              <div v-if="authError" class="mt-4 bg-red-50 border border-red-100 rounded-xl p-3">
+              <div v-if="authError || localLoginError" class="mt-4 bg-red-50 border border-red-100 rounded-xl p-3">
                 <div class="flex items-center justify-center gap-2 text-sm text-red-600">
                   <IconAlertCircle class="w-4 h-4 flex-shrink-0" />
-                  <span>{{ authError }}</span>
+                  <span>{{ localLoginError || authError }}</span>
                 </div>
                 <button
                   v-if="loginMode !== null"
-                  @click="loginMode = null; authError = ''"
+                  @click="loginMode = null; localLoginError = ''"
                   class="mt-2 text-xs text-red-500 hover:text-red-700 underline"
                 >
                   Try a different method
@@ -296,7 +297,7 @@ watch(() => props.initialTab, (newTab) => {
           <!-- Authenticated Profile -->
           <template v-else>
             <!-- Profile Card -->
-            <div class="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-200/60 overflow-hidden">
               <!-- Banner -->
               <div class="h-32 sm:h-40 bg-gradient-to-br from-orange-400 via-orange-500 to-orange-600 relative overflow-hidden">
                 <img
@@ -457,7 +458,7 @@ watch(() => props.initialTab, (newTab) => {
                 >
                   <template #empty>
                     <div class="text-center py-6">
-                      <IconAward class="w-12 h-12 mx-auto text-gray-300 mb-3" />
+                      <IconAward class="w-12 h-12 mx-auto text-gray-400 mb-3" />
                       <h4 class="text-lg font-medium text-gray-900 mb-2">No Badges Yet</h4>
                       <p class="text-gray-500 text-sm mb-4">Earn badges from the Nostr community to showcase here.</p>
                     </div>

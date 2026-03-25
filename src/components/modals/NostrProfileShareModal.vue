@@ -149,7 +149,7 @@ onUnmounted(() => {
 <template>
   <Teleport to="#modal-root">
     <transition name="modal-transition">
-      <div v-if="show" class="fixed inset-0 bg-black/60 backdrop-blur-lg flex items-center justify-center z-[9999] p-4">
+      <div v-if="show" class="fixed inset-0 bg-black/60 backdrop-blur-lg flex items-center justify-center z-[9999] p-4" @click.self="$emit('close')" @keydown.escape="$emit('close')" tabindex="-1">
         <div class="bg-white rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden transform transition-all duration-300">
           <!-- Header -->
           <div class="bg-gray-900 text-white p-4">

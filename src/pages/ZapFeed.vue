@@ -793,7 +793,7 @@ onUnmounted(() => {
           <!-- Regular Zap Card -->
           <div
             @click="handleZapClick(zap)"
-            class="bg-white/95 backdrop-blur-sm rounded-2xl border border-gray-200/40 hover:border-gray-300/60 hover:shadow-lg hover:shadow-gray-200/30 transition-all duration-200 cursor-pointer overflow-hidden hover:-translate-y-0.5"
+            class="bg-white/95 backdrop-blur-sm rounded-2xl border border-gray-200/60 hover:border-gray-300 hover:shadow-md transition-all duration-150 cursor-pointer overflow-hidden"
           >
           <div class="p-5 sm:p-6">
             <!-- Header -->

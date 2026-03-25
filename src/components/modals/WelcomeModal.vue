@@ -233,7 +233,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-[10000] p-4 animate-fade-in">
+  <div class="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-[10000] p-4 animate-fade-in" @keydown.escape="handleSkip">
     <div class="bg-white rounded-2xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-hidden animate-scale-in">
       <!-- Header -->
       <div class="relative p-4 border-b border-gray-200">

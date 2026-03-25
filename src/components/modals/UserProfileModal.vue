@@ -109,7 +109,7 @@ watch(() => props.show, (newValue) => {
 <template>
   <Teleport to="#modal-root">
     <transition name="modal-transition">
-      <div v-if="show && userProfileData" class="fixed inset-0 bg-black/50 backdrop-blur-lg flex items-center justify-center z-[9999] p-4">
+      <div v-if="show && userProfileData" class="fixed inset-0 bg-black/50 backdrop-blur-lg flex items-center justify-center z-[9999] p-4" @click.self="$emit('close')" @keydown.escape="$emit('close')" tabindex="-1">
         <div class="bg-white rounded-xl w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto shadow-2xl">
           <!-- Header -->
           <div class="p-6 border-b border-gray-200">
@@ -289,7 +289,7 @@ watch(() => props.show, (newValue) => {
             </div>
             <!-- No Lightning Address Message -->
             <div v-if="activeTab === 'lightning' && !userProfileData.profile?.lud16" class="text-center py-8">
-              <IconBolt class="w-12 h-12 mx-auto text-gray-300 mb-3" />
+              <IconBolt class="w-12 h-12 mx-auto text-gray-400 mb-3" />
               <h4 class="text-lg font-medium text-gray-900 mb-2">No Lightning Address</h4>
               <p class="text-gray-600 text-sm">This user hasn't set up a Lightning address yet.</p>
             </div>
@@ -315,7 +315,7 @@ watch(() => props.show, (newValue) => {
               >
                 <template #empty>
                   <div class="text-center py-8">
-                    <IconAward class="w-12 h-12 mx-auto text-gray-300 mb-3" />
+                    <IconAward class="w-12 h-12 mx-auto text-gray-400 mb-3" />
                     <h4 class="text-lg font-medium text-gray-900 mb-2">No Badges Yet</h4>
                     <p class="text-gray-600 text-sm">This user hasn't received any badges yet.</p>
                   </div>

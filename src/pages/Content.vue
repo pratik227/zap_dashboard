@@ -886,7 +886,7 @@ onUnmounted(() => {
               <!-- Compact Zap List -->
               <div class="space-y-2 max-h-48 overflow-y-auto">
                 <div v-if="!selectedContent.zaps || selectedContent.zaps.length === 0" class="text-center py-6">
-                  <IconBolt class="w-8 h-8 mx-auto text-gray-300 mb-2" />
+                  <IconBolt class="w-8 h-8 mx-auto text-gray-400 mb-2" />
                   <p class="text-sm text-gray-500">No zaps yet</p>
                 </div>
 

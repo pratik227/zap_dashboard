@@ -17,7 +17,7 @@
         <p class="text-red-600 mb-4">{{ error }}</p>
         <button @click="goBack" class="btn-primary">
           <IconArrowLeft class="w-4 h-4" />
-          Go Back
+          Go back
         </button>
       </div>
 
@@ -156,7 +156,7 @@
         <div class="text-center">
           <button @click="goBack" class="btn-secondary">
             <IconArrowLeft class="w-4 h-4" />
-            Back to Dashboard
+            Back to dashboard
           </button>
         </div>
       </div>
@@ -165,7 +165,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed, inject, watch } from 'vue'
+import { ref, onMounted, onUnmounted, computed, inject, watch } from 'vue'
 import { nip19 } from '../services/nostr/nostrImports.js'
 import { 
   IconArrowLeft, 
@@ -352,6 +352,11 @@ const initiatePayment = async () => {
 const goBack = () => {
   currentPage.value = 'content'
   // Update URL
+  const url = new URL(window.location)
+  url.searchParams.delete('page')
+  url.searchParams.delete('eventId')
+  window.history.pushState({}, '', url)
+}
 
 // Toggle client dropdown
 const toggleClientDropdown = () => {
@@ -405,11 +410,6 @@ onMounted(() => {
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
 })
-  const url = new URL(window.location)
-  url.searchParams.delete('page')
-  url.searchParams.delete('eventId')
-  window.history.pushState({}, '', url)
-}
 
 // Lifecycle
 onMounted(() => {

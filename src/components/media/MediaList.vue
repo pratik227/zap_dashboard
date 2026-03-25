@@ -146,64 +146,43 @@ function relativeDate(timestamp) {
 
 <style scoped>
 .media-list {
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
+  border: 1px solid #e5e7eb;
+  border-radius: 0.75rem;
   overflow: hidden;
-  background: var(--color-surface);
+  background: white;
 }
 
-/* ===================================================================
-   Header row
-   =================================================================== */
 .list-header {
   display: flex;
   align-items: center;
   gap: 0.5rem;
   padding: 0.625rem 0.75rem;
-  background: var(--color-bg);
-  border-bottom: 1px solid var(--color-border);
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
   font-size: 0.6875rem;
   font-weight: 600;
-  color: var(--color-text-subtle);
+  color: #9ca3af;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   user-select: none;
 }
 
-/* ===================================================================
-   Data rows
-   =================================================================== */
 .list-row {
   display: flex;
   align-items: center;
   gap: 0.5rem;
   padding: 0.5rem 0.75rem;
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: 1px solid #f3f4f6;
   cursor: pointer;
-  transition: background var(--transition-fast);
+  transition: background 0.15s ease;
   font-size: 0.8125rem;
-  color: var(--color-text);
+  color: #111827;
 }
 
-.list-row:last-child {
-  border-bottom: none;
-}
+.list-row:last-child { border-bottom: none; }
+.list-row:hover { background: #f9fafb; }
+.list-row--selected, .list-row--selected:hover { background: #fff7ed; }
 
-.list-row:hover {
-  background: var(--color-surface-hover);
-}
-
-.list-row--selected {
-  background: var(--color-primary-soft);
-}
-
-.list-row--selected:hover {
-  background: var(--color-primary-soft);
-}
-
-/* ===================================================================
-   Column sizing
-   =================================================================== */
 .list-col { flex-shrink: 0; }
 .list-col--check { width: 1.5rem; display: flex; align-items: center; }
 .list-col--preview { width: 2.5rem; }
@@ -214,40 +193,25 @@ function relativeDate(timestamp) {
 .list-col--servers { width: 3rem; text-align: center; }
 .list-col--actions { width: 5.5rem; display: flex; justify-content: flex-end; gap: 0.125rem; }
 
-/* ===================================================================
-   Thumbnail
-   =================================================================== */
 .list-thumb {
   width: 2.25rem;
   height: 2.25rem;
-  border-radius: var(--radius-sm);
+  border-radius: 0.25rem;
   overflow: hidden;
-  background: var(--color-bg);
+  background: #f9fafb;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--color-border);
+  border: 1px solid #e5e7eb;
 }
 
-.list-thumb img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
+.list-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.thumb-icon { width: 1rem; height: 1rem; color: #9ca3af; }
 
-.thumb-icon {
-  width: 1rem;
-  height: 1rem;
-  color: var(--color-text-subtle);
-}
-
-/* ===================================================================
-   Cell content
-   =================================================================== */
 .list-hash {
-  font-family: var(--font-mono);
+  font-family: ui-monospace, SFMono-Regular, monospace;
   font-size: 0.75rem;
-  color: var(--color-text-muted);
+  color: #6b7280;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -257,49 +221,30 @@ function relativeDate(timestamp) {
 .list-type-badge {
   display: inline-block;
   padding: 0.0625rem 0.375rem;
-  background: var(--color-bg);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.25rem;
   font-size: 0.625rem;
   font-weight: 600;
-  font-family: var(--font-mono);
-  color: var(--color-text-muted);
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  color: #6b7280;
   letter-spacing: 0.03em;
 }
 
-.list-mono {
-  font-variant-numeric: tabular-nums;
-  font-size: 0.75rem;
-}
-
-.list-muted {
-  color: var(--color-text-subtle);
-  font-size: 0.75rem;
-}
+.list-mono { font-variant-numeric: tabular-nums; font-size: 0.75rem; }
+.list-muted { color: #9ca3af; font-size: 0.75rem; }
 
 .list-servers {
   display: inline-flex;
   align-items: center;
   gap: 0.2rem;
   font-size: 0.75rem;
-  color: var(--color-text-muted);
+  color: #6b7280;
 }
 
-.list-server-icon {
-  width: 0.75rem;
-  height: 0.75rem;
-}
+.list-server-icon { width: 0.75rem; height: 0.75rem; }
+.list-checkbox { width: 0.875rem; height: 0.875rem; accent-color: #f97316; cursor: pointer; }
 
-.list-checkbox {
-  width: 0.875rem;
-  height: 0.875rem;
-  accent-color: var(--color-primary);
-  cursor: pointer;
-}
-
-/* ===================================================================
-   Action buttons
-   =================================================================== */
 .list-action-btn {
   display: flex;
   align-items: center;
@@ -307,49 +252,24 @@ function relativeDate(timestamp) {
   width: 1.625rem;
   height: 1.625rem;
   border: none;
-  border-radius: var(--radius-sm);
+  border-radius: 0.25rem;
   background: transparent;
-  color: var(--color-text-subtle);
+  color: #9ca3af;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: all 0.15s ease;
 }
 
-.list-action-btn:hover {
-  background: var(--color-surface-hover);
-  color: var(--color-text);
-}
+.list-action-btn:hover { background: #f3f4f6; color: #111827; }
+.list-action-btn--danger:hover { background: #fef2f2; color: #ef4444; }
+.list-action-icon { width: 0.875rem; height: 0.875rem; }
 
-.list-action-btn--danger:hover {
-  background: var(--color-danger-soft);
-  color: var(--color-danger);
-}
-
-.list-action-icon {
-  width: 0.875rem;
-  height: 0.875rem;
-}
-
-/* ===================================================================
-   Responsive: hide columns on smaller screens
-   =================================================================== */
 @media (max-width: 768px) {
-  .list-col--date,
-  .list-col--servers {
-    display: none;
-  }
+  .list-col--date, .list-col--servers { display: none; }
 }
 
 @media (max-width: 480px) {
-  .list-col--type {
-    display: none;
-  }
-
-  .list-action-btn--copy {
-    display: none;
-  }
-
-  .list-col--actions {
-    width: 3.5rem;
-  }
+  .list-col--type { display: none; }
+  .list-action-btn--copy { display: none; }
+  .list-col--actions { width: 3.5rem; }
 }
 </style>

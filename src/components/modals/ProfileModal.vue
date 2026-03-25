@@ -1,5 +1,6 @@
 <script setup>
-import { computed, ref, onMounted, onUnmounted } from 'vue'
+import { computed, ref, toRef, onMounted, onUnmounted } from 'vue'
+import { useFocusTrap } from '../../composables/core/useFocusTrap.js'
 import {
   IconX,
   IconUser,
@@ -44,6 +45,9 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['close', 'follow', 'unfollow'])
+
+const profileModalRoot = ref(null)
+useFocusTrap(toRef(props, 'show'), profileModalRoot)
 
 // UI state
 const copySuccess = ref('')
@@ -194,7 +198,7 @@ onUnmounted(() => {
 <template>
   <Teleport to="#modal-root">
     <transition name="modal-transition">
-      <div v-if="show" class="fixed inset-0 bg-black/60 backdrop-blur-lg z-[9999] md:flex md:items-center md:justify-center md:p-4">
+      <div v-if="show" ref="profileModalRoot" class="fixed inset-0 bg-black/60 backdrop-blur-lg z-[9999] md:flex md:items-center md:justify-center md:p-4" @keydown.escape="$emit('close')" tabindex="-1">
         <!-- Desktop: Centered Modal -->
         <div class="hidden md:block bg-white rounded-2xl w-full max-w-lg max-h-[95vh] overflow-hidden shadow-2xl transform transition-all duration-300">
           <!-- Header with Banner -->

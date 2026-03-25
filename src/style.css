@@ -105,44 +105,44 @@
 
 @layer components {
   .card {
-    @apply bg-white/90 backdrop-blur-sm border border-orange-100/50 rounded-xl shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1;
+    @apply bg-white/90 backdrop-blur-sm border border-gray-200/60 rounded-xl shadow-sm hover:shadow-md transition-shadow duration-200;
   }
-  
+
   .stat-card {
-    @apply card p-4 sm:p-6 hover:shadow-lg hover:border-orange-200/60 transition-all duration-300 hover:scale-105;
+    @apply card p-4 sm:p-6 hover:border-orange-200/60 transition-all duration-200;
   }
-  
+
   .zap-item {
-    @apply card p-2 sm:p-3 hover:bg-orange-25/50 transition-all duration-200 hover:shadow-md;
+    @apply card p-2 sm:p-3 hover:bg-orange-50/50 transition-colors duration-150;
   }
-  
+
   .btn-primary {
-    @apply bg-gradient-to-r from-orange-400 to-amber-400 hover:from-orange-500 hover:to-amber-500 text-white px-4 py-3 rounded-lg font-medium transition-all duration-200 flex items-center justify-center gap-2 shadow-sm hover:shadow-md touch-target text-sm sm:text-base transform hover:scale-105 active:scale-95;
+    @apply bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white px-4 py-2.5 rounded-xl font-medium transition-all duration-150 flex items-center justify-center gap-2 shadow-sm hover:shadow-md touch-target text-sm sm:text-base active:opacity-80;
   }
-  
+
   .btn-secondary {
-    @apply bg-orange-50 hover:bg-orange-100 text-orange-700 px-4 py-3 rounded-lg font-medium transition-all duration-200 flex items-center justify-center gap-2 border border-orange-200/50 touch-target text-sm sm:text-base hover:shadow-sm hover:border-orange-300 transform hover:scale-105 active:scale-95;
+    @apply bg-white hover:bg-gray-50 text-gray-700 px-4 py-2.5 rounded-xl font-medium transition-all duration-150 flex items-center justify-center gap-2 border border-gray-200 touch-target text-sm sm:text-base hover:border-gray-300 active:opacity-80;
   }
 
   /* Enhanced wizard-specific styles */
   .wizard-step-card {
-    @apply bg-white/95 backdrop-blur-sm border border-orange-100/50 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1;
+    @apply bg-white/95 backdrop-blur-sm border border-gray-200/60 rounded-xl shadow-md hover:shadow-lg transition-shadow duration-200;
   }
 
   .content-type-card {
-    @apply p-4 border-2 rounded-xl cursor-pointer transition-all duration-300 hover:shadow-md transform hover:scale-105;
+    @apply p-4 border-2 rounded-xl cursor-pointer transition-all duration-200 hover:shadow-md;
   }
 
   .monetization-card {
-    @apply p-6 border-2 rounded-xl cursor-pointer transition-all duration-300 hover:shadow-lg transform hover:scale-105;
+    @apply p-6 border-2 rounded-xl cursor-pointer transition-all duration-200 hover:shadow-md;
   }
 
   .step-indicator {
-    @apply w-10 h-10 rounded-full flex items-center justify-center font-medium cursor-pointer transition-all duration-300 hover:scale-110;
+    @apply w-10 h-10 rounded-full flex items-center justify-center font-medium cursor-pointer transition-colors duration-200;
   }
 
   .step-indicator.active {
-    @apply bg-gradient-to-r from-orange-400 to-amber-400 text-white shadow-lg scale-110;
+    @apply bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md;
   }
 
   .step-indicator.completed {
@@ -154,11 +154,11 @@
   }
   
   .filter-chip {
-    @apply bg-white border border-orange-200/50 text-orange-700 px-3 py-2 rounded-full text-sm font-medium hover:bg-orange-50 transition-all duration-200 cursor-pointer touch-target hover:shadow-sm hover:scale-105 active:scale-95;
+    @apply bg-white border border-gray-200 text-gray-700 px-3 py-2 rounded-full text-sm font-medium hover:bg-gray-50 transition-colors duration-150 cursor-pointer touch-target active:opacity-80;
   }
-  
+
   .filter-chip.active {
-    @apply bg-gradient-to-r from-orange-400 to-amber-400 text-white border-orange-400 shadow-md;
+    @apply bg-gradient-to-r from-orange-500 to-amber-500 text-white border-orange-500 shadow-sm;
   }
   
   /* Mobile-optimized form inputs */
@@ -870,4 +870,14 @@
 
 .fc-custom-theme .fc-scroller::-webkit-scrollbar-thumb:hover {
   background-color: rgba(251, 146, 60, 0.5);
+}
+
+/* Respect reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

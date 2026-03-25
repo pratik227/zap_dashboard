@@ -38,13 +38,13 @@ const currentPage = inject('currentPage')
 const emit = defineEmits(['show-connection', 'toggle-mobile-menu', 'change-page', 'show-help'])
 
 // Use Nostr authentication
-const { isAuthenticated, userProfile, currentUser, logout, login, authError } = useNostrAuth()
+const { isAuthenticated, isLoading: isLoginLoading, userProfile, currentUser, logout, login, authError } = useNostrAuth()
 
 const { status: connectionStatus, connectionLabel, isOffline } = useConnectionStatus()
 
 const showProfileDropdown = ref(false)
 const profileDropdownRef = ref(null)
-const showDocsConfirm = ref(false)
+// Docs link opens directly — no confirmation needed
 
 // Page title, description, and icon mapping
 const pageInfo = computed(() => {
@@ -219,16 +219,7 @@ const handleProfileAction = (action) => {
 }
 
 const handleDocsClick = () => {
-  showDocsConfirm.value = true
-}
-
-const confirmDocs = () => {
-  showDocsConfirm.value = false
   window.open('https://docs-zaptracker.netlify.app', '_blank', 'noopener,noreferrer')
-}
-
-const cancelDocs = () => {
-  showDocsConfirm.value = false
 }
 
 const handleRefresh = () => {
@@ -335,35 +326,23 @@ const handleLoginClick = async () => {
         <button
           v-if="!isAuthenticated"
           @click="handleLoginClick"
-          class="px-4 sm:px-6 py-2 sm:py-2.5 bg-gradient-to-r from-orange-500 via-amber-500 to-yellow-500 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 flex items-center space-x-2 text-sm sm:text-base"
+          :disabled="isLoginLoading"
+          :class="[
+            'px-4 sm:px-6 py-2 sm:py-2.5 bg-gradient-to-r from-orange-500 via-amber-500 to-yellow-500 text-white font-semibold rounded-lg shadow-lg transition-all duration-200 flex items-center space-x-2 text-sm sm:text-base',
+            isLoginLoading ? 'opacity-80 cursor-not-allowed' : 'hover:shadow-xl hover:scale-105'
+          ]"
         >
-          <IconBolt class="w-4 h-4 sm:w-5 sm:h-5" />
-          <span class="hidden sm:inline">Connect with Nostr</span>
-          <span class="sm:hidden">Connect</span>
+          <IconRefresh v-if="isLoginLoading" class="w-4 h-4 sm:w-5 sm:h-5 animate-spin" />
+          <IconBolt v-else class="w-4 h-4 sm:w-5 sm:h-5" />
+          <span class="hidden sm:inline">{{ isLoginLoading ? 'Connecting...' : 'Connect with Nostr' }}</span>
+          <span class="sm:hidden">{{ isLoginLoading ? 'Connecting...' : 'Connect' }}</span>
         </button>
 
         <!-- Post-Authentication: Show Notifications + Profile -->
         <template v-if="isAuthenticated">
-        <!-- Search - Hidden on mobile, shown on tablet+ -->
-<!--        <div class="relative hidden md:block">-->
-<!--          <input-->
-<!--            type="text"-->
-<!--            placeholder="Search zaps..."-->
-<!--            class="w-48 lg:w-64 pl-10 pr-4 py-2 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 bg-white/80 backdrop-blur-sm transition-all text-sm hover:shadow-sm"-->
-<!--          />-->
-<!--          <IconSearch class="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />-->
-<!--        </div>-->
-
         <!-- Data Status & Refresh (when connected) -->
         <div v-if="dataStatus.show" class="flex items-center space-x-3">
-<!--          <div class="hidden sm:flex items-center space-x-2">-->
-<!--            <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>-->
-<!--            <span :class="['text-xs font-medium', dataStatus.color]">-->
-<!--              {{ dataStatus.text }}-->
-<!--            </span>-->
-<!--          </div>-->
-
-          <!-- Refresh Button with Consistent Styling -->
+          <!-- Refresh Button -->
           <button
             @click="handleRefresh"
             :disabled="isRefreshingData"
@@ -400,7 +379,7 @@ const handleLoginClick = async () => {
                 :src="getUserAvatar"
                 :alt="getUserName"
                 class="w-9 h-9 rounded-full border-2 border-orange-200 group-hover:border-orange-400 transition-all duration-200"
-                @error="$event.target.src = 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'"
+                @error="$event.target.src = generateAvatar(currentUser?.pubkey)"
               />
               <!-- Online indicator -->
               <div class="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-400 rounded-full border-2 border-white shadow-sm"></div>
@@ -421,7 +400,7 @@ const handleLoginClick = async () => {
                       :src="getUserAvatar"
                       :alt="getUserName"
                       class="w-12 h-12 rounded-full border-2 border-orange-300 shadow-sm"
-                      @error="$event.target.src = 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'"
+                      @error="$event.target.src = generateAvatar(currentUser?.pubkey)"
                     />
                     <div class="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-green-400 rounded-full border-2 border-white shadow-sm"></div>
                   </div>
@@ -487,41 +466,6 @@ const handleLoginClick = async () => {
       </div>
     </div>
 
-    <!-- Documentation Confirmation Modal -->
-    <Teleport to="body">
-      <transition name="modal-fade">
-        <div v-if="showDocsConfirm" class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">
-          <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-scale-in">
-            <div class="flex items-start space-x-4 mb-6">
-              <div class="w-12 h-12 bg-gradient-to-br from-orange-100 to-amber-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                <IconBook class="w-6 h-6 text-orange-600" />
-              </div>
-              <div class="flex-1">
-                <h3 class="text-lg font-semibold text-gray-900 mb-2">Visit Documentation?</h3>
-                <p class="text-sm text-gray-600 leading-relaxed">
-                  You're about to visit the ZapTracker documentation. Learn about features, use cases, and get help with common questions.
-                </p>
-              </div>
-            </div>
-
-            <div class="flex gap-3">
-              <button
-                @click="cancelDocs"
-                class="flex-1 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium transition-all duration-200"
-              >
-                Cancel
-              </button>
-              <button
-                @click="confirmDocs"
-                class="flex-1 px-4 py-2.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white rounded-xl font-medium shadow-md hover:shadow-lg transition-all duration-200"
-              >
-                Open Docs
-              </button>
-            </div>
-          </div>
-        </div>
-      </transition>
-    </Teleport>
   </div>
 </template>
 
@@ -542,29 +486,4 @@ const handleLoginClick = async () => {
   transform: translateY(-10px) scale(0.95);
 }
 
-/* Modal transitions */
-.modal-fade-enter-active,
-.modal-fade-leave-active {
-  transition: opacity 0.2s ease-out;
-}
-
-.modal-fade-enter-from,
-.modal-fade-leave-to {
-  opacity: 0;
-}
-
-@keyframes scale-in {
-  from {
-    opacity: 0;
-    transform: scale(0.95);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-.animate-scale-in {
-  animation: scale-in 0.2s ease-out;
-}
 </style>

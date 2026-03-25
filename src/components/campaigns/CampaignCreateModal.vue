@@ -297,7 +297,7 @@ const getEndOfDayTimestamp = (dateString) => {
 </script>
 
 <template>
-  <div class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center z-[9999] p-0 sm:p-4">
+  <div class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center z-[9999] p-0 sm:p-4" @click.self="$emit('close')" @keydown.escape="$emit('close')" tabindex="-1">
     <!-- Mobile Bottom Sheet / Desktop Modal -->
     <div class="bg-white w-full sm:max-w-xl rounded-t-3xl sm:rounded-2xl max-h-[92vh] sm:max-h-[88vh] overflow-hidden shadow-xl">
       <!-- Sticky Header -->

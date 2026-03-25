@@ -201,7 +201,7 @@ const hasContent = computed(() => {
           
           <!-- Notes List -->
           <div v-if="topPerformingNotes.length === 0" class="text-center py-8">
-            <IconEdit class="w-12 h-12 mx-auto text-gray-300 mb-3" />
+            <IconEdit class="w-12 h-12 mx-auto text-gray-400 mb-3" />
             <p class="text-gray-500 text-sm">No performing notes yet</p>
           </div>
           
@@ -286,7 +286,7 @@ const hasContent = computed(() => {
           
           <!-- Articles List -->
           <div v-if="topPerformingLongForm.length === 0" class="text-center py-8">
-            <IconFileText class="w-12 h-12 mx-auto text-gray-300 mb-3" />
+            <IconFileText class="w-12 h-12 mx-auto text-gray-400 mb-3" />
             <p class="text-gray-500 text-sm">No performing articles yet</p>
           </div>
           

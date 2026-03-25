@@ -393,15 +393,18 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- Loading State -->
-    <div v-if="isLoading && currentLists.length === 0" class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm p-8 text-center">
-      <div class="inline-block p-3 bg-orange-100 rounded-full mb-4">
-        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
+    <!-- Loading State (skeleton) -->
+    <div v-if="isLoading && currentLists.length === 0" class="space-y-4 animate-pulse">
+      <div v-for="i in 3" :key="i" class="bg-white rounded-xl border border-gray-200/60 p-5">
+        <div class="flex items-center gap-4">
+          <div class="w-12 h-12 bg-gray-200 rounded-xl flex-shrink-0"></div>
+          <div class="flex-1 space-y-2">
+            <div class="h-4 bg-gray-200 rounded w-40"></div>
+            <div class="h-3 bg-gray-100 rounded w-64"></div>
+          </div>
+          <div class="h-6 bg-gray-200 rounded-full w-16"></div>
+        </div>
       </div>
-      <h3 class="text-lg font-semibold text-gray-900 mb-2">
-        {{ isMyListsTab ? 'Loading your lists...' : 'Discovering lists...' }}
-      </h3>
-      <p class="text-gray-600">Please wait while we fetch data from the Nostr network</p>
     </div>
 
     <!-- Empty State -->

@@ -215,7 +215,7 @@ onUnmounted(() => {
 <template>
   <Teleport to="#modal-root">
     <transition name="modal-transition">
-      <div v-if="show && list" class="modal-overlay fixed inset-0 z-[9999] md:flex md:items-center md:justify-center md:p-4">
+      <div v-if="show && list" class="modal-overlay fixed inset-0 z-[9999] md:flex md:items-center md:justify-center md:p-4" @keydown.escape="$emit('close')" tabindex="-1">
         <!-- Desktop: Centered Modal -->
         <div class="hidden md:block bg-white rounded-3xl w-full max-w-4xl max-h-[90vh] overflow-hidden shadow-2xl transform transition-all duration-300">
           <!-- Header -->

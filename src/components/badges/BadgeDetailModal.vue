@@ -1,5 +1,6 @@
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, toRef } from 'vue'
+import { useFocusTrap } from '../../composables/core/useFocusTrap.js'
 import {
   IconX,
   IconAward,
@@ -27,6 +28,9 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['close'])
+
+const badgeModalRoot = ref(null)
+useFocusTrap(toRef(props, 'show'), badgeModalRoot)
 
 // Local state
 const copySuccess = ref('')
@@ -174,7 +178,7 @@ watch(() => props.show, (newValue) => {
 <template>
   <Teleport to="#modal-root">
     <transition name="modal-transition">
-      <div v-if="show && badge && badgeDefinition" class="fixed inset-0 bg-black/50 backdrop-blur-lg flex items-center justify-center z-[9999] p-4" @click.self="closeModal" @keydown.escape="closeModal">
+      <div v-if="show && badge && badgeDefinition" ref="badgeModalRoot" class="fixed inset-0 bg-black/50 backdrop-blur-lg flex items-center justify-center z-[9999] p-4" @click.self="closeModal" @keydown.escape="closeModal" tabindex="-1">
         <div class="bg-white rounded-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto shadow-2xl">
           <!-- Header -->
           <div class="p-6 border-b border-gray-200">

@@ -5,6 +5,8 @@
         v-if="show"
         class="fixed inset-0 z-[9999]"
         @click.self="handleBackdropClick"
+        @keydown.escape="$emit('close')"
+        tabindex="-1"
       >
         <!-- Backdrop -->
         <div class="success-modal-backdrop absolute inset-0 bg-black/50 backdrop-blur-sm" @click="handleBackdropClick"></div>

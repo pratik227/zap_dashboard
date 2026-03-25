@@ -46,6 +46,10 @@ const props = defineProps({
 
 const emit = defineEmits(['trigger-login', 'show-help'])
 
+// Import auth loading state to guard login buttons
+import { useNostrAuth } from '../../composables/auth/useNostrAuth.js'
+const { isLoading: isLoginLoading } = useNostrAuth()
+
 const isLoading = ref(true)
 const networkStats = ref(null)
 const topNodesByCapacity = ref([])
@@ -709,10 +713,15 @@ onMounted(() => {
             <div class="flex flex-col sm:flex-row gap-3">
               <button
                 @click="emit('trigger-login')"
-                class="px-8 py-3.5 bg-white text-orange-600 font-medium rounded-xl shadow-md hover:shadow-lg hover:scale-[1.02] transition-all duration-200 flex items-center justify-center space-x-2 whitespace-nowrap"
+                :disabled="isLoginLoading"
+                :class="[
+                  'px-8 py-3.5 bg-white text-orange-600 font-medium rounded-xl shadow-sm transition-all duration-150 flex items-center justify-center space-x-2 whitespace-nowrap',
+                  isLoginLoading ? 'opacity-70 cursor-not-allowed' : 'hover:shadow-md'
+                ]"
               >
-                <IconLogin class="w-5 h-5" />
-                <span>Connect with Nostr</span>
+                <IconActivity v-if="isLoginLoading" class="w-5 h-5 animate-spin" />
+                <IconLogin v-else class="w-5 h-5" />
+                <span>{{ isLoginLoading ? 'Connecting...' : 'Connect with Nostr' }}</span>
               </button>
               <button
                 @click="emit('show-help')"
@@ -727,11 +736,18 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- Loading State -->
-    <div v-if="isLoading" class="flex items-center justify-center py-20">
-      <div class="text-center">
-        <div class="animate-spin rounded-full h-16 w-16 border-b-4 border-orange-500 mx-auto mb-4"></div>
-        <p class="text-gray-600 text-lg">Loading Lightning Network data...</p>
+    <!-- Loading State (skeleton) -->
+    <div v-if="isLoading" class="space-y-6 animate-pulse">
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div v-for="i in 4" :key="i" class="bg-white rounded-xl border border-gray-200/60 p-6">
+          <div class="h-3 bg-gray-200 rounded w-20 mb-3"></div>
+          <div class="h-8 bg-gray-200 rounded w-28 mb-2"></div>
+          <div class="h-3 bg-gray-100 rounded w-16"></div>
+        </div>
+      </div>
+      <div class="bg-white rounded-xl border border-gray-200/60 p-6">
+        <div class="h-4 bg-gray-200 rounded w-48 mb-4"></div>
+        <div class="h-64 bg-gray-100 rounded-lg"></div>
       </div>
     </div>
 
@@ -1018,10 +1034,15 @@ onMounted(() => {
           <div class="flex flex-col sm:flex-row gap-3 justify-center">
             <button
               @click="emit('trigger-login')"
-              class="px-8 py-3.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-medium rounded-xl hover:shadow-lg hover:scale-[1.02] transition-all duration-200 flex items-center justify-center space-x-2"
+              :disabled="isLoginLoading"
+              :class="[
+                'px-8 py-3.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-medium rounded-xl transition-all duration-150 flex items-center justify-center space-x-2',
+                isLoginLoading ? 'opacity-70 cursor-not-allowed' : 'hover:shadow-md'
+              ]"
             >
-              <IconLogin class="w-5 h-5" />
-              <span>Connect with Nostr</span>
+              <IconActivity v-if="isLoginLoading" class="w-5 h-5 animate-spin" />
+              <IconLogin v-else class="w-5 h-5" />
+              <span>{{ isLoginLoading ? 'Connecting...' : 'Connect with Nostr' }}</span>
             </button>
             <button
               @click="emit('show-help')"

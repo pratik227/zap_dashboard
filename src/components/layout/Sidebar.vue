@@ -176,11 +176,9 @@ const fetchWalletBalance = async () => {
     if (balanceData && typeof balanceData.balance === 'number') {
       walletBalance.value = balanceData.balance
     } else {
-      console.warn('[Sidebar] Invalid balance data:', balanceData)
       walletBalance.value = 0
     }
-  } catch (error) {
-    console.error('[Sidebar] Failed to fetch wallet balance:', error)
+  } catch {
     walletBalance.value = 0
   } finally {
     isLoadingBalance.value = false

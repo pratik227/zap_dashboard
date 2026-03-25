@@ -247,7 +247,7 @@ const openInWallet = () => {
         <h3 class="text-lg font-semibold text-red-900 mb-2">Invalid Invoice</h3>
         <p class="text-red-700 mb-4">{{ error }}</p>
         <button @click="goBack" class="btn-secondary">
-          Go Back
+          Go back
         </button>
       </div>
     </div>

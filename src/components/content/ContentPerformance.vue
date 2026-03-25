@@ -284,13 +284,15 @@ const performanceChartOption = computed(() => {
         <div v-else-if="isEchartsLoaded && VChart" class="h-[250px] lg:h-[300px]">
           <VChart :autoresize="true" :option="revenueChartOption" class="w-full h-full" />
         </div>
-        <div v-else class="flex items-center justify-center h-[250px] lg:h-[300px]">
-          <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
+        <div v-else class="h-[250px] lg:h-[300px] animate-pulse">
+          <div class="h-full bg-gray-100 rounded-lg flex items-end justify-around px-4 pb-4 gap-2">
+            <div v-for="i in 7" :key="'r'+i" class="flex-1 bg-gray-200/80 rounded-t" :style="{ height: `${20 + Math.sin(i) * 30 + 30}%` }"></div>
+          </div>
         </div>
       </div>
-      
+
       <!-- Content Performance -->
-      <div class="bg-white/90 backdrop-blur-sm p-4 lg:p-6 rounded-xl border border-orange-100/50 shadow-sm">
+      <div class="bg-white/90 backdrop-blur-sm p-4 lg:p-6 rounded-xl border border-gray-200/60 shadow-sm">
         <div v-if="echartsError" class="flex items-center justify-center h-[250px] lg:h-[300px]">
           <div class="text-center">
             <IconFileText class="w-8 h-8 text-red-500 mx-auto mb-2" />
@@ -300,21 +302,23 @@ const performanceChartOption = computed(() => {
         <div v-else-if="isEchartsLoaded && VChart" class="h-[250px] lg:h-[300px]">
           <VChart :autoresize="true" :option="performanceChartOption" class="w-full h-full" />
         </div>
-        <div v-else class="flex items-center justify-center h-[250px] lg:h-[300px]">
-          <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
+        <div v-else class="h-[250px] lg:h-[300px] animate-pulse">
+          <div class="h-full bg-gray-100 rounded-lg flex items-end justify-around px-4 pb-4 gap-3">
+            <div v-for="i in 6" :key="'p'+i" class="flex-1 bg-gray-200/80 rounded-t" :style="{ height: `${15 + i * 12}%` }"></div>
+          </div>
         </div>
       </div>
     </div>
     
     <!-- Simple Summary -->
     <div v-if="contentItems.length === 0" class="text-center py-8">
-      <IconFileText class="w-12 h-12 mx-auto text-gray-300 mb-3" />
+      <IconFileText class="w-12 h-12 mx-auto text-gray-400 mb-3" />
       <h3 class="text-lg font-medium text-gray-900 mb-2">No content analytics yet</h3>
       <p class="text-gray-600">Create and publish your first blog post to see performance data.</p>
     </div>
     
     <div v-else-if="contentItems.filter(item => item.zapAmount > 0).length === 0" class="text-center py-8">
-      <IconBolt class="w-12 h-12 mx-auto text-gray-300 mb-3" />
+      <IconBolt class="w-12 h-12 mx-auto text-gray-400 mb-3" />
       <h3 class="text-lg font-medium text-gray-900 mb-2">No zaps received yet</h3>
       <p class="text-gray-600">Share your content to start receiving Lightning zaps from readers.</p>
     </div>

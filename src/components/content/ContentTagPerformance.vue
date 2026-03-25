@@ -48,7 +48,7 @@ const tagStats = computed(() => {
     </h3>
 
     <div v-if="tagStats.length === 0" class="text-center py-8">
-      <IconHash class="w-8 h-8 mx-auto text-gray-300 mb-2" />
+      <IconHash class="w-8 h-8 mx-auto text-gray-400 mb-2" />
       <p class="text-sm text-gray-500">No tagged content yet</p>
     </div>
 

@@ -431,7 +431,7 @@ const getTotalRevenue = (item) => {
     
     <!-- Empty State -->
     <div v-if="items.length === 0" class="text-center py-12">
-      <IconFileText class="w-16 h-16 mx-auto text-gray-300 mb-4" />
+      <IconFileText class="w-16 h-16 mx-auto text-gray-400 mb-4" />
       <h3 class="text-lg font-medium text-gray-900 mb-2">No content yet</h3>
       <p class="text-gray-600">Create your first piece of premium content to start earning.</p>
     </div>

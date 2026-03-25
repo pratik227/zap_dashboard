@@ -38,7 +38,8 @@
       "WebFetch(domain:nostr-core.netlify.app)",
       "Bash(npm view:*)",
       "Bash(npm pack:*)",
-      "Bash(npx vitest:*)"
+      "Bash(npx vitest:*)",
+      "Bash(do sed:*)"
     ]
   }
 }

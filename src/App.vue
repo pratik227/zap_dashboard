@@ -154,7 +154,20 @@ const {
 } = useNostrConnections()
 
 // Use the Nostr auth composable
-const { isAuthenticated, login } = useNostrAuth()
+const { isAuthenticated, isLoading: isLoginLoading, currentUser, userProfile, login } = useNostrAuth()
+
+// Welcome toast after successful login
+const welcomeToast = ref(null)
+let _welcomeTimer = null
+watch(isAuthenticated, (authed, wasAuthed) => {
+  if (authed && !wasAuthed) {
+    const name = userProfile.value?.name || userProfile.value?.display_name || ''
+    const avatar = userProfile.value?.picture || ''
+    welcomeToast.value = { name, avatar }
+    clearTimeout(_welcomeTimer)
+    _welcomeTimer = setTimeout(() => { welcomeToast.value = null }, 3500)
+  }
+})
 
 // Relay connection health
 const { status: relayStatus, isOffline: isRelayOffline, isConnecting: isRelayConnecting, connectionLabel: relayLabel } = useConnectionStatus()
@@ -595,6 +608,7 @@ const startPeriodicHealthCheck = () => {
 // Cleanup on unmount
 onUnmounted(() => {
   clearTimeout(_loginStatusTimer)
+  clearTimeout(_welcomeTimer)
   if (healthCheckInterval) {
     clearInterval(healthCheckInterval)
   }
@@ -991,6 +1005,23 @@ const handleChecklistTaskAction = async (action) => {
           <div v-if="loginError" class="mx-3 sm:mx-4 lg:mx-6 mt-3 sm:mt-4 lg:mt-6 mb-0" role="alert" aria-live="assertive">
             <div class="bg-red-50 text-red-800 border border-red-200 rounded-lg px-4 py-3 text-sm font-medium">
               {{ loginError.message }}
+            </div>
+          </div>
+        </transition>
+
+        <!-- Welcome Toast -->
+        <transition name="slide-down">
+          <div v-if="welcomeToast" class="mx-3 sm:mx-4 lg:mx-6 mt-3 sm:mt-4 lg:mt-6 mb-0" role="status" aria-live="polite">
+            <div class="bg-white border border-green-200 rounded-xl px-4 py-3 shadow-sm flex items-center gap-3">
+              <div class="w-8 h-8 rounded-full overflow-hidden border border-gray-200 flex-shrink-0 bg-gray-100">
+                <img v-if="welcomeToast.avatar" :src="welcomeToast.avatar" alt="" class="w-full h-full object-cover" @error="$event.target.style.display='none'" />
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-sm font-medium text-gray-900">
+                  Signed in{{ welcomeToast.name ? ` as ${welcomeToast.name}` : '' }}
+                </p>
+              </div>
+              <div class="w-2 h-2 rounded-full bg-green-500 flex-shrink-0 animate-pulse"></div>
             </div>
           </div>
         </transition>

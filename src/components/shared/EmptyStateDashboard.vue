@@ -1,11 +1,13 @@
 <script setup>
-import { ref } from 'vue'
-import { IconBolt, IconChartBar, IconUsers, IconWallet, IconTrendingUp, IconCheck, IconHelp } from '@iconify-prerendered/vue-tabler'
+import { IconBolt, IconChartBar, IconUsers, IconWallet, IconTrendingUp, IconCheck, IconHelp, IconLoader } from '@iconify-prerendered/vue-tabler'
 import LightningStats from '../zaps/LightningStats.vue'
+import { useNostrAuth } from '../../composables/auth/useNostrAuth.js'
 
 const emit = defineEmits(['connect', 'show-help'])
+const { isLoading: isLoginLoading } = useNostrAuth()
 
 const handleConnect = () => {
+  if (isLoginLoading.value) return
   emit('connect')
 }
 
@@ -79,10 +81,15 @@ const handleShowHelp = () => {
         <div class="flex flex-col sm:flex-row gap-4 justify-center">
           <button
             @click="handleConnect"
-            class="bg-white text-orange-600 px-8 py-4 rounded-xl font-semibold hover:shadow-2xl transform hover:scale-105 transition-all duration-200 flex items-center justify-center space-x-2"
+            :disabled="isLoginLoading"
+            :class="[
+              'px-8 py-4 rounded-xl font-semibold transition-all duration-150 flex items-center justify-center space-x-2',
+              isLoginLoading ? 'bg-white/70 text-orange-400 cursor-not-allowed' : 'bg-white text-orange-600 hover:shadow-lg'
+            ]"
           >
-            <IconBolt class="w-5 h-5" />
-            <span>Connect with Nostr</span>
+            <IconLoader v-if="isLoginLoading" class="w-5 h-5 animate-spin" />
+            <IconBolt v-else class="w-5 h-5" />
+            <span>{{ isLoginLoading ? 'Connecting...' : 'Connect with Nostr' }}</span>
           </button>
           <button
             @click="handleShowHelp"
@@ -148,10 +155,15 @@ const handleShowHelp = () => {
         <p class="text-gray-600 mb-6">Connect your Nostr account to get started</p>
         <button
           @click="handleConnect"
-          class="px-8 py-3 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-semibold rounded-lg shadow-md hover:shadow-lg hover:scale-105 transition-all duration-200 inline-flex items-center space-x-2"
+          :disabled="isLoginLoading"
+          :class="[
+            'px-8 py-3 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-semibold rounded-xl shadow-sm transition-all duration-150 inline-flex items-center space-x-2',
+            isLoginLoading ? 'opacity-70 cursor-not-allowed' : 'hover:shadow-md'
+          ]"
         >
-          <IconBolt class="w-5 h-5" />
-          <span>Connect with Nostr</span>
+          <IconLoader v-if="isLoginLoading" class="w-5 h-5 animate-spin" />
+          <IconBolt v-else class="w-5 h-5" />
+          <span>{{ isLoginLoading ? 'Connecting...' : 'Connect with Nostr' }}</span>
         </button>
       </div>
     </div>

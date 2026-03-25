@@ -186,7 +186,7 @@ const getNipLabel = (nip) => nipDescriptions[nip] || `NIP-${nip}`
     <!-- Not Authenticated -->
     <div v-if="!isAuthenticated" class="max-w-md mx-auto">
       <div class="bg-gray-50 rounded-2xl p-8 text-center">
-        <IconUser class="w-12 h-12 mx-auto text-gray-300 mb-3" />
+        <IconUser class="w-12 h-12 mx-auto text-gray-400 mb-3" />
         <h3 class="text-lg font-semibold text-gray-900 mb-2">Connect First</h3>
         <p class="text-sm text-gray-500">Connect your Nostr identity on the Profile tab to manage relays.</p>
       </div>
@@ -265,7 +265,7 @@ const getNipLabel = (nip) => nipDescriptions[nip] || `NIP-${nip}`
           <!-- Relay List -->
           <div class="space-y-1.5">
             <div v-if="userRelays.length === 0" class="text-center py-8">
-              <IconPlugConnected class="w-12 h-12 mx-auto text-gray-300 mb-2" />
+              <IconPlugConnected class="w-12 h-12 mx-auto text-gray-400 mb-2" />
               <p class="text-sm text-gray-500">No relays configured</p>
             </div>
 
