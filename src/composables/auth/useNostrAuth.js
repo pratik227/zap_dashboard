@@ -4,7 +4,7 @@ import { nostrService } from '../../services/nostr/NostrService.js'
 import { signerService } from '../../services/nostr/SignerService.js'
 import { initializeNWC } from '../../utils/wallet/nwcClient.js'
 import { profileService } from '../../services/nostr/ProfileService.js'
-import { DEFAULT_RELAY_CONFIGS_WITH_STATUS } from '../../utils/constants.js'
+import { DEFAULT_RELAY_CONFIGS_WITH_STATUS, MAX_PERSISTENT_RELAYS } from '../../utils/constants.js'
 import { stopRefreshCycle } from '../../utils/refreshCycle.js'
 import { getUserFriendlyError } from '../../services/nostr/errors.js'
 import { storageService, STORAGE_KEYS } from '../../services/StorageService.js'
@@ -55,11 +55,14 @@ const saveRelaysToStorage = (relayData) => {
   storageService.set(STORAGE_KEYS.RELAYS, relayData)
 }
 
-// Sync relay statuses from relay manager
+// Sync relay statuses from relay manager.
+// IMPORTANT: Only updates status for relays already in the persistent set.
+// Runtime/outbox/inbox relays discovered by NostrService stay ephemeral —
+// they are never promoted into userRelays or written to storage.
 const syncRelayStatuses = () => {
   const managerStatuses = nostrService.getRelayStatuses()
-  
-  // Update userRelays with current statuses
+
+  // Update persistent userRelays with current statuses (status fields only)
   userRelays.value = userRelays.value.map(relay => {
     const managerStatus = managerStatuses.find(s => s.url === relay.url)
     if (managerStatus) {
@@ -73,25 +76,10 @@ const syncRelayStatuses = () => {
     }
     return relay
   })
-  
-  // Add any new relays from manager that aren't in userRelays
-  managerStatuses.forEach(managerStatus => {
-    const exists = userRelays.value.find(r => r.url === managerStatus.url)
-    if (!exists && managerStatus.config) {
-      userRelays.value.push({
-        url: managerStatus.url,
-        status: managerStatus.status,
-        read: managerStatus.config.read,
-        write: managerStatus.config.write,
-        error: managerStatus.error,
-        lastUpdated: managerStatus.lastUpdated,
-        lastConnected: managerStatus.lastConnected
-      })
-    }
-  })
-  
-  // Save updated relays
-  saveRelaysToStorage(userRelays.value)
+
+  // NOTE: We intentionally do NOT append unknown manager relays into userRelays.
+  // Outbox/inbox relays are routing hints, not user preferences.
+  // They live only in NostrService.relayStatuses for the duration of the session.
 }
 
 // Fetch user profile using ProfileService
@@ -308,20 +296,22 @@ const fetchUserRelayList = async (pubkey) => {
   }
 }
 
-// Update relay manager with user's relays
+// Update relay manager with user's own NIP-65 relay preferences.
+// Only the logged-in user's kind:10002 relays become persistent preferences.
+// Other users' relay lists are handled as ephemeral outbox/inbox routing hints
+// by NostrService.getOutboxRelays / getInboxRelays.
 const updateRelaysFromNip65 = async (pubkey) => {
   const nip65Relays = await fetchUserRelayList(pubkey)
-  
+
   if (nip65Relays && nip65Relays.length > 0) {
-    // Merge NIP-65 relays with existing relays (NIP-65 takes priority)
     const existingUrls = new Set(userRelays.value.map(r => r.url))
     const newRelays = []
-    
+
     for (const relay of nip65Relays) {
       if (!existingUrls.has(relay.url)) {
         newRelays.push(relay)
       } else {
-        // Update existing relay with NIP-65 settings
+        // Update existing relay with NIP-65 read/write flags
         const existingIndex = userRelays.value.findIndex(r => r.url === relay.url)
         if (existingIndex !== -1) {
           userRelays.value[existingIndex] = {
@@ -332,10 +322,13 @@ const updateRelaysFromNip65 = async (pubkey) => {
         }
       }
     }
-    
-    // Add new relays from NIP-65
+
+    // Add new relays from NIP-65, but respect the persistent relay cap
     if (newRelays.length > 0) {
-      userRelays.value = [...userRelays.value, ...newRelays]
+      const headroom = MAX_PERSISTENT_RELAYS - userRelays.value.length
+      if (headroom > 0) {
+        userRelays.value = [...userRelays.value, ...newRelays.slice(0, headroom)]
+      }
     }
 
     // Save updated relays
@@ -347,10 +340,10 @@ const updateRelaysFromNip65 = async (pubkey) => {
     } catch (error) {
       console.warn('Failed to update relay manager:', error)
     }
-    
+
     return true
   }
-  
+
   return false
 }
 
@@ -598,6 +591,40 @@ const logout = () => {
   }
 }
 
+// Trim an oversized stored relay list down to the cap.
+// Keeps all defaults first, then fills the rest with the most recently
+// connected relays from the stored list.
+const trimRelayList = (relays) => {
+  if (relays.length <= MAX_PERSISTENT_RELAYS) return relays
+
+  const defaultUrls = new Set(DEFAULT_RELAYS.map(r => r.url))
+  const kept = []
+  const rest = []
+
+  for (const relay of relays) {
+    if (defaultUrls.has(relay.url)) {
+      kept.push(relay)
+    } else {
+      rest.push(relay)
+    }
+  }
+
+  // Sort non-default relays by most recently connected (descending)
+  rest.sort((a, b) => {
+    const aTime = a.lastConnected ? new Date(a.lastConnected).getTime() : 0
+    const bTime = b.lastConnected ? new Date(b.lastConnected).getTime() : 0
+    return bTime - aTime
+  })
+
+  const headroom = MAX_PERSISTENT_RELAYS - kept.length
+  const trimmed = [...kept, ...rest.slice(0, Math.max(0, headroom))]
+
+  console.info(
+    `[relay-migration] Trimmed persistent relay list from ${relays.length} to ${trimmed.length} (cap: ${MAX_PERSISTENT_RELAYS})`
+  )
+  return trimmed
+}
+
 // Initialize auth and relays - simplified for NIP-07 only
 const initAuthAndRelays = async () => {
   if (isInitialized) return
@@ -610,6 +637,13 @@ const initAuthAndRelays = async () => {
     // Load or initialize relays
     if (!loadRelaysFromStorage()) {
       userRelays.value = [...DEFAULT_RELAYS]
+      saveRelaysToStorage(userRelays.value)
+    }
+
+    // Migration: trim oversized stored relay lists from previous versions
+    // that promoted runtime/outbox relays into persistent storage.
+    if (userRelays.value.length > MAX_PERSISTENT_RELAYS) {
+      userRelays.value = trimRelayList(userRelays.value)
       saveRelaysToStorage(userRelays.value)
     }
 
@@ -691,6 +725,14 @@ const connectedRelays = computed(() => userRelays.value.filter(relay => relay.st
 const readRelays = computed(() => userRelays.value.filter(relay => relay.read && relay.status === 'connected'))
 const writeRelays = computed(() => userRelays.value.filter(relay => relay.write && relay.status === 'connected'))
 
+// Runtime relay count: relays connected by NostrService for outbox/inbox routing
+// that are NOT in the persistent user relay list.
+const runtimeRelayCount = computed(() => {
+  const persistentUrls = new Set(userRelays.value.map(r => r.url))
+  const allServiceRelays = nostrService.getRelayStatuses()
+  return allServiceRelays.filter(r => !persistentUrls.has(r.url)).length
+})
+
 // Watch for changes and save to storage (debounced to avoid localStorage thrashing)
 let _authSaveTimer = null
 const debouncedSaveUser = () => {
@@ -729,6 +771,7 @@ export function useNostrAuth() {
     connectedRelays,
     readRelays,
     writeRelays,
+    runtimeRelayCount,
     
     // Actions
     login,

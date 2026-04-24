@@ -26,6 +26,7 @@ const {
   connectedRelays,
   readRelays,
   writeRelays,
+  runtimeRelayCount,
   addRelay,
   removeRelay,
   checkRelayStatus,
@@ -207,6 +208,7 @@ const getNipLabel = (nip) => nipDescriptions[nip] || `NIP-${nip}`
               <h3 class="text-base font-semibold text-gray-900">Relay Network</h3>
               <p class="text-xs text-gray-500">
                 {{ connectedRelays.length }}/{{ userRelays.length }} connected
+                <span v-if="runtimeRelayCount > 0" class="text-blue-500"> &middot; +{{ runtimeRelayCount }} outbox</span>
                 <span v-if="relayInfoError" class="text-amber-600"> &middot; info unavailable</span>
               </p>
             </div>
@@ -237,8 +239,15 @@ const getNipLabel = (nip) => nipDescriptions[nip] || `NIP-${nip}`
             </div>
             <div class="bg-gray-50 rounded-xl p-2.5 text-center">
               <div class="text-lg font-bold text-gray-600">{{ userRelays.length }}</div>
-              <div class="text-xs text-gray-700">Total</div>
+              <div class="text-xs text-gray-700">Saved</div>
             </div>
+          </div>
+          <!-- Runtime relay info -->
+          <div v-if="runtimeRelayCount > 0" class="mb-3 px-3 py-2 bg-blue-50 rounded-lg flex items-center gap-2">
+            <IconPlugConnected class="w-3.5 h-3.5 text-blue-500 flex-shrink-0" />
+            <p class="text-xs text-blue-700">
+              <span class="font-medium">{{ runtimeRelayCount }} outbox relays</span> active for event routing (ephemeral, not saved)
+            </p>
           </div>
 
           <!-- Add Relay -->

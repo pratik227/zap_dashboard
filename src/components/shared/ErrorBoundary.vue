@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div class="flex-1 min-h-0">
     <div v-if="error" class="bg-red-50 border border-red-200 rounded-lg p-4">
       <div class="flex items-start space-x-3">
         <IconAlertTriangle class="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />

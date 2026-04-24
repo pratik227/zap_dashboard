@@ -796,8 +796,8 @@ const handleLogin = async () => {
       </div>
 
       <!-- Desktop: multi-column grid -->
-      <div class="hidden md:block flex-1 min-h-0 overflow-hidden">
-        <div class="desk-columns-track flex h-full min-h-0 min-w-full items-stretch gap-3 overflow-x-auto overflow-y-hidden pb-1">
+      <div class="hidden md:flex md:flex-col flex-1 min-h-0 overflow-hidden">
+        <div class="desk-columns-track flex flex-1 min-h-0 min-w-full items-stretch gap-3 overflow-x-auto overflow-y-hidden pb-1">
         <DeskColumn
           v-for="col in columns"
           :key="col.id"

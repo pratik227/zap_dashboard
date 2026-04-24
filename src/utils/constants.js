@@ -52,6 +52,10 @@ export const OUTBOX_RELAY_LIST_TTL = 30 * 60 * 1000  // 30min cache for relay li
 export const OUTBOX_MAX_RELAYS_PER_PUBKEY = 5         // max relays to use per user for outbox
 export const RELAY_INFO_TTL = 60 * 60 * 1000          // 1h cache for NIP-11 relay info
 
+// ── Persistent relay limits ──
+// Only user-curated + own NIP-65 relays are persisted; outbox/inbox stay ephemeral
+export const MAX_PERSISTENT_RELAYS = 50
+
 // ── Default relay list (single source of truth) ──
 export const DEFAULT_RELAY_URLS = [
   'wss://relay.damus.io',
