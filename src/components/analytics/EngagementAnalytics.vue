@@ -8,7 +8,8 @@ import {
   IconFileText,
   IconEdit,
   IconTrendingUp,
-  IconChevronRight
+  IconChevronRight,
+  IconMessageForward
 } from '@iconify-prerendered/vue-tabler'
 import { useEngagementMetrics } from '../../composables/analytics/useEngagementMetrics.js'
 import { filterZapsByTimeRange } from '../../utils/core/timeFilter.js'
@@ -95,6 +96,7 @@ const buildContentPerformance = (typeFilter) => {
         zapAmount: 0,
         likes: engagement.likes,
         reposts: engagement.reposts,
+        quotes: engagement.quotes,
         bookmarks: engagement.bookmarks
       })
 
@@ -142,7 +144,7 @@ const buildContentPerformance = (typeFilter) => {
     .filter(content => content.type === typeFilter)
     .map(content => ({
       ...content,
-      totalScore: (content.zaps * 10) + (content.reposts * 3) + (content.likes * 1) + (content.bookmarks * 2)
+      totalScore: (content.zaps * 10) + (content.reposts * 3) + (content.quotes * 3) + (content.likes * 1) + (content.bookmarks * 2)
     }))
     .filter(content => content.totalScore > 0)
     .sort((a, b) => b.totalScore - a.totalScore)
@@ -268,6 +270,10 @@ const hasContent = computed(() => {
                       <IconRepeat class="w-3 h-3" />
                       <span>{{ formatNumber(note.reposts) }}</span>
                     </span>
+                    <span v-if="note.quotes > 0" class="flex items-center space-x-0.5 text-purple-600">
+                      <IconMessageForward class="w-3 h-3" />
+                      <span>{{ formatNumber(note.quotes) }}</span>
+                    </span>
                     <span v-if="note.bookmarks > 0" class="flex items-center space-x-0.5 text-blue-600">
                       <IconBookmark class="w-3 h-3" />
                       <span>{{ formatNumber(note.bookmarks) }}</span>
@@ -353,6 +359,10 @@ const hasContent = computed(() => {
                     <span v-if="article.reposts > 0" class="flex items-center space-x-0.5 text-green-600">
                       <IconRepeat class="w-3 h-3" />
                       <span>{{ formatNumber(article.reposts) }}</span>
+                    </span>
+                    <span v-if="article.quotes > 0" class="flex items-center space-x-0.5 text-purple-600">
+                      <IconMessageForward class="w-3 h-3" />
+                      <span>{{ formatNumber(article.quotes) }}</span>
                     </span>
                     <span v-if="article.bookmarks > 0" class="flex items-center space-x-0.5 text-blue-600">
                       <IconBookmark class="w-3 h-3" />

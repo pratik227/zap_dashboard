@@ -33,6 +33,7 @@ import {
   IconHeart,
   IconRepeat,
   IconBookmark,
+  IconMessageForward,
   IconX,
   IconCheck,
   IconCopy,
@@ -124,7 +125,7 @@ const showMediaPicker = ref(false)
 // Debounced note stats — avoids recomputing on every single zap/engagement event
 const noteStats = ref({
   total: 0, thisWeek: 0, totalZapRevenue: 0, totalLikes: 0,
-  totalReposts: 0, totalBookmarks: 0, totalZapCount: 0, totalEngagement: 0
+  totalReposts: 0, totalQuotes: 0, totalBookmarks: 0, totalZapCount: 0, totalEngagement: 0
 })
 
 let _noteStatsTimer = null
@@ -132,7 +133,7 @@ function recalcNoteStats() {
   clearTimeout(_noteStatsTimer)
   _noteStatsTimer = setTimeout(() => {
     const list = Array.isArray(notes.value) ? notes.value : []
-    let totalZapRevenue = 0, totalLikes = 0, totalReposts = 0, totalBookmarks = 0, totalZapCount = 0
+    let totalZapRevenue = 0, totalLikes = 0, totalReposts = 0, totalQuotes = 0, totalBookmarks = 0, totalZapCount = 0
 
     for (const note of list) {
       totalZapRevenue += getTotalZapAmount(note.id)
@@ -140,6 +141,7 @@ function recalcNoteStats() {
       const ec = getEngagementCounts(note.id) || {}
       totalLikes += ec.likes || 0
       totalReposts += ec.reposts || 0
+      totalQuotes += ec.quotes || 0
       totalBookmarks += ec.bookmarks || 0
     }
 
@@ -147,8 +149,8 @@ function recalcNoteStats() {
     noteStats.value = {
       total: list.length,
       thisWeek: list.filter(n => n.created_at * 1000 > weekAgo).length,
-      totalZapRevenue, totalLikes, totalReposts, totalBookmarks, totalZapCount,
-      totalEngagement: totalLikes + totalReposts + totalBookmarks + totalZapCount
+      totalZapRevenue, totalLikes, totalReposts, totalQuotes, totalBookmarks, totalZapCount,
+      totalEngagement: totalLikes + totalReposts + totalQuotes + totalBookmarks + totalZapCount
     }
   }, 2000)
 }
@@ -597,6 +599,10 @@ const handleMentionClick = ({ pubkey, profile }) => {
                 <span class="flex items-center gap-1">
                   <IconRepeat class="w-3 h-3 text-green-500" />
                   <span class="text-green-600 font-medium">{{ noteStats.totalReposts }}</span>
+                </span>
+                <span class="flex items-center gap-1">
+                  <IconMessageForward class="w-3 h-3 text-purple-500" />
+                  <span class="text-purple-600 font-medium">{{ noteStats.totalQuotes }}</span>
                 </span>
                 <span class="flex items-center gap-1">
                   <IconBolt class="w-3 h-3 text-orange-500" />
