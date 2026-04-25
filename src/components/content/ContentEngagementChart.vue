@@ -46,13 +46,14 @@ const chartData = computed(() => {
       const eng = props.getEngagementCounts(item.nostrEventId) || {}
       const likes = eng.likes || 0
       const reposts = eng.reposts || 0
+      const quotes = eng.quotes || 0
       const bookmarks = eng.bookmarks || 0
       const zaps = item.zapCount || 0
       const name = item.title || 'Untitled'
       return {
         title: name.length > 20 ? name.substring(0, 20) + '...' : name,
-        likes, reposts, bookmarks, zaps,
-        total: likes + reposts + bookmarks + zaps
+        likes, reposts, quotes, bookmarks, zaps,
+        total: likes + reposts + quotes + bookmarks + zaps
       }
     })
     .sort((a, b) => b.total - a.total)
@@ -76,7 +77,7 @@ const chartOption = computed(() => {
       ...CHART_TOOLTIP_STYLE
     },
     legend: {
-      data: ['Likes', 'Reposts', 'Bookmarks', 'Zaps'],
+      data: ['Likes', 'Reposts', 'Quotes', 'Bookmarks', 'Zaps'],
       textStyle: { color: CHART_COLORS.titleText, fontSize: 10 },
       top: '12%'
     },
@@ -113,6 +114,13 @@ const chartOption = computed(() => {
         stack: 'engagement',
         data: items.map(p => p.reposts),
         itemStyle: { color: CHART_COLORS.green }
+      },
+      {
+        name: 'Quotes',
+        type: 'bar',
+        stack: 'engagement',
+        data: items.map(p => p.quotes),
+        itemStyle: { color: CHART_COLORS.purple || '#a855f7' }
       },
       {
         name: 'Bookmarks',

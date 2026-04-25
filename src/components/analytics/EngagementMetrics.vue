@@ -6,7 +6,8 @@ import {
   IconRepeat,
   IconBolt,
   IconBookmarkFilled,
-  IconBookmark
+  IconBookmark,
+  IconMessageForward
 } from '@iconify-prerendered/vue-tabler'
 
 const props = defineProps({
@@ -16,6 +17,7 @@ const props = defineProps({
     default: () => ({
       likes: 0,
       reposts: 0,
+      quotes: 0,
       bookmarks: 0,
       totalEngagement: 0
     })
@@ -61,6 +63,7 @@ const hasEngagement = computed(() =>
 const hasAnyEngagement = computed(() => 
   (props.engagementCounts?.likes || 0) > 0 || 
   (props.engagementCounts?.reposts || 0) > 0 || 
+  (props.engagementCounts?.quotes || 0) > 0 || 
   (props.engagementCounts?.bookmarks || 0) > 0 || 
   props.zapCount > 0
 )
@@ -68,6 +71,7 @@ const hasAnyEngagement = computed(() =>
 const safeEngagementCounts = computed(() => ({
   likes: props.engagementCounts?.likes || 0,
   reposts: props.engagementCounts?.reposts || 0,
+  quotes: props.engagementCounts?.quotes || 0,
   bookmarks: props.engagementCounts?.bookmarks || 0,
   totalEngagement: props.engagementCounts?.totalEngagement || 0
 }))
@@ -98,6 +102,12 @@ const formatNumber = (num) => {
       <div v-if="showTooltips" class="custom-tooltip">{{ safeEngagementCounts.reposts }} {{ safeEngagementCounts.reposts <= 1 ? 'repost' : 'reposts' }}</div>
     </span>
     
+    <span :class="['flex items-center gap-1 px-2 py-0.5 rounded-md hover:bg-gray-50 transition-colors', showTooltips ? 'tooltip-container' : '']">
+      <IconMessageForward :class="[iconSizeClass, safeEngagementCounts.quotes > 0 ? 'text-purple-500' : 'text-gray-400']" />
+      <span :class="[textSize, 'font-medium']">{{ formatNumber(safeEngagementCounts.quotes) }}</span>
+      <div v-if="showTooltips" class="custom-tooltip">{{ safeEngagementCounts.quotes }} {{ safeEngagementCounts.quotes <= 1 ? 'quote' : 'quotes' }}</div>
+    </span>
+
     <span :class="['flex items-center gap-1 px-2 py-0.5 rounded-md hover:bg-orange-50 transition-colors', showTooltips ? 'tooltip-container' : '']">
       <IconBolt :class="[iconSizeClass, zapCount > 0 ? 'text-orange-500' : 'text-gray-400']" />
       <span :class="[textSize, 'font-medium', zapCount > 0 ? 'text-orange-600' : 'text-gray-500']">{{ formatNumber(zapCount) }}</span>

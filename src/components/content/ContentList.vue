@@ -21,7 +21,8 @@ import {
 import { 
   IconHeart,
   IconRepeat,
-  IconBookmark
+  IconBookmark,
+  IconMessageForward
 } from '@iconify-prerendered/vue-tabler'
 import EngagementMetrics from '../analytics/EngagementMetrics.vue'
 import { useEngagementMetrics } from '../../composables/analytics/useEngagementMetrics.js'
@@ -259,6 +260,18 @@ const getTotalRevenue = (item) => {
                 </div>
               </button>
               
+              <!-- Quotes -->
+              <button class="flex items-center space-x-2 text-gray-500 hover:text-purple-500 transition-colors group relative tooltip-container">
+                <IconMessageForward :class="[
+                  'w-4 h-4 transition-colors',
+                  getEngagementCounts(item.nostrEventId).quotes > 0 ? 'text-purple-500' : 'text-gray-400 group-hover:text-purple-500'
+                ]" />
+                <span class="text-sm font-medium">{{ getEngagementCounts(item.nostrEventId).quotes || 0 }}</span>
+                <div class="tooltip">
+                  {{ getEngagementCounts(item.nostrEventId).quotes || 0 }} {{ (getEngagementCounts(item.nostrEventId).quotes || 0) === 1 ? 'quote' : 'quotes' }} on Nostr
+                </div>
+              </button>
+
               <!-- Zaps -->
               <button class="flex items-center space-x-2 text-gray-500 hover:text-orange-500 transition-colors group relative tooltip-container">
                 <IconBolt :class="[
@@ -391,6 +404,18 @@ const getTotalRevenue = (item) => {
                 </div>
               </button>
               
+              <!-- Quotes -->
+              <button class="flex items-center space-x-2 text-gray-500 hover:text-purple-500 transition-colors group relative tooltip-container">
+                <IconMessageForward :class="[
+                  'w-5 h-5 transition-colors',
+                  getEngagementCounts(item.nostrEventId).quotes > 0 ? 'text-purple-500' : 'text-gray-400 group-hover:text-purple-500'
+                ]" />
+                <span class="text-sm font-medium">{{ getEngagementCounts(item.nostrEventId).quotes || 0 }}</span>
+                <div class="tooltip">
+                  {{ getEngagementCounts(item.nostrEventId).quotes || 0 }} {{ (getEngagementCounts(item.nostrEventId).quotes || 0) === 1 ? 'quote' : 'quotes' }} on Nostr
+                </div>
+              </button>
+
               <!-- Zaps -->
               <button class="flex items-center space-x-2 text-gray-500 hover:text-orange-500 transition-colors group relative tooltip-container">
                 <IconBolt :class="[
@@ -471,6 +496,10 @@ const getTotalRevenue = (item) => {
 
 .group:hover .group-hover\:text-orange-500 {
   color: #f97316;
+}
+
+.group:hover .group-hover\:text-purple-500 {
+  color: #a855f7;
 }
 
 .group:hover .group-hover\:text-blue-500 {

@@ -12,6 +12,26 @@ const batchTimer = ref(null)
 const BATCH_DELAY = 1000
 const MAX_BATCH_SIZE = 50
 
+const createEmptyMetrics = () => ({
+  likes: [],
+  reposts: [],
+  quotes: [],
+  bookmarks: [],
+  zaps: [],
+  lastFetched: null,
+  isLoading: false
+})
+
+const normalizeMetrics = (metrics = {}) => ({
+  ...createEmptyMetrics(),
+  ...metrics,
+  likes: Array.isArray(metrics.likes) ? metrics.likes : [],
+  reposts: Array.isArray(metrics.reposts) ? metrics.reposts : [],
+  quotes: Array.isArray(metrics.quotes) ? metrics.quotes : [],
+  bookmarks: Array.isArray(metrics.bookmarks) ? metrics.bookmarks : [],
+  zaps: Array.isArray(metrics.zaps) ? metrics.zaps : []
+})
+
 // Load cached engagement metrics from localStorage immediately
 const ENGAGEMENT_STORAGE_KEY = 'engagement_metrics_cache'
 try {
@@ -19,7 +39,7 @@ try {
   if (cached) {
     const parsed = JSON.parse(cached)
     Object.entries(parsed).forEach(([eventId, metrics]) => {
-      engagementMetrics.set(eventId, metrics)
+      engagementMetrics.set(eventId, normalizeMetrics(metrics))
     })
   }
 } catch (e) {
@@ -46,15 +66,16 @@ export function useEngagementMetrics() {
 
   const initializeEngagementData = (eventId) => {
     if (!engagementMetrics.has(eventId)) {
-      engagementMetrics.set(eventId, {
-        likes: [],
-        reposts: [],
-        bookmarks: [],
-        zaps: [],
-        lastFetched: null,
-        isLoading: false
-      })
+      engagementMetrics.set(eventId, createEmptyMetrics())
+      return
     }
+
+    engagementMetrics.set(eventId, normalizeMetrics(engagementMetrics.get(eventId)))
+  }
+
+  const isQuoteRepost = (event) => {
+    const content = typeof event?.content === 'string' ? event.content.trim() : ''
+    return content.length > 0
   }
 
   const createEngagementData = (event, type, targetEventId = null) => {
@@ -86,11 +107,15 @@ export function useEngagementMetrics() {
         }
 
       case 'repost':
+      case 'quote': {
+        const content = event.content || ''
+        const isQuote = isQuoteRepost(event)
         return {
           ...baseData,
-          content: event.content || '',
-          isQuote: event.content.length > 0
+          content,
+          isQuote
         }
+      }
 
       case 'bookmark':
         return {
@@ -164,10 +189,12 @@ export function useEngagementMetrics() {
         targetArray = metrics.likes
         break
 
-      case 6:
-        engagementData = createEngagementData(event, 'repost', referencedEventId)
-        targetArray = metrics.reposts
+      case 6: {
+        const repostType = isQuoteRepost(event) ? 'quote' : 'repost'
+        engagementData = createEngagementData(event, repostType, referencedEventId)
+        targetArray = repostType === 'quote' ? metrics.quotes : metrics.reposts
         break
+      }
 
       case 10001:
       case 10002:
@@ -343,6 +370,7 @@ export function useEngagementMetrics() {
       return {
         likes: 0,
         reposts: 0,
+        quotes: 0,
         bookmarks: 0,
         totalEngagement: 0
       }
@@ -350,13 +378,15 @@ export function useEngagementMetrics() {
 
     const likes = metrics.likes.length
     const reposts = metrics.reposts.length
+    const quotes = metrics.quotes.length
     const bookmarks = metrics.bookmarks.length
 
     return {
       likes,
       reposts,
+      quotes,
       bookmarks,
-      totalEngagement: likes + reposts + bookmarks
+      totalEngagement: likes + reposts + quotes + bookmarks
     }
   }
 
