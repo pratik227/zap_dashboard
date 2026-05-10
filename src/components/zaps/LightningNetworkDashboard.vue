@@ -57,59 +57,59 @@ const activeTooltip = ref(null)
 
 const tooltips = {
   channels: {
-    title: 'Payment Channels',
-    description: 'Payment channels are direct connections between two Lightning nodes that allow instant Bitcoin transactions. Think of them as private payment tunnels that can process thousands of transactions without touching the Bitcoin blockchain.',
-    example: 'If you and a friend open a channel with 1 BTC, you can send payments back and forth instantly until one of you closes the channel.'
+    title: 'Online Relays',
+    description: 'Relays are the servers that carry Nostr events between apps. Online relays make publishing, reading, search, and discovery feel more reliable.',
+    example: 'A higher online count means the dashboard has more healthy relays available for real-time Nostr activity.'
   },
   nodes: {
-    title: 'Network Nodes',
-    description: 'A Lightning node is like a router in the Lightning Network. Anyone can run a node to send, receive, or help route Bitcoin payments. More nodes mean a more robust and decentralized network.',
-    example: 'Running a node is similar to running a Bitcoin full node, but it also lets you participate in routing payments and earning fees.'
+    title: 'Known Relays',
+    description: 'This is the relay sample ZapTracker probes to estimate public Nostr network health.',
+    example: 'Users can still connect their own relay set; this public sample is just a quick network pulse.'
   },
   capacity: {
-    title: 'Total Network Capacity',
-    description: 'This is the total amount of Bitcoin locked in all Lightning channels across the entire network. Higher capacity means more liquidity for routing larger payments.',
-    example: 'If the network has 5,000 BTC capacity, it can theoretically route payments up to that amount across all channels.'
+    title: 'Event Throughput',
+    description: 'This estimates how many public kind-1 notes the sampled relays saw in the last minute.',
+    example: 'Throughput helps show whether the relay set is active right now, not just reachable.'
   },
   avgCapacity: {
-    title: 'Average Channel Capacity',
-    description: 'The typical amount of Bitcoin held in a single payment channel. Larger channels can route bigger payments but require more capital.',
-    example: 'A channel with 5 million sats can route payments up to that amount in either direction.'
+    title: 'Average Response',
+    description: 'The average time it took healthy relays to open a WebSocket connection or answer the count probe.',
+    example: 'Lower response times usually mean faster feeds and smoother publishing.'
   },
   clearnet: {
-    title: 'Clearnet Nodes',
-    description: 'These nodes are accessible via the regular internet with a public IP address. They\'re faster and easier to connect to, but your IP address is visible to the network.',
-    pros: 'Fast connections, reliable routing'
+    title: 'Relay Health',
+    description: 'Healthy relays accepted a WebSocket connection and responded during the probe window.',
+    pros: 'Useful for real-time feeds and publishing'
   },
   tor: {
-    title: 'Tor Nodes',
-    description: 'These nodes only connect via the Tor network, providing maximum privacy by hiding your IP address. However, they can be slower due to Tor\'s onion routing.',
-    pros: 'Maximum privacy, hidden location'
+    title: 'Offline Relays',
+    description: 'Offline relays did not respond before the probe timed out.',
+    pros: 'Users can route around them with a broader relay list'
   },
   hybrid: {
-    title: 'Hybrid Nodes (Clearnet + Tor)',
-    description: 'These nodes are accessible via both regular internet and Tor, offering the best of both worlds. They can accept connections from any node type.',
-    pros: 'Flexibility, wider reach, privacy option'
+    title: 'NIP Support',
+    description: 'NIP-11 relay info documents advertise which protocol features each relay supports.',
+    pros: 'Search and auth support improve app features'
   },
   isp: {
-    title: 'Hosting Providers',
-    description: 'Most Lightning nodes run on cloud servers from various hosting providers. This shows which companies host the most nodes. Decentralization across many providers is healthier for the network.',
-    note: 'Running a node at home improves decentralization!'
+    title: 'Relay Response Groups',
+    description: 'Relays are grouped by response time so users can quickly see how responsive the sampled network is.',
+    note: 'A mixed relay list is healthier than relying on one fast endpoint.'
   },
   topCountries: {
-    title: 'Top Countries by Node Count',
-    description: 'This shows where Lightning nodes are located around the world. The more spread out nodes are across different countries, the more resilient the network becomes.',
-    example: 'Don\'t worry if your country isn\'t on the list - anyone anywhere can run a node and help grow the network!'
+    title: 'Advertised NIP Support',
+    description: 'This shows the most common protocol features advertised by the relays that responded to NIP-11.',
+    example: 'NIP-50 means search support, and NIP-42 means relay authentication support.'
   },
   topNodesByCapacity: {
-    title: 'Top Nodes by Liquidity',
-    description: 'These are the biggest Lightning nodes ranked by how much Bitcoin they have locked in channels. They\'re like the major hubs of the network, helping route large payments.',
-    example: 'You don\'t need millions of sats to run a useful node - even small nodes help strengthen the network!'
+    title: 'Busiest Relays',
+    description: 'These relays returned the highest recent event counts during the probe window.',
+    example: 'Busy relays can be good discovery sources, but they are not always the fastest.'
   },
   topNodesByConnectivity: {
-    title: 'Most Connected Nodes',
-    description: 'These nodes have the most connections (channels) to other nodes. They\'re like airports with lots of flight routes - great for routing payments quickly across the network.',
-    example: 'More connections means more routing options and better payment reliability!'
+    title: 'Fastest Relays',
+    description: 'These relays answered fastest during this browser-side health check.',
+    example: 'Fast relays make feeds feel more immediate.'
   }
 }
 
@@ -140,14 +140,14 @@ const loadData = async () => {
     ispRanking.value = isp
     historicalData.value = historical
   } catch (error) {
-    console.error('Failed to load Lightning Network data:', error)
+    console.error('Failed to load Nostr network data:', error)
   } finally {
     isLoading.value = false
   }
 }
 
-const openNodeOnAmboss = (publicKey) => {
-  window.open(`https://amboss.space/node/${publicKey}`, '_blank')
+const openRelay = (url) => {
+  window.open(url.replace(/^wss:\/\//, 'https://'), '_blank')
 }
 
 const statsCards = computed(() => {
@@ -156,43 +156,43 @@ const statsCards = computed(() => {
   const stats = networkStats.value
   return [
     {
-      title: 'Total Channels',
-      value: lightningNetworkService.formatNumber(stats.channel_count),
+      title: 'Online Relays',
+      value: lightningNetworkService.formatNumber(stats.online_relays),
       icon: IconNetwork,
       color: 'from-orange-500 to-amber-500',
       bgColor: 'bg-orange-50',
       textColor: 'text-orange-600',
-      subtitle: 'Active payment channels',
+      subtitle: `${stats.offline_relays} offline in sample`,
       tooltipKey: 'channels'
     },
     {
-      title: 'Network Nodes',
-      value: lightningNetworkService.formatNumber(stats.node_count),
+      title: 'Known Relays',
+      value: lightningNetworkService.formatNumber(stats.relay_count),
       icon: IconUsers,
       color: 'from-blue-500 to-cyan-500',
       bgColor: 'bg-blue-50',
       textColor: 'text-blue-600',
-      subtitle: 'Connected Lightning nodes',
+      subtitle: 'Public relays probed',
       tooltipKey: 'nodes'
     },
     {
-      title: 'Total Capacity',
-      value: lightningNetworkService.formatSats(stats.total_capacity),
+      title: 'Event Throughput',
+      value: `${stats.events_per_second}/sec`,
       icon: IconCoins,
       color: 'from-green-500 to-emerald-500',
       bgColor: 'bg-green-50',
       textColor: 'text-green-600',
-      subtitle: 'Network liquidity',
+      subtitle: `${lightningNetworkService.formatNumber(stats.event_count)} events/min`,
       tooltipKey: 'capacity'
     },
     {
-      title: 'Average Capacity',
-      value: lightningNetworkService.formatSats(stats.avg_capacity),
+      title: 'Average Response',
+      value: `${stats.avg_response_ms}ms`,
       icon: IconActivity,
       color: 'from-purple-500 to-pink-500',
       bgColor: 'bg-purple-50',
       textColor: 'text-purple-600',
-      subtitle: 'Per channel',
+      subtitle: `${stats.nip50_relays} search, ${stats.nip42_relays} auth`,
       tooltipKey: 'avgCapacity'
     }
   ]
@@ -202,32 +202,32 @@ const nodeTypeChart = computed(() => {
   if (!networkStats.value) return null
 
   const stats = networkStats.value
-  const total = stats.clearnet_nodes + stats.tor_nodes + stats.clearnet_tor_nodes + stats.unannounced_nodes
+  const total = stats.relay_count || 1
 
   const nodeTypeInfo = {
-    'Clearnet': {
-      description: 'Public nodes accessible via standard internet',
-      benefits: 'Fast connections, easy to reach, better for routing',
-      security: 'IP address visible to network',
-      value: stats.clearnet_nodes
+    'Online': {
+      description: 'Relays that accepted a WebSocket connection during the probe',
+      benefits: 'Available for reading and publishing',
+      security: 'Use multiple relays for resilience',
+      value: stats.online_relays
     },
-    'Tor': {
-      description: 'Anonymous nodes accessible only via Tor network',
-      benefits: 'Enhanced privacy, hidden IP address',
-      security: 'Maximum anonymity, slower connections',
-      value: stats.tor_nodes
+    'Offline': {
+      description: 'Relays that failed or timed out during the probe',
+      benefits: 'Avoided automatically by healthy relay selection',
+      security: 'Failures are normal in decentralized relay sets',
+      value: stats.offline_relays
     },
-    'Clearnet + Tor': {
-      description: 'Hybrid nodes accessible via both networks',
-      benefits: 'Best of both worlds - privacy option with speed',
-      security: 'Flexible connectivity, balanced approach',
-      value: stats.clearnet_tor_nodes
+    'NIP-50 Search': {
+      description: 'Online relays advertising NIP-50 search support',
+      benefits: 'Better discovery and content lookup',
+      security: 'Depends on each relay policy',
+      value: stats.nip50_relays
     },
-    'Unannounced': {
-      description: 'Private nodes not advertised to the network',
-      benefits: 'Maximum privacy, used for personal channels',
-      security: 'Not visible in public network graph',
-      value: stats.unannounced_nodes
+    'NIP-42 Auth': {
+      description: 'Online relays advertising NIP-42 authentication support',
+      benefits: 'Useful for permissioned relay workflows',
+      security: 'Supports relay-side auth challenges',
+      value: stats.nip42_relays
     }
   }
 
@@ -250,7 +250,7 @@ const nodeTypeChart = computed(() => {
         return `<div style="font-weight: 700; margin-bottom: 10px; font-size: 16px; color: ${params.color};">${params.name}</div>
                 <div style="font-size: 12px; color: #6b7280; margin-bottom: 10px; line-height: 1.5; font-style: italic;">${info.description}</div>
                 <div style="background: #f9fafb; padding: 10px; border-radius: 8px; margin-bottom: 10px;">
-                  <div style="font-size: 13px; color: #6b7280; margin-bottom: 6px;">Nodes: <strong style="color: #111827;">${params.value.toLocaleString()}</strong> (${percent}%)</div>
+                  <div style="font-size: 13px; color: #6b7280; margin-bottom: 6px;">Relays: <strong style="color: #111827;">${params.value.toLocaleString()}</strong> (${percent}%)</div>
                   <div style="font-size: 12px; color: #059669; margin-bottom: 4px;">✓ ${info.benefits}</div>
                   <div style="font-size: 12px; color: #3b82f6;">🔒 ${info.security}</div>
                 </div>`
@@ -270,7 +270,7 @@ const nodeTypeChart = computed(() => {
       },
       icon: 'circle'
     },
-    series: [
+        series: [
       {
         name: 'Node Types',
         type: 'pie',
@@ -304,8 +304,8 @@ const nodeTypeChart = computed(() => {
         animationDelay: (idx) => idx * 100,
         data: [
           {
-            value: stats.clearnet_nodes,
-            name: 'Clearnet',
+            value: stats.online_relays,
+            name: 'Online',
             itemStyle: {
               color: {
                 type: 'linear',
@@ -321,8 +321,8 @@ const nodeTypeChart = computed(() => {
             }
           },
           {
-            value: stats.tor_nodes,
-            name: 'Tor',
+            value: stats.offline_relays,
+            name: 'Offline',
             itemStyle: {
               color: {
                 type: 'linear',
@@ -338,8 +338,8 @@ const nodeTypeChart = computed(() => {
             }
           },
           {
-            value: stats.clearnet_tor_nodes,
-            name: 'Clearnet + Tor',
+            value: stats.nip50_relays,
+            name: 'NIP-50 Search',
             itemStyle: {
               color: {
                 type: 'linear',
@@ -355,8 +355,8 @@ const nodeTypeChart = computed(() => {
             }
           },
           {
-            value: stats.unannounced_nodes,
-            name: 'Unannounced',
+            value: stats.nip42_relays,
+            name: 'NIP-42 Auth',
             itemStyle: {
               color: {
                 type: 'linear',
@@ -403,8 +403,8 @@ const countryDistributionChart = computed(() => {
         const data = params[0]
         const country = nodesByCountry.value[data.dataIndex]
         return `<div style="font-weight: 700; margin-bottom: 8px; font-size: 15px; color: #f59e0b;">${country.name.en}</div>
-                <div style="font-size: 13px; color: #6b7280; margin-bottom: 4px;">Nodes: <strong style="color: #111827;">${country.count.toLocaleString()}</strong></div>
-                <div style="font-size: 13px; color: #6b7280;">Share: <strong style="color: #059669;">${country.share}%</strong></div>`
+                <div style="font-size: 13px; color: #6b7280; margin-bottom: 4px;">Relays: <strong style="color: #111827;">${country.count.toLocaleString()}</strong></div>
+                <div style="font-size: 13px; color: #6b7280;">Sample share: <strong style="color: #059669;">${country.share}%</strong></div>`
       }
     },
     grid: {
@@ -428,7 +428,7 @@ const countryDistributionChart = computed(() => {
     },
     series: [
       {
-        name: 'Nodes',
+        name: 'Relays',
         type: 'bar',
         data: nodesByCountry.value.map(c => ({
           value: c.count,
@@ -510,20 +510,17 @@ const topISPChart = computed(() => {
       formatter: (params) => {
         const isp = topISPs[params.dataIndex]
         const percent = ((isp[4] / totalNodes) * 100).toFixed(1)
-        const avgCapacityPerNode = isp[2] / isp[4]
-        const avgChannelsPerNode = (isp[3] / isp[4]).toFixed(0)
+        const avgEventsPerRelay = isp[2] / isp[4]
+        const avgNipsPerRelay = (isp[3] / isp[4]).toFixed(0)
 
         let additionalInfo = ''
         if (isp[0] === 'others') {
-          additionalInfo = `<div style="font-size: 12px; color: #6b7280; margin-bottom: 10px; line-height: 1.5; font-style: italic;">Combined total from ${othersCount} smaller hosting providers</div>`
+          additionalInfo = `<div style="font-size: 12px; color: #6b7280; margin-bottom: 10px; line-height: 1.5; font-style: italic;">Combined total from ${othersCount} smaller response groups</div>`
         } else {
           const ispTypes = {
-            'DigitalOcean': 'Popular cloud platform known for developer-friendly VPS hosting',
-            'Amazon': 'AWS - World\'s largest cloud infrastructure provider',
-            'Google': 'Google Cloud Platform with global network infrastructure',
-            'Hetzner': 'European provider known for cost-effective dedicated servers',
-            'OVH': 'European hosting giant with data centers worldwide',
-            'Contabo': 'Budget-friendly German hosting provider'
+            'Fast': 'Fast relays responded in under 500ms',
+            'Steady': 'Steady relays responded between 500ms and 1200ms',
+            'Slow': 'Slow relays responded after 1200ms'
           }
 
           const ispInfo = Object.keys(ispTypes).find(key => isp[1].includes(key))
@@ -536,31 +533,31 @@ const topISPChart = computed(() => {
                 ${additionalInfo}
                 <div style="background: #f9fafb; padding: 12px; border-radius: 8px; margin-bottom: 8px;">
                   <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                    <span style="color: #6b7280; font-size: 13px;">Total Capacity:</span>
-                    <strong style="color: #111827; font-size: 13px; margin-left: 12px;">${lightningNetworkService.formatSats(isp[2])}</strong>
+                    <span style="color: #6b7280; font-size: 13px;">Recent Events:</span>
+                    <strong style="color: #111827; font-size: 13px; margin-left: 12px;">${lightningNetworkService.formatNumber(isp[2])}</strong>
                   </div>
                   <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                    <span style="color: #6b7280; font-size: 13px;">Channels:</span>
+                    <span style="color: #6b7280; font-size: 13px;">Advertised NIPs:</span>
                     <strong style="color: #111827; font-size: 13px; margin-left: 12px;">${isp[3].toLocaleString()}</strong>
                   </div>
                   <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <span style="color: #6b7280; font-size: 13px;">Nodes:</span>
+                    <span style="color: #6b7280; font-size: 13px;">Relays:</span>
                     <strong style="color: #111827; font-size: 13px; margin-left: 12px;">${isp[4].toLocaleString()}</strong>
                   </div>
                 </div>
                 <div style="background: #eff6ff; padding: 10px; border-radius: 8px; margin-bottom: 8px;">
-                  <div style="font-size: 12px; color: #6b7280; margin-bottom: 4px;">📊 Avg per node:</div>
+                  <div style="font-size: 12px; color: #6b7280; margin-bottom: 4px;">Avg per relay:</div>
                   <div style="display: flex; justify-content: space-between; margin-bottom: 3px;">
-                    <span style="color: #6b7280; font-size: 12px;">Capacity:</span>
-                    <strong style="color: #3b82f6; font-size: 12px;">${lightningNetworkService.formatSats(avgCapacityPerNode)}</strong>
+                    <span style="color: #6b7280; font-size: 12px;">Events:</span>
+                    <strong style="color: #3b82f6; font-size: 12px;">${lightningNetworkService.formatNumber(Math.round(avgEventsPerRelay))}</strong>
                   </div>
                   <div style="display: flex; justify-content: space-between;">
-                    <span style="color: #6b7280; font-size: 12px;">Channels:</span>
-                    <strong style="color: #3b82f6; font-size: 12px;">${avgChannelsPerNode}</strong>
+                    <span style="color: #6b7280; font-size: 12px;">NIPs:</span>
+                    <strong style="color: #3b82f6; font-size: 12px;">${avgNipsPerRelay}</strong>
                   </div>
                 </div>
                 <div style="border-top: 1px solid #e5e7eb; padding-top: 8px; display: flex; justify-content: space-between; align-items: center;">
-                  <span style="color: #6b7280; font-size: 13px;">Market Share:</span>
+                  <span style="color: #6b7280; font-size: 13px;">Sample Share:</span>
                   <strong style="color: #059669; font-size: 15px; margin-left: 12px;">${percent}%</strong>
                 </div>`
       }
@@ -687,10 +684,10 @@ onMounted(() => {
             </div>
             <div>
               <h1 class="text-3xl md:text-4xl font-semibold text-white mb-2 tracking-tight">
-                Lightning Network Explorer
+                Nostr Network Explorer
               </h1>
               <p class="text-white/90 text-base">
-                Real-time insights into Bitcoin's Lightning Network
+                Relay health, response times, and public Nostr activity
               </p>
             </div>
           </div>
@@ -700,10 +697,10 @@ onMounted(() => {
           <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div class="flex-1">
               <p class="text-white/90 text-base mb-2">
-                Discover the power of instant, low-cost Bitcoin transactions
+                Understand the relay network powering your Nostr activity
               </p>
               <p class="text-white text-sm">
-                Connect your Nostr account to track your Lightning earnings and analyze your zap data
+                Connect your Nostr account to track zaps, relays, and publishing health
               </p>
             </div>
             <div class="flex flex-col sm:flex-row gap-3">
@@ -731,7 +728,7 @@ onMounted(() => {
     <div v-if="isLoading" class="flex items-center justify-center py-20">
       <div class="text-center">
         <div class="animate-spin rounded-full h-16 w-16 border-b-4 border-orange-500 mx-auto mb-4"></div>
-        <p class="text-gray-600 text-lg">Loading Lightning Network data...</p>
+        <p class="text-gray-600 text-lg">Loading Nostr network data...</p>
       </div>
     </div>
 
@@ -810,8 +807,8 @@ onMounted(() => {
                 <IconNetwork class="w-5 h-5 text-orange-600" />
               </div>
               <div class="flex-1">
-                <h3 class="text-lg font-semibold text-gray-900 tracking-tight">Node Distribution</h3>
-                <p class="text-sm text-gray-500">Network connectivity types (Clearnet, Tor, Hybrid)</p>
+                <h3 class="text-lg font-semibold text-gray-900 tracking-tight">Relay Health</h3>
+                <p class="text-sm text-gray-500">Availability and advertised relay capabilities</p>
               </div>
             </div>
             <button
@@ -829,19 +826,19 @@ onMounted(() => {
             class="absolute pointer-events-none z-[9999] w-80 max-w-[calc(100vw-2rem)] p-4 bg-gray-900 text-white rounded-xl shadow-2xl border border-gray-700 top-16 left-1/2 -translate-x-1/2 lg:left-auto lg:translate-x-0 lg:right-4"
             style="animation: fadeIn 0.2s ease-out"
           >
-            <h4 class="font-medium text-sm mb-3 text-white">Understanding Node Types</h4>
+            <h4 class="font-medium text-sm mb-3 text-white">Understanding Relay Health</h4>
             <div class="space-y-3">
               <div class="bg-gray-800 rounded-lg p-3 border border-gray-700">
-                <p class="text-xs font-medium text-green-400 mb-1">🌐 Clearnet</p>
-                <p class="text-xs text-gray-300">Public nodes on regular internet. Fast and reliable but IP visible.</p>
+                <p class="text-xs font-medium text-green-400 mb-1">Online</p>
+                <p class="text-xs text-gray-300">Relays that accepted a WebSocket connection during the probe.</p>
               </div>
               <div class="bg-gray-800 rounded-lg p-3 border border-gray-700">
-                <p class="text-xs font-medium text-purple-400 mb-1">🔒 Tor</p>
-                <p class="text-xs text-gray-300">Anonymous nodes via Tor network. Maximum privacy, slightly slower.</p>
+                <p class="text-xs font-medium text-purple-400 mb-1">NIP-50</p>
+                <p class="text-xs text-gray-300">Relays advertising search support in their NIP-11 metadata.</p>
               </div>
               <div class="bg-gray-800 rounded-lg p-3 border border-gray-700">
-                <p class="text-xs font-medium text-blue-400 mb-1">⚡ Hybrid</p>
-                <p class="text-xs text-gray-300">Best of both worlds! Accessible via clearnet and Tor.</p>
+                <p class="text-xs font-medium text-blue-400 mb-1">NIP-42</p>
+                <p class="text-xs text-gray-300">Relays advertising authentication challenge support.</p>
               </div>
             </div>
           </div>
@@ -862,8 +859,8 @@ onMounted(() => {
                 <IconServer class="w-5 h-5 text-cyan-600" />
               </div>
               <div class="flex-1">
-                <h3 class="text-lg font-semibold text-gray-900 tracking-tight">Top Hosting Providers</h3>
-                <p class="text-sm text-gray-500">Infrastructure providers by node distribution</p>
+                <h3 class="text-lg font-semibold text-gray-900 tracking-tight">Response Groups</h3>
+                <p class="text-sm text-gray-500">Relays grouped by browser-side response time</p>
               </div>
             </div>
             <button
@@ -899,7 +896,7 @@ onMounted(() => {
 
       <!-- Charts Row 2 -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <!-- Top Countries Bar Chart -->
+        <!-- NIP Support Bar Chart -->
         <div class="bg-white rounded-2xl p-6 shadow-md border border-gray-200 relative">
           <div class="flex items-center justify-between mb-6">
             <div class="flex items-center space-x-3 flex-1">
@@ -907,8 +904,8 @@ onMounted(() => {
                 <IconWorld class="w-5 h-5 text-blue-600" />
               </div>
               <div class="flex-1">
-                <h3 class="text-lg font-semibold text-gray-900 tracking-tight">Top Countries</h3>
-                <p class="text-sm text-gray-500">Geographic distribution of Lightning nodes globally</p>
+                <h3 class="text-lg font-semibold text-gray-900 tracking-tight">NIP Support</h3>
+                <p class="text-sm text-gray-500">Most common protocol features advertised by relays</p>
               </div>
             </div>
             <button
@@ -949,8 +946,8 @@ onMounted(() => {
                 <IconTrendingUp class="w-5 h-5 text-green-600" />
               </div>
               <div class="flex-1">
-                <h3 class="text-lg font-semibold text-gray-900 tracking-tight">Top Nodes by Liquidity</h3>
-                <p class="text-sm text-gray-500">Highest capacity routing nodes on the network</p>
+                <h3 class="text-lg font-semibold text-gray-900 tracking-tight">Busiest Relays</h3>
+                <p class="text-sm text-gray-500">Highest recent kind-1 event counts in the relay sample</p>
               </div>
             </div>
             <button
@@ -978,7 +975,7 @@ onMounted(() => {
             <div
               v-for="(node, index) in topNodesByCapacity"
               :key="node.publicKey"
-              @click="openNodeOnAmboss(node.publicKey)"
+              @click="openRelay(node.url)"
               class="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-orange-50 hover:shadow-sm transition-all cursor-pointer group border border-transparent hover:border-orange-200"
             >
               <div class="flex items-center space-x-3 flex-1 min-w-0">
@@ -987,7 +984,7 @@ onMounted(() => {
                 </div>
                 <div class="flex-1 min-w-0">
                   <p class="text-sm font-medium text-gray-900 truncate group-hover:text-orange-600 transition-colors">{{ node.alias }}</p>
-                  <p class="text-xs text-gray-500">{{ node.channels }} channels</p>
+                  <p class="text-xs text-gray-500">{{ node.channels }} advertised NIPs</p>
                 </div>
               </div>
               <div class="flex items-center space-x-2 flex-shrink-0 ml-4">
@@ -1010,10 +1007,10 @@ onMounted(() => {
             <IconZoomIn class="w-7 h-7 text-gray-400" />
           </div>
           <h2 class="text-3xl md:text-4xl font-semibold text-gray-900 mb-4 tracking-tight">
-            Ready to Track Your Lightning Earnings?
+            Ready to Track Your Nostr Activity?
           </h2>
           <p class="text-gray-600 text-base mb-10 leading-relaxed max-w-xl mx-auto">
-            Connect your Nostr account to unlock powerful analytics for your zaps, campaigns, and Lightning Network activity.
+            Connect your Nostr account to unlock analytics for your zaps, campaigns, and relay activity.
           </p>
           <div class="flex flex-col sm:flex-row gap-3 justify-center">
             <button
