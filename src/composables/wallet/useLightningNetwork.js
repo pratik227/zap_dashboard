@@ -1,5 +1,5 @@
 import { ref, onMounted, computed } from 'vue'
-import { lightningNetworkService } from '../../utils/network/lightningNetworkService.js'
+import { nostrNetworkService } from '../../utils/network/nostrNetworkService.js'
 
 export function useLightningNetwork() {
   const globalStats = ref(null)
@@ -7,100 +7,61 @@ export function useLightningNetwork() {
   const error = ref(null)
   const lastUpdated = ref(null)
 
-  /**
-   * Fetch global Lightning Network statistics
-   */
   const fetchGlobalStats = async () => {
     isLoading.value = true
     error.value = null
 
     try {
-      const stats = await lightningNetworkService.getGlobalStats()
+      const stats = await nostrNetworkService.getGlobalStats()
       globalStats.value = stats
       lastUpdated.value = new Date(stats.lastUpdated)
       return stats
     } catch (err) {
-      console.error('Failed to fetch Lightning Network stats:', err)
+      console.error('Failed to fetch Nostr network stats:', err)
       error.value = err.message
-      // Set fallback data
-      globalStats.value = lightningNetworkService.getFallbackStats()
-      return globalStats.value
     } finally {
       isLoading.value = false
     }
   }
 
-  /**
-   * Format large numbers with abbreviations
-   */
   const formatNumber = (num) => {
-    if (num >= 1000000000) {
-      return (num / 1000000000).toFixed(1) + 'B'
-    }
-    if (num >= 1000000) {
-      return (num / 1000000).toFixed(1) + 'M'
-    }
-    if (num >= 1000) {
-      return (num / 1000).toFixed(1) + 'K'
-    }
-    return num.toString()
+    return nostrNetworkService.formatNumber(num)
   }
 
-  /**
-   * Format BTC amount
-   */
-  const formatBTC = (btc) => {
-    if (btc >= 1000) {
-      return (btc / 1000).toFixed(1) + 'K BTC'
-    }
-    return btc.toFixed(2) + ' BTC'
+  const formatPercentage = (value) => {
+    if (value === null || value === undefined) return 'N/A'
+    return value + '%'
   }
 
-  /**
-   * Format capacity in sats
-   */
-  const formatCapacity = (sats) => {
-    return formatNumber(sats) + ' sats'
-  }
-
-  /**
-   * Get formatted stats for display
-   */
   const formattedStats = computed(() => {
     if (!globalStats.value) return null
 
     return {
-      totalNodes: formatNumber(globalStats.value.totalNodes),
-      totalCapacity: formatBTC(globalStats.value.totalCapacityBTC),
-      totalCountries: globalStats.value.totalCountries,
-      topCountries: globalStats.value.topCountries,
-      isFallback: globalStats.value.isFallback || false
+      totalRelays: formatNumber(globalStats.value.totalRelays),
+      onlineRelays: formatNumber(globalStats.value.onlineRelays),
+      onlinePercentage: globalStats.value.onlinePercentage,
+      offlineRelays: formatNumber(globalStats.value.offlineRelays),
+      searchSupportCount: formatNumber(globalStats.value.searchSupportCount),
+      authSupportCount: formatNumber(globalStats.value.authSupportCount),
+      zapSupportCount: formatNumber(globalStats.value.zapSupportCount),
+      probedRelays: globalStats.value.probedRelays,
     }
   })
 
-  /**
-   * Get network health indicator
-   */
   const networkHealth = computed(() => {
     if (!globalStats.value) return 'unknown'
-
-    const nodeCount = globalStats.value.totalNodes
-
-    if (nodeCount > 12000) return 'excellent'
-    if (nodeCount > 8000) return 'good'
-    if (nodeCount > 5000) return 'fair'
+    const pct = globalStats.value.onlinePercentage
+    if (pct > 80) return 'excellent'
+    if (pct > 60) return 'good'
+    if (pct > 40) return 'fair'
     return 'limited'
   })
 
-  /**
-   * Refresh data
-   */
   const refresh = async () => {
-    lightningNetworkService.clearCache()
+    nostrNetworkService.clearCache()
     return fetchGlobalStats()
   }
 
-  // Auto-fetch on mount
   onMounted(() => {
     fetchGlobalStats()
   })
@@ -115,7 +76,6 @@ export function useLightningNetwork() {
     fetchGlobalStats,
     refresh,
     formatNumber,
-    formatBTC,
-    formatCapacity
+    formatPercentage,
   }
 }
