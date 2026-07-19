@@ -211,6 +211,7 @@ export function useAudience() {
 
     isLoading.value = true
     error.value = ''
+    syncStatus.value = 'syncing'
 
     try {
       console.log('Fetching followers...')
@@ -222,7 +223,7 @@ export function useAudience() {
 
       const newFollowerPubkeys = []
       followersSubscription = nostrRelayManager.subscribeToEvents([
-        { kinds: [3], '#p': [currentUser.value.pubkey], limit: 500 }
+        { kinds: [3], '#p': [currentUser.value.pubkey] }
       ], {
         onevent: (event) => {
           if (processedEventIds.has(event.id)) return
@@ -235,8 +236,9 @@ export function useAudience() {
           }
         },
         oneose: () => {
-          console.log('End of stored follower events — closing subscription')
+          console.log(`End of stored follower events — received ${newFollowerPubkeys.length} new followers`)
           isLoading.value = false
+          syncStatus.value = 'idle'
           if (followersSubscription) {
             followersSubscription.close()
             followersSubscription = null
@@ -264,6 +266,7 @@ export function useAudience() {
     } catch (err) {
       console.error('Failed to fetch followers:', err)
       error.value = 'Failed to fetch followers: ' + err.message
+      syncStatus.value = 'error'
     } finally {
       isLoading.value = false
     }
