@@ -21,6 +21,7 @@ import {
 import { 
   IconHeart,
   IconRepeat,
+  IconQuote,
   IconBookmark
 } from '@iconify-prerendered/vue-tabler'
 import EngagementMetrics from '../analytics/EngagementMetrics.vue'
@@ -258,6 +259,18 @@ const getTotalRevenue = (item) => {
                   {{ getEngagementCounts(item.nostrEventId).reposts || 0 }} {{ (getEngagementCounts(item.nostrEventId).reposts || 0) === 1 ? 'repost' : 'reposts' }} on Nostr
                 </div>
               </button>
+
+              <!-- Quotes -->
+              <button class="flex items-center space-x-2 text-gray-500 hover:text-purple-500 transition-colors group relative tooltip-container">
+                <IconQuote :class="[
+                  'w-4 h-4 transition-colors',
+                  getEngagementCounts(item.nostrEventId).quotes > 0 ? 'text-purple-500' : 'text-gray-400 group-hover:text-purple-500'
+                ]" />
+                <span class="text-sm font-medium">{{ getEngagementCounts(item.nostrEventId).quotes || 0 }}</span>
+                <div class="tooltip">
+                  {{ getEngagementCounts(item.nostrEventId).quotes || 0 }} {{ (getEngagementCounts(item.nostrEventId).quotes || 0) === 1 ? 'quote' : 'quotes' }} on Nostr
+                </div>
+              </button>
               
               <!-- Zaps -->
               <button class="flex items-center space-x-2 text-gray-500 hover:text-orange-500 transition-colors group relative tooltip-container">
@@ -388,6 +401,18 @@ const getTotalRevenue = (item) => {
                 <span class="text-sm font-medium">{{ getEngagementCounts(item.nostrEventId).reposts || 0 }}</span>
                 <div class="tooltip">
                   {{ getEngagementCounts(item.nostrEventId).reposts || 0 }} {{ (getEngagementCounts(item.nostrEventId).reposts || 0) === 1 ? 'repost' : 'reposts' }} on Nostr
+                </div>
+              </button>
+
+              <!-- Quotes -->
+              <button class="flex items-center space-x-2 text-gray-500 hover:text-purple-500 transition-colors group relative tooltip-container">
+                <IconQuote :class="[
+                  'w-5 h-5 transition-colors',
+                  getEngagementCounts(item.nostrEventId).quotes > 0 ? 'text-purple-500' : 'text-gray-400 group-hover:text-purple-500'
+                ]" />
+                <span class="text-sm font-medium">{{ getEngagementCounts(item.nostrEventId).quotes || 0 }}</span>
+                <div class="tooltip">
+                  {{ getEngagementCounts(item.nostrEventId).quotes || 0 }} {{ (getEngagementCounts(item.nostrEventId).quotes || 0) === 1 ? 'quote' : 'quotes' }} on Nostr
                 </div>
               </button>
               

@@ -49,6 +49,7 @@ export function useEngagementMetrics() {
       engagementMetrics.set(eventId, {
         likes: [],
         reposts: [],
+        quotes: [],
         bookmarks: [],
         zaps: [],
         lastFetched: null,
@@ -90,6 +91,12 @@ export function useEngagementMetrics() {
           ...baseData,
           content: event.content || '',
           isQuote: event.content.length > 0
+        }
+
+      case 'quote':
+        return {
+          ...baseData,
+          content: event.content || ''
         }
 
       case 'bookmark':
@@ -146,7 +153,7 @@ export function useEngagementMetrics() {
       }
     }
 
-    let referencedEventId = targetEventId || event.tags.find(tag => tag[0] === 'e')?.[1]
+    let referencedEventId = targetEventId || event.tags.find(tag => tag[0] === 'q')?.[1] || event.tags.find(tag => tag[0] === 'e')?.[1]
     
     if (!referencedEventId && !targetEventId) {
       return
@@ -167,6 +174,14 @@ export function useEngagementMetrics() {
       case 6:
         engagementData = createEngagementData(event, 'repost', referencedEventId)
         targetArray = metrics.reposts
+        break
+
+      case 1:
+        if (!event.tags.some(tag => tag[0] === 'q' && tag[1] === referencedEventId)) {
+          return
+        }
+        engagementData = createEngagementData(event, 'quote', referencedEventId)
+        targetArray = metrics.quotes
         break
 
       case 10001:
@@ -212,6 +227,11 @@ export function useEngagementMetrics() {
         {
           kinds: [6],
           "#e": uniqueEventIds,
+          limit: 200
+        },
+        {
+          kinds: [1],
+          "#q": uniqueEventIds,
           limit: 200
         },
         {
@@ -343,6 +363,7 @@ export function useEngagementMetrics() {
       return {
         likes: 0,
         reposts: 0,
+        quotes: 0,
         bookmarks: 0,
         totalEngagement: 0
       }
@@ -350,13 +371,15 @@ export function useEngagementMetrics() {
 
     const likes = metrics.likes.length
     const reposts = metrics.reposts.length
+    const quotes = metrics.quotes?.length || 0
     const bookmarks = metrics.bookmarks.length
 
     return {
       likes,
       reposts,
+      quotes,
       bookmarks,
-      totalEngagement: likes + reposts + bookmarks
+      totalEngagement: likes + reposts + quotes + bookmarks
     }
   }
 
@@ -422,6 +445,11 @@ export function useEngagementMetrics() {
         {
           kinds: [6],
           "#a": [aTagIdentifier],
+          limit: 100
+        },
+        {
+          kinds: [1],
+          "#q": [aTagIdentifier],
           limit: 100
         },
         {
