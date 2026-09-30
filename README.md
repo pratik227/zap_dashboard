@@ -87,13 +87,13 @@ ZapTracker brings everything a Nostr creator needs into one place: SocialDesk, Z
   </tr>
 </table>
 
-> See the full [Features Guide](docs/FEATURES.md) for wallet, media library, MiniPoS, and more.
+> See the full [Features Guide](docs/FEATURES.md) for wallet, media library, Content Bridge, Import, the Nostr Network explorer, MiniPoS, and more.
 
 ## Quick Start
 
 ### Prerequisites
 
-- Node.js 18+
+- Node.js 20.19+ or 22.12+ (required by Vite 8)
 - A Nostr identity (browser extension like [Alby](https://getalby.com) or nos2x)
 - A [Nostr Wallet Connect](https://nwc.dev) enabled wallet
 
@@ -124,7 +124,7 @@ ZapTracker stores **zero data on any server**. Everything lives in your browser'
 | Layer | Technology |
 |-------|-----------|
 | Framework | Vue 3 (Composition API) |
-| Build | Vite + PWA |
+| Build | Vite 8 (Rolldown) + PWA |
 | Styling | TailwindCSS |
 | Nostr | [nostr-core](https://www.npmjs.com/package/nostr-core) |
 | Charts | ECharts via vue-echarts |

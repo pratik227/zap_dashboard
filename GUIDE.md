@@ -13,11 +13,12 @@ Welcome to ZapTracker! This guide will help you unlock the full potential of you
 3. [Wallet Operations](#wallet-operations)
 4. [Content Creation](#content-creation)
 5. [Media Management](#media-management)
-6. [Growing Your Audience](#growing-your-audience)
-7. [Running Campaigns](#running-campaigns)
-8. [Analytics Deep Dive](#analytics-deep-dive)
-9. [Tips & Best Practices](#tips--best-practices)
-10. [Troubleshooting](#troubleshooting)
+6. [Bringing Your Content to Nostr](#bringing-your-content-to-nostr)
+7. [Growing Your Audience](#growing-your-audience)
+8. [Running Campaigns](#running-campaigns)
+9. [Analytics Deep Dive](#analytics-deep-dive)
+10. [Tips & Best Practices](#tips--best-practices)
+11. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -175,6 +176,32 @@ Filter by type (All, Images, Video, Audio) and sort by date or size.
 ### Multi-Server Support
 
 Files can be stored on multiple Blossom servers. A server badge shows how many servers host each file. Manage your server list in **Settings**.
+
+---
+
+## Bringing Your Content to Nostr
+
+Already publishing elsewhere? Two tools under **Studio** bring that work to Nostr.
+
+### Content Bridge (keep your blog in sync)
+
+1. Go to **Studio** → **Content Bridge**
+2. Paste your blog's address (for example `you.substack.com`) and click **Connect**
+3. Choose how to publish: full article (NIP-23) or a short note with a link
+4. Leave **Copy images to Blossom** on so your posts don't depend on the old site
+5. Turn on **Auto-publish new posts** if you want new posts published without clicking
+
+Posts that already exist appear under **Backlog**. Publish the ones you want by hand; auto-publish only picks up posts written after you connect. Auto-publish runs while ZapTracker is open in a tab.
+
+### Import (bring your history)
+
+1. Request your data export from the platform (the Import page shows where to find it for each one). For Instagram and Facebook, choose **JSON** format
+2. Go to **Studio** → **Import** and drop the ZIP file in
+3. Review the posts. Replies and reposts are left out by default; use the filters to include them
+4. Keep **original post dates** on so imported posts appear in your history instead of flooding your followers' feeds
+5. Click **Import to Nostr**
+
+Your signer may ask you to approve each post and upload. Choosing "always allow" for ZapTracker makes large imports much smoother. You can pause or cancel at any time, and running an import again skips anything already imported.
 
 ---
 

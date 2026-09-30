@@ -194,7 +194,8 @@ Profile-related components and utilities.
 **Utils:**
 - `avatarGenerator.js` - Avatar generation
 - `followMergeUtils.js` - Follow list merge utilities
-- `profileFetcher.js` - Profile data fetching
+
+Profile fetching and caching live in `services/nostr/ProfileService.js`.
 
 ### Settings (`settings/`)
 Settings and configuration components.
@@ -226,21 +227,18 @@ Lightning wallet and NWC components.
 **Components:**
 - `NWCConnection.vue` - Nostr Wallet Connect setup
 
-**Composables:**
-- `useLightningNetwork.js` - Lightning Network operations
-
 **Utils:**
 - `invoiceUtils.js` - Invoice handling
 - `nwcClient.js` - NWC client implementation
 - `nwcPayment.js` - Payment processing
 
 ### Zaps (`zaps/`)
-Zap feed and Lightning Network visualization.
+Zap feed and Nostr network stats.
 
 **Components:**
-- `LightningNetworkDashboard.vue` - Lightning Network dashboard
+- `LightningNetworkDashboard.vue` - Nostr Network explorer (Dashboard → Nostr Network)
 - `LightningNetworkMap.vue` - Network visualization
-- `LightningStats.vue` - Lightning stats display
+- `LightningStats.vue` - Compact Nostr network stats for the empty-state dashboard
 - `ZapFeed.vue` - Real-time zap feed
 
 ### Core Utilities (`utils/core/`)
@@ -252,14 +250,13 @@ General-purpose utilities used across the application.
 - `timeFilter.js` - Time filtering utilities
 
 ### Network Utilities (`utils/network/`)
-Lightning Network utilities.
+Nostr network statistics.
 
 **Files:**
-- `lightningNetworkService.js` - Lightning Network service
-- `lightningStatsService.js` - Lightning stats fetching
+- `nostrNetworkService.js` - Network-wide stats from NIP-66 relay monitors, live relay probes, and the user's relay health
 
 ### Nostr Service Layer (`services/nostr/`)
-Centralized Nostr protocol abstraction powered by nostr-core v0.6.0.
+Centralized Nostr protocol abstraction powered by nostr-core v1.
 
 **Files:**
 - `NostrService.js` - Relay pool management, subscriptions, publishing, health checks, backoff

@@ -190,6 +190,52 @@ Upload and manage media files via decentralized **Blossom** servers. Browse your
 
 ---
 
+## Content Bridge
+
+Keep publishing where you already do: Ghost, Substack, Medium, WordPress, Blogger, Discourse or any blog with an RSS/Atom feed. The Bridge picks up new posts and publishes them to Nostr.
+
+**Features:**
+- Paste a blog address or feed URL; the feed is found automatically
+- Publish as a full article (NIP-23) or a short note with a link
+- One-click cross-posting, or auto-publish new posts (checked every 10 minutes while ZapTracker is open)
+- Only posts published after you connect are auto-published, so your back catalogue never floods relays
+- Article images copied to your Blossom servers
+- No duplicates: each article gets a stable identifier, so publishing again updates it
+- Preview exactly what will be published; skip posts you don't want
+
+> See [Bringing Your Content to Nostr](../GUIDE.md#bringing-your-content-to-nostr) in the User Guide.
+
+---
+
+## Import
+
+Moving from another platform? Bring your history with you so your Nostr profile isn't empty on day one.
+
+**Supported exports:** X/Twitter, Instagram, Facebook, TikTok, Substack, Medium, Ghost, WordPress, Blogger, and any RSS/Atom file.
+
+**Features:**
+- Drop in the ZIP archive from your platform's data export; the format is detected automatically
+- Photos and videos uploaded to Blossom, with original post dates kept
+- X/Twitter threads stay linked as replies
+- Filter and choose what to import; replies and reposts are left out by default
+- Pause or cancel at any time; anything already imported is skipped
+- Everything is processed in your browser, even multi-gigabyte archives
+
+---
+
+## Nostr Network Explorer
+
+Live stats about the Nostr relay network, available even without signing in (Dashboard → Nostr Network).
+
+**What you'll see:**
+- Relays online in the last 24 hours and their median latency, from NIP-66 relay monitors
+- NIP adoption across the network and which relays are open, paid or require authentication
+- The fastest relays right now
+- A live probe from your browser: which popular relays respond, and how many notes are published per minute
+- Your own relay connections when signed in
+
+---
+
 ## MiniPoS
 
 A lightweight point-of-sale interface for merchants accepting Bitcoin Lightning payments. Generate invoices, display QR codes, and confirm payments on the spot.
@@ -198,7 +244,6 @@ A lightweight point-of-sale interface for merchants accepting Bitcoin Lightning 
 
 ## Additional Features
 
-- **Lightning Explorer** - Browse Lightning Network data from your dashboard
 - **Invoice Share** - Create and share payment links
 - **Content Unlock** - Gate exclusive content behind zap payments
 - **Badges** - Display and manage your Nostr badges

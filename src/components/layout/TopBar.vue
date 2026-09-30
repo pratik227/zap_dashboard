@@ -56,6 +56,11 @@ const pageInfo = computed(() => {
       description: 'Welcome back, track your lightning earnings',
       icon: IconDashboard
     },
+    'lightning-explorer': {
+      title: 'Nostr Network',
+      description: 'Live stats from the Nostr relay network',
+      icon: IconDashboard
+    },
     'zap-feed': {
       title: 'Zap Feed',
       description: 'Real-time zap activity and notifications',

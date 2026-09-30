@@ -145,7 +145,7 @@ const handleShowHelp = () => {
       </div>
     </div>
 
-    <!-- Lightning Network Stats - Mempool Style -->
+    <!-- Nostr network stats -->
     <LightningStats />
 
     <!-- Bottom CTA -->
