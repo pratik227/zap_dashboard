@@ -18,7 +18,12 @@ const ENGAGEMENT_STORAGE_KEY = 'engagement_metrics_cache'
 const cachedMetrics = storageService.get(ENGAGEMENT_STORAGE_KEY, null)
 if (cachedMetrics) {
   Object.entries(cachedMetrics).forEach(([eventId, metrics]) => {
-    engagementMetrics.set(eventId, metrics)
+    // Entries cached before a metric existed lack its array — default every one
+    engagementMetrics.set(eventId, {
+      likes: [], reposts: [], quotes: [], bookmarks: [], zaps: [],
+      ...metrics,
+      isLoading: false
+    })
   })
 }
 
@@ -45,6 +50,7 @@ export function useEngagementMetrics() {
       engagementMetrics.set(eventId, {
         likes: [],
         reposts: [],
+        quotes: [],
         bookmarks: [],
         zaps: [],
         lastFetched: null,
@@ -88,6 +94,12 @@ export function useEngagementMetrics() {
           isQuote: event.content.length > 0
         }
 
+      case 'quote':
+        return {
+          ...baseData,
+          content: event.content || ''
+        }
+
       case 'bookmark':
         return {
           ...baseData,
@@ -99,11 +111,39 @@ export function useEngagementMetrics() {
     }
   }
 
-  const processEngagementEvent = (event, targetEventId = null) => {
+  const addQuote = (event, eventId) => {
+    initializeEngagementData(eventId)
+    const metrics = engagementMetrics.get(eventId)
+    const quote = createEngagementData(event, 'quote', eventId)
+    if (!metrics.quotes.find(item => item.id === quote.id)) {
+      metrics.quotes.unshift(quote)
+    }
+  }
+
+  /**
+   * @param {object} event
+   * @param {string|null} targetEventId — event the subscription was opened for
+   * @param {string|null} targetAddress — its NIP-33 address (`30023:<pubkey>:<d>`), for long-form
+   */
+  const processEngagementEvent = (event, targetEventId = null, targetAddress = null) => {
     if (processedEventIds.has(event.id)) {
       return
     }
     processedEventIds.add(event.id)
+
+    // NIP-18 quotes: kind 1 with `q` tags naming an event id or an address
+    if (event.kind === 1) {
+      const quoted = event.tags.filter(tag => tag[0] === 'q' && tag[1]).map(tag => tag[1])
+      if (targetEventId) {
+        if (quoted.includes(targetEventId) || (targetAddress && quoted.includes(targetAddress))) {
+          addQuote(event, targetEventId)
+        }
+      } else {
+        // Batch subscriptions cover many events — credit each tracked one this note quotes
+        quoted.filter(id => engagementMetrics.has(id)).forEach(id => addQuote(event, id))
+      }
+      return
+    }
 
     if ([10001, 10002, 10003, 30001, 30002, 30003].includes(event.kind)) {
       const bookmarkedEventIds = event.tags.filter(tag => tag[0] === 'e').map(tag => tag[1])
@@ -208,6 +248,11 @@ export function useEngagementMetrics() {
         {
           kinds: [6],
           "#e": uniqueEventIds,
+          limit: 200
+        },
+        {
+          kinds: [1],
+          "#q": uniqueEventIds,
           limit: 200
         },
         {
@@ -339,6 +384,7 @@ export function useEngagementMetrics() {
       return {
         likes: 0,
         reposts: 0,
+        quotes: 0,
         bookmarks: 0,
         totalEngagement: 0
       }
@@ -346,13 +392,15 @@ export function useEngagementMetrics() {
 
     const likes = metrics.likes.length
     const reposts = metrics.reposts.length
+    const quotes = metrics.quotes?.length || 0
     const bookmarks = metrics.bookmarks.length
 
     return {
       likes,
       reposts,
+      quotes,
       bookmarks,
-      totalEngagement: likes + reposts + bookmarks
+      totalEngagement: likes + reposts + quotes + bookmarks
     }
   }
 
@@ -421,6 +469,11 @@ export function useEngagementMetrics() {
           limit: 100
         },
         {
+          kinds: [1],
+          "#q": [aTagIdentifier],
+          limit: 100
+        },
+        {
           kinds: [10001, 10002, 10003, 30001, 30002, 30003],
           "#a": [aTagIdentifier],
           limit: 50
@@ -429,7 +482,7 @@ export function useEngagementMetrics() {
 
       const subscription = nostrService.subscribe(aTagFilters, {
         onevent: (event) => {
-          processEngagementEvent(event, eventId)
+          processEngagementEvent(event, eventId, aTagIdentifier)
         },
         oneose: () => {
           // Close after grace period for late-arriving events

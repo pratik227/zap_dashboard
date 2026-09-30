@@ -4,6 +4,7 @@ import {
   IconHeartFilled,
   IconHeart,
   IconRepeat,
+  IconQuote,
   IconBolt,
   IconBookmarkFilled,
   IconBookmark
@@ -16,6 +17,7 @@ const props = defineProps({
     default: () => ({
       likes: 0,
       reposts: 0,
+      quotes: 0,
       bookmarks: 0,
       totalEngagement: 0
     })
@@ -61,6 +63,7 @@ const hasEngagement = computed(() =>
 const hasAnyEngagement = computed(() => 
   (props.engagementCounts?.likes || 0) > 0 || 
   (props.engagementCounts?.reposts || 0) > 0 || 
+  (props.engagementCounts?.quotes || 0) > 0 || 
   (props.engagementCounts?.bookmarks || 0) > 0 || 
   props.zapCount > 0
 )
@@ -68,6 +71,7 @@ const hasAnyEngagement = computed(() =>
 const safeEngagementCounts = computed(() => ({
   likes: props.engagementCounts?.likes || 0,
   reposts: props.engagementCounts?.reposts || 0,
+  quotes: props.engagementCounts?.quotes || 0,
   bookmarks: props.engagementCounts?.bookmarks || 0,
   totalEngagement: props.engagementCounts?.totalEngagement || 0
 }))
@@ -96,6 +100,12 @@ const formatNumber = (num) => {
       <IconRepeat :class="[iconSizeClass, safeEngagementCounts.reposts > 0 ? 'text-green-500' : 'text-gray-400']" />
       <span :class="[textSize, 'font-medium']">{{ formatNumber(safeEngagementCounts.reposts) }}</span>
       <div v-if="showTooltips" class="custom-tooltip">{{ safeEngagementCounts.reposts }} {{ safeEngagementCounts.reposts <= 1 ? 'repost' : 'reposts' }}</div>
+    </span>
+
+    <span :class="['flex items-center gap-1 px-2 py-0.5 rounded-md hover:bg-gray-50 transition-colors', showTooltips ? 'tooltip-container' : '']">
+      <IconQuote :class="[iconSizeClass, safeEngagementCounts.quotes > 0 ? 'text-purple-500' : 'text-gray-400']" />
+      <span :class="[textSize, 'font-medium']">{{ formatNumber(safeEngagementCounts.quotes) }}</span>
+      <div v-if="showTooltips" class="custom-tooltip">{{ safeEngagementCounts.quotes }} {{ safeEngagementCounts.quotes <= 1 ? 'quote' : 'quotes' }}</div>
     </span>
     
     <span :class="['flex items-center gap-1 px-2 py-0.5 rounded-md hover:bg-orange-50 transition-colors', showTooltips ? 'tooltip-container' : '']">
