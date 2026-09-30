@@ -80,7 +80,7 @@ const menuItems = [
     submenuKey: 'dashboard',
     submenuItems: [
       { id: 'dashboard', label: 'ZapTracker Dashboard', icon: IconDashboard },
-      { id: 'lightning-explorer', label: 'Lightning Explorer', icon: IconActivity }
+      { id: 'lightning-explorer', label: 'Nostr Network', icon: IconActivity }
     ]
   },
   { id: 'zap-feed', label: 'Zap Feed', icon: IconBolt, requiresAuth: true },

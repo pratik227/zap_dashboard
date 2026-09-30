@@ -1,43 +1,33 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
-import { lightningNetworkService } from '../../services/lightningNetworkService.js'
+import { ref, reactive, onMounted, computed } from 'vue'
+import { nostrNetworkService, combineStats } from '../../utils/network/nostrNetworkService.js'
+import { useNostrAuth } from '../../composables/auth/useNostrAuth.js'
 import {
-  IconBolt,
   IconNetwork,
-  IconUsers,
-  IconCoins,
+  IconPlugConnected,
   IconWorld,
   IconServer,
-  IconTrendingUp,
   IconActivity,
   IconLogin,
   IconZoomIn,
   IconExternalLink,
-  IconInfoCircle
+  IconInfoCircle,
+  IconSearch,
+  IconShield,
+  IconBolt,
+  IconClock,
+  IconRefresh,
+  IconAlertTriangle
 } from '@iconify-prerendered/vue-tabler'
 import VChart from 'vue-echarts'
 import { use } from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
-import { PieChart, BarChart, LineChart } from 'echarts/charts'
-import {
-  TitleComponent,
-  TooltipComponent,
-  LegendComponent,
-  GridComponent
-} from 'echarts/components'
+import { PieChart, BarChart } from 'echarts/charts'
+import { TooltipComponent, LegendComponent, GridComponent } from 'echarts/components'
 
-use([
-  CanvasRenderer,
-  PieChart,
-  BarChart,
-  LineChart,
-  TitleComponent,
-  TooltipComponent,
-  LegendComponent,
-  GridComponent
-])
+use([CanvasRenderer, PieChart, BarChart, TooltipComponent, LegendComponent, GridComponent])
 
-const props = defineProps({
+defineProps({
   hideAuthPrompts: {
     type: Boolean,
     default: false
@@ -46,635 +36,208 @@ const props = defineProps({
 
 const emit = defineEmits(['trigger-login', 'show-help'])
 
-// Import auth loading state to guard login buttons
-import { useNostrAuth } from '../../composables/auth/useNostrAuth.js'
+// Auth loading state guards the login buttons
 const { isLoading: isLoginLoading } = useNostrAuth()
 
-const isLoading = ref(true)
-const networkStats = ref(null)
-const topNodesByCapacity = ref([])
-const topNodesByConnectivity = ref([])
-const nodesByCountry = ref([])
-const ispRanking = ref(null)
-const historicalData = ref([])
+const isLoading = ref(true) // until the live probe (first section) is in
+const monitorLoading = ref(false)
+const sources = reactive({ network: null, probes: null, personal: null })
+const stats = computed(() => (isLoading.value ? null : combineStats(sources)))
 const activeTooltip = ref(null)
 
 const tooltips = {
-  channels: {
-    title: 'Payment Channels',
-    description: 'Payment channels are direct connections between two Lightning nodes that allow instant Bitcoin transactions. Think of them as private payment tunnels that can process thousands of transactions without touching the Bitcoin blockchain.',
-    example: 'If you and a friend open a channel with 1 BTC, you can send payments back and forth instantly until one of you closes the channel.'
+  online: {
+    title: 'Online Relays',
+    description: 'Relays that NIP-66 monitors found online in the last 24 hours. Monitors are independent Nostr services that check relays around the clock and publish what they find as Nostr events.',
+    example: 'When you post a note it goes to several relays, so the more relays are online, the more resilient your content is.'
   },
-  nodes: {
-    title: 'Network Nodes',
-    description: 'A Lightning node is like a router in the Lightning Network. Anyone can run a node to send, receive, or help route Bitcoin payments. More nodes mean a more robust and decentralized network.',
-    example: 'Running a node is similar to running a Bitcoin full node, but it also lets you participate in routing payments and earning fees.'
+  latency: {
+    title: 'Relay Latency',
+    description: 'Median time for monitors to open a connection to a relay and read an event from it. Lower is faster.',
+    example: 'Your own latency depends on where you are. The live probe below measures it from your browser.'
   },
-  capacity: {
-    title: 'Total Network Capacity',
-    description: 'This is the total amount of Bitcoin locked in all Lightning channels across the entire network. Higher capacity means more liquidity for routing larger payments.',
-    example: 'If the network has 5,000 BTC capacity, it can theoretically route payments up to that amount across all channels.'
+  throughput: {
+    title: 'Network Activity',
+    description: 'Unique notes (kind 1) published in the last minute, counted across popular relays and de-duplicated, since the same note is usually stored on many relays.',
+    example: 'This is a sample of public activity, not the whole network. Many notes live only on smaller relays.'
   },
-  avgCapacity: {
-    title: 'Average Channel Capacity',
-    description: 'The typical amount of Bitcoin held in a single payment channel. Larger channels can route bigger payments but require more capital.',
-    example: 'A channel with 5 million sats can route payments up to that amount in either direction.'
+  search: {
+    title: 'NIP-50 Search',
+    description: 'Relays that support full-text search, so clients can find old notes and people instead of only recent events.',
+    example: 'NIP-50 lets you search for "bitcoin" across everything a relay stores.'
   },
-  clearnet: {
-    title: 'Clearnet Nodes',
-    description: 'These nodes are accessible via the regular internet with a public IP address. They\'re faster and easier to connect to, but your IP address is visible to the network.',
-    pros: 'Fast connections, reliable routing'
+  nips: {
+    title: 'NIP Support',
+    description: 'NIPs (Nostr Implementation Possibilities) are optional standards. Relays advertise the ones they support. More support means more features, like search, authentication and protected events.',
+    example: 'Based on what each relay advertises, as reported by NIP-66 monitors.'
   },
-  tor: {
-    title: 'Tor Nodes',
-    description: 'These nodes only connect via the Tor network, providing maximum privacy by hiding your IP address. However, they can be slower due to Tor\'s onion routing.',
-    pros: 'Maximum privacy, hidden location'
+  access: {
+    title: 'Relay Access',
+    description: 'Whether relays accept events from anyone, or require authentication (NIP-42), payment or proof of work.',
+    example: 'Paid and authenticated relays often have less spam, while open relays are easiest to start with.'
   },
-  hybrid: {
-    title: 'Hybrid Nodes (Clearnet + Tor)',
-    description: 'These nodes are accessible via both regular internet and Tor, offering the best of both worlds. They can accept connections from any node type.',
-    pros: 'Flexibility, wider reach, privacy option'
-  },
-  isp: {
-    title: 'Hosting Providers',
-    description: 'Most Lightning nodes run on cloud servers from various hosting providers. This shows which companies host the most nodes. Decentralization across many providers is healthier for the network.',
-    note: 'Running a node at home improves decentralization!'
-  },
-  topCountries: {
-    title: 'Top Countries by Node Count',
-    description: 'This shows where Lightning nodes are located around the world. The more spread out nodes are across different countries, the more resilient the network becomes.',
-    example: 'Don\'t worry if your country isn\'t on the list - anyone anywhere can run a node and help grow the network!'
-  },
-  topNodesByCapacity: {
-    title: 'Top Nodes by Liquidity',
-    description: 'These are the biggest Lightning nodes ranked by how much Bitcoin they have locked in channels. They\'re like the major hubs of the network, helping route large payments.',
-    example: 'You don\'t need millions of sats to run a useful node - even small nodes help strengthen the network!'
-  },
-  topNodesByConnectivity: {
-    title: 'Most Connected Nodes',
-    description: 'These nodes have the most connections (channels) to other nodes. They\'re like airports with lots of flight routes - great for routing payments quickly across the network.',
-    example: 'More connections means more routing options and better payment reliability!'
+  ranking: {
+    title: 'Fastest Relays',
+    description: 'Clearnet relays with the lowest combined connect and read time, as measured by NIP-66 monitors.',
+    example: 'Relays close to you may be faster than this ranking suggests.'
   }
 }
 
-const showTooltip = (key) => {
-  activeTooltip.value = key
-}
+const showTooltip = (key) => { activeTooltip.value = key }
+const hideTooltip = () => { activeTooltip.value = null }
 
-const hideTooltip = () => {
-  activeTooltip.value = null
-}
-
-const loadData = async () => {
+// Sections render as their source arrives. Probes run before the (large) monitor
+// download so it doesn't inflate the latency they measure.
+const loadData = async ({ force = false } = {}) => {
   isLoading.value = true
-  try {
-    const [stats, topCap, topConn, countries, isp, historical] = await Promise.all([
-      lightningNetworkService.getNetworkStats('latest'),
-      lightningNetworkService.getTopNodesByCapacity(),
-      lightningNetworkService.getTopNodesByConnectivity(),
-      lightningNetworkService.getNodesByCountry(),
-      lightningNetworkService.getISPRanking(),
-      lightningNetworkService.getHistoricalStats()
-    ])
+  if (force) nostrNetworkService.clearCache()
+  const [probe, personal] = await Promise.allSettled([
+    nostrNetworkService.getProbeResults(),
+    nostrNetworkService.getPersonalStats()
+  ])
+  sources.probes = probe.status === 'fulfilled' ? probe.value : null
+  sources.personal = personal.status === 'fulfilled' ? personal.value : null
+  isLoading.value = false
 
-    networkStats.value = stats.latest
-    topNodesByCapacity.value = topCap.slice(0, 10)
-    topNodesByConnectivity.value = topConn.slice(0, 10)
-    nodesByCountry.value = countries.slice(0, 10)
-    ispRanking.value = isp
-    historicalData.value = historical
-  } catch (error) {
-    console.error('Failed to load Lightning Network data:', error)
-  } finally {
-    isLoading.value = false
-  }
+  monitorLoading.value = true
+  sources.network = await nostrNetworkService.getMonitorStats().catch(() => null)
+  monitorLoading.value = false
 }
 
-const openNodeOnAmboss = (publicKey) => {
-  window.open(`https://amboss.space/node/${publicKey}`, '_blank')
-}
+onMounted(() => loadData())
+
+const network = computed(() => stats.value?.network || null)
+const probes = computed(() => stats.value?.probes || null)
+const personal = computed(() => stats.value?.personal || null)
+const nothingLoaded = computed(() => stats.value && !monitorLoading.value && !network.value && !probes.value?.summary.reachable)
+const monitorPlaceholder = computed(() => (monitorLoading.value ? 'Loading data from relay monitors…' : 'Monitor data is unavailable right now.'))
+
+const fmt = (n) => (typeof n === 'number' ? n.toLocaleString() : '—')
+const ms = (n) => (typeof n === 'number' ? `${n.toLocaleString()} ms` : '—')
 
 const statsCards = computed(() => {
-  if (!networkStats.value) return []
-
-  const stats = networkStats.value
+  if (!stats.value) return []
+  const net = network.value
+  const probe = probes.value?.summary
   return [
     {
-      title: 'Total Channels',
-      value: lightningNetworkService.formatNumber(stats.channel_count),
-      icon: IconNetwork,
-      color: 'from-orange-500 to-amber-500',
+      title: 'Online Relays',
+      value: fmt(net?.onlineRelays),
+      icon: IconPlugConnected,
       bgColor: 'bg-orange-50',
       textColor: 'text-orange-600',
-      subtitle: 'Active payment channels',
-      tooltipKey: 'channels'
+      subtitle: net ? `Seen in the last 24h by ${net.monitors} monitors` : monitorLoading.value ? 'Loading…' : 'Monitor data unavailable',
+      tooltipKey: 'online'
     },
     {
-      title: 'Network Nodes',
-      value: lightningNetworkService.formatNumber(stats.node_count),
-      icon: IconUsers,
-      color: 'from-blue-500 to-cyan-500',
+      title: 'Median Latency',
+      // Monitors measure from many places; the browser probe is only a fallback
+      value: ms(net ? net.medianRttOpen : monitorLoading.value ? null : probe?.medianConnectMs),
+      icon: IconClock,
       bgColor: 'bg-blue-50',
       textColor: 'text-blue-600',
-      subtitle: 'Connected Lightning nodes',
-      tooltipKey: 'nodes'
+      subtitle: net?.medianRttRead ? `to connect · ${ms(net.medianRttRead)} to read` : monitorLoading.value ? 'Loading…' : 'to connect, from your browser',
+      tooltipKey: 'latency'
     },
     {
-      title: 'Total Capacity',
-      value: lightningNetworkService.formatSats(stats.total_capacity),
-      icon: IconCoins,
-      color: 'from-green-500 to-emerald-500',
+      title: 'Notes per Minute',
+      value: fmt(probe?.notesLastMinute),
+      icon: IconActivity,
       bgColor: 'bg-green-50',
       textColor: 'text-green-600',
-      subtitle: 'Network liquidity',
-      tooltipKey: 'capacity'
+      subtitle: probe?.reachable ? `Unique notes across ${probe.reachable} relays` : 'Live probe unavailable',
+      tooltipKey: 'throughput'
     },
     {
-      title: 'Average Capacity',
-      value: lightningNetworkService.formatSats(stats.avg_capacity),
-      icon: IconActivity,
-      color: 'from-purple-500 to-pink-500',
-      bgColor: 'bg-purple-50',
-      textColor: 'text-purple-600',
-      subtitle: 'Per channel',
-      tooltipKey: 'avgCapacity'
+      title: 'NIP-50 Search',
+      value: monitorLoading.value ? '—' : fmt(stats.value.searchSupportCount),
+      icon: IconSearch,
+      bgColor: 'bg-amber-50',
+      textColor: 'text-amber-600',
+      subtitle: monitorLoading.value ? 'Loading…' : stats.value.nipSampleSize ? `of ${fmt(stats.value.nipSampleSize)} relays reporting NIPs` : 'No NIP data',
+      tooltipKey: 'search'
     }
   ]
 })
 
-const nodeTypeChart = computed(() => {
-  if (!networkStats.value) return null
+const topNipsByAdoption = computed(() => (monitorLoading.value ? [] : (stats.value?.nipSupport || []).filter(n => n.percentage >= 5).slice(0, 12)))
 
-  const stats = networkStats.value
-  const total = stats.clearnet_nodes + stats.tor_nodes + stats.clearnet_tor_nodes + stats.unannounced_nodes
-
-  const nodeTypeInfo = {
-    'Clearnet': {
-      description: 'Public nodes accessible via standard internet',
-      benefits: 'Fast connections, easy to reach, better for routing',
-      security: 'IP address visible to network',
-      value: stats.clearnet_nodes
-    },
-    'Tor': {
-      description: 'Anonymous nodes accessible only via Tor network',
-      benefits: 'Enhanced privacy, hidden IP address',
-      security: 'Maximum anonymity, slower connections',
-      value: stats.tor_nodes
-    },
-    'Clearnet + Tor': {
-      description: 'Hybrid nodes accessible via both networks',
-      benefits: 'Best of both worlds - privacy option with speed',
-      security: 'Flexible connectivity, balanced approach',
-      value: stats.clearnet_tor_nodes
-    },
-    'Unannounced': {
-      description: 'Private nodes not advertised to the network',
-      benefits: 'Maximum privacy, used for personal channels',
-      security: 'Not visible in public network graph',
-      value: stats.unannounced_nodes
-    }
-  }
-
-  return {
-    tooltip: {
-      trigger: 'item',
-      confine: true,
-      backgroundColor: 'rgba(255, 255, 255, 0.98)',
-      borderColor: '#e5e7eb',
-      borderWidth: 1,
-      padding: [20, 24],
-      textStyle: {
-        color: '#1f2937',
-        fontSize: 14
-      },
-      extraCssText: 'box-shadow: 0 10px 25px rgba(0,0,0,0.15); border-radius: 12px; max-width: 380px;',
-      formatter: (params) => {
-        const percent = ((params.value / total) * 100).toFixed(1)
-        const info = nodeTypeInfo[params.name]
-        return `<div style="font-weight: 700; margin-bottom: 10px; font-size: 16px; color: ${params.color};">${params.name}</div>
-                <div style="font-size: 12px; color: #6b7280; margin-bottom: 10px; line-height: 1.5; font-style: italic;">${info.description}</div>
-                <div style="background: #f9fafb; padding: 10px; border-radius: 8px; margin-bottom: 10px;">
-                  <div style="font-size: 13px; color: #6b7280; margin-bottom: 6px;">Nodes: <strong style="color: #111827;">${params.value.toLocaleString()}</strong> (${percent}%)</div>
-                  <div style="font-size: 12px; color: #059669; margin-bottom: 4px;">✓ ${info.benefits}</div>
-                  <div style="font-size: 12px; color: #3b82f6;">🔒 ${info.security}</div>
-                </div>`
-      }
-    },
-    legend: {
-      orient: 'horizontal',
-      bottom: '5',
-      left: 'center',
-      itemGap: 24,
-      itemWidth: 14,
-      itemHeight: 14,
-      textStyle: {
-        fontSize: 13,
-        fontWeight: 600,
-        color: '#374151'
-      },
-      icon: 'circle'
-    },
-    series: [
-      {
-        name: 'Node Types',
-        type: 'pie',
-        radius: ['52%', '82%'],
-        center: ['50%', '42%'],
-        avoidLabelOverlap: true,
-        itemStyle: {
-          borderRadius: 10,
-          borderColor: '#fff',
-          borderWidth: 4,
-          shadowBlur: 15,
-          shadowColor: 'rgba(0, 0, 0, 0.12)'
-        },
-        label: {
-          show: false
-        },
-        labelLine: {
-          show: false
-        },
-        emphasis: {
-          scale: true,
-          scaleSize: 12,
-          itemStyle: {
-            shadowBlur: 25,
-            shadowColor: 'rgba(0, 0, 0, 0.25)',
-            borderWidth: 5
-          }
-        },
-        animationType: 'scale',
-        animationEasing: 'elasticOut',
-        animationDelay: (idx) => idx * 100,
-        data: [
-          {
-            value: stats.clearnet_nodes,
-            name: 'Clearnet',
-            itemStyle: {
-              color: {
-                type: 'linear',
-                x: 0,
-                y: 0,
-                x2: 1,
-                y2: 1,
-                colorStops: [
-                  { offset: 0, color: '#34d399' },
-                  { offset: 1, color: '#059669' }
-                ]
-              }
-            }
-          },
-          {
-            value: stats.tor_nodes,
-            name: 'Tor',
-            itemStyle: {
-              color: {
-                type: 'linear',
-                x: 0,
-                y: 0,
-                x2: 1,
-                y2: 1,
-                colorStops: [
-                  { offset: 0, color: '#fbbf24' },
-                  { offset: 1, color: '#d97706' }
-                ]
-              }
-            }
-          },
-          {
-            value: stats.clearnet_tor_nodes,
-            name: 'Clearnet + Tor',
-            itemStyle: {
-              color: {
-                type: 'linear',
-                x: 0,
-                y: 0,
-                x2: 1,
-                y2: 1,
-                colorStops: [
-                  { offset: 0, color: '#60a5fa' },
-                  { offset: 1, color: '#2563eb' }
-                ]
-              }
-            }
-          },
-          {
-            value: stats.unannounced_nodes,
-            name: 'Unannounced',
-            itemStyle: {
-              color: {
-                type: 'linear',
-                x: 0,
-                y: 0,
-                x2: 1,
-                y2: 1,
-                colorStops: [
-                  { offset: 0, color: '#a78bfa' },
-                  { offset: 1, color: '#7c3aed' }
-                ]
-              }
-            }
-          }
-        ]
-      }
-    ]
-  }
-})
-
-const countryDistributionChart = computed(() => {
-  if (nodesByCountry.value.length === 0) return null
-
+const nipAdoptionChart = computed(() => {
+  if (!topNipsByAdoption.value.length) return null
   return {
     tooltip: {
       trigger: 'axis',
       confine: true,
-      axisPointer: {
-        type: 'shadow',
-        shadowStyle: {
-          color: 'rgba(251, 191, 36, 0.1)'
-        }
-      },
+      axisPointer: { type: 'shadow' },
       backgroundColor: 'rgba(255, 255, 255, 0.98)',
       borderColor: '#e5e7eb',
       borderWidth: 1,
-      padding: [16, 20],
-      textStyle: {
-        color: '#1f2937',
-        fontSize: 14
-      },
-      extraCssText: 'box-shadow: 0 10px 25px rgba(0,0,0,0.15); border-radius: 12px;',
+      padding: [12, 16],
+      textStyle: { color: '#1f2937', fontSize: 13 },
       formatter: (params) => {
-        const data = params[0]
-        const country = nodesByCountry.value[data.dataIndex]
-        return `<div style="font-weight: 700; margin-bottom: 8px; font-size: 15px; color: #f59e0b;">${country.name.en}</div>
-                <div style="font-size: 13px; color: #6b7280; margin-bottom: 4px;">Nodes: <strong style="color: #111827;">${country.count.toLocaleString()}</strong></div>
-                <div style="font-size: 13px; color: #6b7280;">Share: <strong style="color: #059669;">${country.share}%</strong></div>`
+        const nip = topNipsByAdoption.value[params[0].dataIndex]
+        return `<div style="font-weight:700;margin-bottom:6px;color:#ea580c;">NIP-${nip.nip}: ${nip.description}</div>
+                <div style="color:#6b7280;">${nip.percentage}% of relays (${nip.count.toLocaleString()} of ${nip.total.toLocaleString()})</div>`
       }
     },
-    grid: {
-      left: '3%',
-      right: '4%',
-      bottom: '3%',
-      containLabel: true
-    },
-    xAxis: {
-      type: 'value',
-      axisLabel: {
-        formatter: (value) => `${(value / 1000).toFixed(0)}K`
-      }
-    },
-    yAxis: {
-      type: 'category',
-      data: nodesByCountry.value.map(c => c.iso),
-      axisLabel: {
-        fontSize: 11
-      }
-    },
-    series: [
-      {
-        name: 'Nodes',
-        type: 'bar',
-        data: nodesByCountry.value.map(c => ({
-          value: c.count,
-          itemStyle: {
-            color: {
-              type: 'linear',
-              x: 0,
-              y: 0,
-              x2: 1,
-              y2: 0,
-              colorStops: [
-                { offset: 0, color: '#f59e0b' },
-                { offset: 1, color: '#f97316' }
-              ]
-            }
-          }
-        })),
-        barMaxWidth: 30,
-        label: {
-          show: true,
-          position: 'right',
-          formatter: '{c}'
-        }
-      }
-    ]
+    grid: { left: '3%', right: '4%', bottom: '12%', containLabel: true },
+    xAxis: { type: 'category', data: topNipsByAdoption.value.map(n => `NIP-${n.nip}`), axisLabel: { rotate: 45, fontSize: 10 } },
+    yAxis: { type: 'value', max: 100, axisLabel: { formatter: '{value}%' } },
+    series: [{
+      type: 'bar',
+      data: topNipsByAdoption.value.map(n => n.percentage),
+      itemStyle: {
+        color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: '#fb923c' }, { offset: 1, color: '#ea580c' }] },
+        borderRadius: [4, 4, 0, 0]
+      },
+      barMaxWidth: 30,
+      label: { show: true, position: 'top', formatter: '{c}%', fontSize: 10 }
+    }]
   }
 })
 
-const topISPChart = computed(() => {
-  if (!ispRanking.value) return null
-
-  const allISPs = ispRanking.value.ispRanking
-  const threshold = 0.05
-  const totalNodes = allISPs.reduce((sum, isp) => sum + isp[4], 0)
-
-  const mainISPs = []
-  let othersNodes = 0
-  let othersCapacity = 0
-  let othersChannels = 0
-  let othersCount = 0
-
-  allISPs.forEach(isp => {
-    const share = isp[4] / totalNodes
-    if (share >= threshold && mainISPs.length < 6) {
-      mainISPs.push(isp)
-    } else {
-      othersNodes += isp[4]
-      othersCapacity += isp[2]
-      othersChannels += isp[3]
-      othersCount++
-    }
-  })
-
-  if (othersNodes > 0) {
-    mainISPs.push([
-      'others',
-      `Others (${othersCount} providers)`,
-      othersCapacity,
-      othersChannels,
-      othersNodes
-    ])
-  }
-
-  const topISPs = mainISPs
-
+const accessChart = computed(() => {
+  const net = network.value
+  if (!net?.onlineRelays) return null
+  // Categories overlap (a relay can need auth and payment), so show each as its own slice of "restricted"
+  const restricted = net.onlineRelays - net.openAccess
+  const data = [
+    { value: net.openAccess, name: 'Open to everyone', itemStyle: { color: '#10b981' } },
+    { value: net.paymentRequired, name: 'Paid', itemStyle: { color: '#f59e0b' } },
+    { value: Math.max(0, restricted - net.paymentRequired), name: 'Auth or PoW only', itemStyle: { color: '#6366f1' } }
+  ].filter(d => d.value > 0)
   return {
     tooltip: {
       trigger: 'item',
       confine: true,
-      backgroundColor: 'rgba(255, 255, 255, 0.98)',
-      borderColor: '#e5e7eb',
-      borderWidth: 1,
-      padding: [16, 20],
-      textStyle: {
-        color: '#1f2937',
-        fontSize: 14
-      },
-      extraCssText: 'box-shadow: 0 10px 25px rgba(0,0,0,0.15); border-radius: 12px;',
-      formatter: (params) => {
-        const isp = topISPs[params.dataIndex]
-        const percent = ((isp[4] / totalNodes) * 100).toFixed(1)
-        const avgCapacityPerNode = isp[2] / isp[4]
-        const avgChannelsPerNode = (isp[3] / isp[4]).toFixed(0)
-
-        let additionalInfo = ''
-        if (isp[0] === 'others') {
-          additionalInfo = `<div style="font-size: 12px; color: #6b7280; margin-bottom: 10px; line-height: 1.5; font-style: italic;">Combined total from ${othersCount} smaller hosting providers</div>`
-        } else {
-          const ispTypes = {
-            'DigitalOcean': 'Popular cloud platform known for developer-friendly VPS hosting',
-            'Amazon': 'AWS - World\'s largest cloud infrastructure provider',
-            'Google': 'Google Cloud Platform with global network infrastructure',
-            'Hetzner': 'European provider known for cost-effective dedicated servers',
-            'OVH': 'European hosting giant with data centers worldwide',
-            'Contabo': 'Budget-friendly German hosting provider'
-          }
-
-          const ispInfo = Object.keys(ispTypes).find(key => isp[1].includes(key))
-          if (ispInfo) {
-            additionalInfo = `<div style="font-size: 12px; color: #6b7280; margin-bottom: 10px; line-height: 1.5; font-style: italic;">${ispTypes[ispInfo]}</div>`
-          }
-        }
-
-        return `<div style="font-weight: 700; margin-bottom: 10px; font-size: 16px; color: ${params.color};">${isp[1]}</div>
-                ${additionalInfo}
-                <div style="background: #f9fafb; padding: 12px; border-radius: 8px; margin-bottom: 8px;">
-                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                    <span style="color: #6b7280; font-size: 13px;">Total Capacity:</span>
-                    <strong style="color: #111827; font-size: 13px; margin-left: 12px;">${lightningNetworkService.formatSats(isp[2])}</strong>
-                  </div>
-                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                    <span style="color: #6b7280; font-size: 13px;">Channels:</span>
-                    <strong style="color: #111827; font-size: 13px; margin-left: 12px;">${isp[3].toLocaleString()}</strong>
-                  </div>
-                  <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <span style="color: #6b7280; font-size: 13px;">Nodes:</span>
-                    <strong style="color: #111827; font-size: 13px; margin-left: 12px;">${isp[4].toLocaleString()}</strong>
-                  </div>
-                </div>
-                <div style="background: #eff6ff; padding: 10px; border-radius: 8px; margin-bottom: 8px;">
-                  <div style="font-size: 12px; color: #6b7280; margin-bottom: 4px;">📊 Avg per node:</div>
-                  <div style="display: flex; justify-content: space-between; margin-bottom: 3px;">
-                    <span style="color: #6b7280; font-size: 12px;">Capacity:</span>
-                    <strong style="color: #3b82f6; font-size: 12px;">${lightningNetworkService.formatSats(avgCapacityPerNode)}</strong>
-                  </div>
-                  <div style="display: flex; justify-content: space-between;">
-                    <span style="color: #6b7280; font-size: 12px;">Channels:</span>
-                    <strong style="color: #3b82f6; font-size: 12px;">${avgChannelsPerNode}</strong>
-                  </div>
-                </div>
-                <div style="border-top: 1px solid #e5e7eb; padding-top: 8px; display: flex; justify-content: space-between; align-items: center;">
-                  <span style="color: #6b7280; font-size: 13px;">Market Share:</span>
-                  <strong style="color: #059669; font-size: 15px; margin-left: 12px;">${percent}%</strong>
-                </div>`
-      }
+      formatter: p => `<strong>${p.name}</strong><br>${p.value.toLocaleString()} relays (${p.percent}%)`
     },
-    legend: {
-      orient: 'horizontal',
-      bottom: '5',
-      left: 'center',
-      type: 'scroll',
-      itemGap: 16,
-      itemWidth: 14,
-      itemHeight: 14,
-      textStyle: {
-        fontSize: 12,
-        fontWeight: 600,
-        color: '#374151'
-      },
-      icon: 'circle',
-      pageIconSize: 12,
-      pageTextStyle: {
-        color: '#6b7280'
-      }
-    },
-    series: [
-      {
-        name: 'Hosting Providers',
-        type: 'pie',
-        radius: ['52%', '82%'],
-        center: ['50%', '42%'],
-        avoidLabelOverlap: true,
-        itemStyle: {
-          borderRadius: 10,
-          borderColor: '#fff',
-          borderWidth: 4,
-          shadowBlur: 15,
-          shadowColor: 'rgba(0, 0, 0, 0.12)'
-        },
-        label: {
-          show: false
-        },
-        labelLine: {
-          show: false
-        },
-        emphasis: {
-          scale: true,
-          scaleSize: 12,
-          itemStyle: {
-            shadowBlur: 25,
-            shadowColor: 'rgba(0, 0, 0, 0.25)',
-            borderWidth: 5
-          }
-        },
-        animationType: 'scale',
-        animationEasing: 'elasticOut',
-        animationDelay: (idx) => idx * 80,
-        data: topISPs.map((isp, index) => {
-          const isOthers = isp[0] === 'others'
-          const displayName = isp[1].length > 20 ? isp[1].substring(0, 20) + '...' : isp[1]
-
-          const colors = [
-            ['#60a5fa', '#2563eb'],
-            ['#22d3ee', '#0891b2'],
-            ['#a78bfa', '#7c3aed'],
-            ['#f472b6', '#db2777'],
-            ['#fbbf24', '#d97706'],
-            ['#34d399', '#059669'],
-            ['#fb7185', '#e11d48']
-          ]
-
-          const colorIndex = index % colors.length
-          const [lightColor, darkColor] = isOthers ? ['#94a3b8', '#64748b'] : colors[colorIndex]
-
-          return {
-            value: isp[4],
-            name: displayName,
-            itemStyle: {
-              color: {
-                type: 'linear',
-                x: 0,
-                y: 0,
-                x2: 1,
-                y2: 1,
-                colorStops: [
-                  { offset: 0, color: lightColor },
-                  { offset: 1, color: darkColor }
-                ]
-              }
-            }
-          }
-        })
-      }
-    ]
+    legend: { bottom: 5, left: 'center', icon: 'circle', itemGap: 20, textStyle: { fontSize: 12, color: '#374151' } },
+    series: [{
+      type: 'pie',
+      radius: ['50%', '78%'],
+      center: ['50%', '42%'],
+      itemStyle: { borderRadius: 8, borderColor: '#fff', borderWidth: 3 },
+      label: { show: false },
+      data
+    }]
   }
 })
 
-onMounted(() => {
-  loadData()
+const fastestRelays = computed(() => network.value?.fastestRelays || [])
+
+const probeHealthColor = computed(() => {
+  const pct = probes.value?.summary.reachablePercentage ?? 0
+  if (pct >= 80) return 'emerald'
+  if (pct >= 50) return 'amber'
+  return 'red'
 })
 </script>
 
 <style scoped>
 @keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(-8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 </style>
 
@@ -684,31 +247,30 @@ onMounted(() => {
     <div class="relative overflow-hidden bg-gradient-to-br from-orange-500 via-amber-500 to-yellow-500 rounded-3xl p-8 md:p-12 shadow-lg">
       <div class="absolute inset-0 bg-black/5"></div>
       <div class="relative z-10">
-        <div class="flex items-center justify-between mb-6">
+        <div class="flex items-center justify-between gap-4 mb-6">
           <div class="flex items-center space-x-4">
             <div class="w-14 h-14 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center">
-              <IconBolt class="w-8 h-8 text-white" />
+              <IconNetwork class="w-8 h-8 text-white" />
             </div>
             <div>
-              <h1 class="text-3xl md:text-4xl font-semibold text-white mb-2 tracking-tight">
-                Lightning Network Explorer
-              </h1>
-              <p class="text-white/90 text-base">
-                Real-time insights into Bitcoin's Lightning Network
-              </p>
+              <h1 class="text-3xl md:text-4xl font-semibold text-white mb-2 tracking-tight">Nostr Network Explorer</h1>
+              <p class="text-white/90 text-base">Live insights into the Nostr relay network</p>
             </div>
           </div>
+          <button
+            class="hidden sm:inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white/20 hover:bg-white/30 text-white text-sm font-medium border border-white/30 disabled:opacity-60"
+            :disabled="isLoading || monitorLoading"
+            @click="loadData({ force: true })"
+          >
+            <IconRefresh :class="['w-4 h-4', isLoading || monitorLoading ? 'animate-spin' : '']" /> Refresh
+          </button>
         </div>
 
         <div v-if="!hideAuthPrompts" class="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20">
           <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div class="flex-1">
-              <p class="text-white/90 text-base mb-2">
-                Discover the power of instant, low-cost Bitcoin transactions
-              </p>
-              <p class="text-white text-sm">
-                Connect your Nostr account to track your Lightning earnings and analyze your zap data
-              </p>
+              <p class="text-white/90 text-base mb-2">Explore the decentralized Nostr network</p>
+              <p class="text-white text-sm">Connect your Nostr account to see your personal relay health alongside the network</p>
             </div>
             <div class="flex flex-col sm:flex-row gap-3">
               <button
@@ -751,6 +313,14 @@ onMounted(() => {
       </div>
     </div>
 
+    <!-- Nothing reachable -->
+    <div v-else-if="nothingLoaded" class="bg-white rounded-2xl p-10 border border-gray-200 text-center">
+      <IconAlertTriangle class="w-10 h-10 text-amber-500 mx-auto mb-3" />
+      <h3 class="text-lg font-semibold text-gray-900 mb-1">Couldn’t reach the Nostr network</h3>
+      <p class="text-sm text-gray-600 mb-4">None of the monitor or probe relays responded. Check your connection and try again.</p>
+      <button class="px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium" @click="loadData({ force: true })">Try again</button>
+    </div>
+
     <!-- Main Content -->
     <div v-else class="space-y-8">
       <!-- Stats Cards -->
@@ -765,48 +335,30 @@ onMounted(() => {
               <component :is="card.icon" :class="['w-6 h-6', card.textColor]" />
             </div>
             <button
-              v-if="card.tooltipKey"
               @mouseenter="showTooltip(card.tooltipKey)"
               @mouseleave="hideTooltip"
+              @focus="showTooltip(card.tooltipKey)"
+              @blur="hideTooltip"
+              :aria-label="`About ${card.title}`"
               class="p-1 text-gray-400 hover:text-gray-600 transition-colors"
             >
               <IconInfoCircle class="w-5 h-5" />
             </button>
           </div>
           <h3 class="text-gray-600 text-sm font-medium mb-2">{{ card.title }}</h3>
-          <p class="text-3xl font-semibold text-gray-900 mb-1">{{ card.value }}</p>
+          <p class="text-3xl font-semibold text-gray-900 mb-1 tabular-nums">{{ card.value }}</p>
           <p class="text-xs text-gray-500">{{ card.subtitle }}</p>
 
-          <!-- Tooltip - Responsive positioning -->
           <div
             v-if="activeTooltip === card.tooltipKey"
             :class="[
               'absolute pointer-events-none z-[9999] w-72 p-4 bg-gray-900 text-white rounded-xl shadow-2xl border border-gray-700',
-              // Mobile: Show below
               'top-full mt-2 left-1/2 -translate-x-1/2',
-              // Medium screens (2 columns): Even on right, odd on left
-              'md:top-0 md:translate-x-0',
-              index % 2 === 0 ? 'md:left-full md:ml-4' : 'md:right-full md:mr-4',
-              // Large screens (4 columns): 0-1 on right, 2-3 on left
-              'lg:top-0',
-              index % 4 < 2 ? 'lg:left-full lg:right-auto lg:ml-4 lg:mr-0' : 'lg:right-full lg:left-auto lg:mr-4 lg:ml-0'
+              'lg:top-0 lg:translate-x-0',
+              index % 4 < 2 ? 'lg:left-full lg:ml-4' : 'lg:left-auto lg:right-full lg:mr-4'
             ]"
             style="animation: fadeIn 0.2s ease-out"
           >
-            <!-- Arrow - positioned based on screen size -->
-            <div
-              :class="[
-                'absolute w-3 h-3 bg-gray-900 border-gray-700 transform rotate-45',
-                // Mobile: Arrow on top center
-                'border-l border-t -top-1.5 left-1/2 -translate-x-1/2',
-                // Medium: Even cards arrow on left, odd on right
-                'md:top-8 md:translate-x-0',
-                index % 2 === 0 ? 'md:border-l md:border-t md:-left-1.5 md:left-auto' : 'md:border-r md:border-b md:-right-1.5 md:right-auto',
-                // Large: 0-1 arrow on left, 2-3 on right
-                'lg:top-8',
-                index % 4 < 2 ? 'lg:border-l lg:border-t lg:border-r-0 lg:border-b-0 lg:-left-1.5 lg:right-auto' : 'lg:border-r lg:border-b lg:border-l-0 lg:border-t-0 lg:-right-1.5 lg:left-auto'
-              ]"
-            ></div>
             <h4 class="font-medium text-sm mb-2 text-white">{{ tooltips[card.tooltipKey].title }}</h4>
             <p class="text-xs text-gray-300 leading-relaxed mb-3">{{ tooltips[card.tooltipKey].description }}</p>
             <div class="bg-gray-800 rounded-lg p-3 border border-gray-700">
@@ -816,220 +368,206 @@ onMounted(() => {
         </div>
       </div>
 
-      <!-- Charts Row 1 - Two Pie Charts Side by Side -->
+      <!-- Charts Row 1 -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <!-- Node Types Pie Chart -->
+        <!-- NIP Adoption -->
         <div class="bg-white rounded-2xl p-6 shadow-md border border-gray-200 relative">
           <div class="flex items-center justify-between mb-6">
             <div class="flex items-center space-x-3 flex-1">
               <div class="w-10 h-10 bg-orange-50 rounded-xl flex items-center justify-center">
-                <IconNetwork class="w-5 h-5 text-orange-600" />
+                <IconShield class="w-5 h-5 text-orange-600" />
               </div>
               <div class="flex-1">
-                <h3 class="text-lg font-semibold text-gray-900 tracking-tight">Node Distribution</h3>
-                <p class="text-sm text-gray-500">Network connectivity types (Clearnet, Tor, Hybrid)</p>
+                <h3 class="text-lg font-semibold text-gray-900 tracking-tight">NIP Adoption</h3>
+                <p class="text-sm text-gray-500">
+                  <template v-if="monitorLoading">Loading…</template>
+                  <template v-else-if="stats?.nipSource === 'nip66'">Across {{ fmt(stats.nipSampleSize) }} relays reported by monitors</template>
+                  <template v-else-if="stats?.nipSource === 'probe'">Across {{ stats.nipSampleSize }} probed relays</template>
+                  <template v-else>No NIP data available</template>
+                </p>
               </div>
             </div>
-            <button
-              @mouseenter="showTooltip('clearnet')"
-              @mouseleave="hideTooltip"
-              class="p-1 text-gray-400 hover:text-gray-600 transition-colors"
-            >
+            <button @mouseenter="showTooltip('nips')" @mouseleave="hideTooltip" aria-label="About NIP adoption" class="p-1 text-gray-400 hover:text-gray-600 transition-colors">
               <IconInfoCircle class="w-5 h-5" />
             </button>
           </div>
-
-          <!-- Tooltip - Responsive -->
-          <div
-            v-if="activeTooltip === 'clearnet'"
-            class="absolute pointer-events-none z-[9999] w-80 max-w-[calc(100vw-2rem)] p-4 bg-gray-900 text-white rounded-xl shadow-2xl border border-gray-700 top-16 left-1/2 -translate-x-1/2 lg:left-auto lg:translate-x-0 lg:right-4"
-            style="animation: fadeIn 0.2s ease-out"
-          >
-            <h4 class="font-medium text-sm mb-3 text-white">Understanding Node Types</h4>
-            <div class="space-y-3">
-              <div class="bg-gray-800 rounded-lg p-3 border border-gray-700">
-                <p class="text-xs font-medium text-green-400 mb-1">🌐 Clearnet</p>
-                <p class="text-xs text-gray-300">Public nodes on regular internet. Fast and reliable but IP visible.</p>
-              </div>
-              <div class="bg-gray-800 rounded-lg p-3 border border-gray-700">
-                <p class="text-xs font-medium text-purple-400 mb-1">🔒 Tor</p>
-                <p class="text-xs text-gray-300">Anonymous nodes via Tor network. Maximum privacy, slightly slower.</p>
-              </div>
-              <div class="bg-gray-800 rounded-lg p-3 border border-gray-700">
-                <p class="text-xs font-medium text-blue-400 mb-1">⚡ Hybrid</p>
-                <p class="text-xs text-gray-300">Best of both worlds! Accessible via clearnet and Tor.</p>
-              </div>
-            </div>
+          <div v-if="activeTooltip === 'nips'" class="absolute pointer-events-none z-[9999] w-80 max-w-[calc(100vw-2rem)] p-4 bg-gray-900 text-white rounded-xl shadow-2xl border border-gray-700 top-16 right-4" style="animation: fadeIn 0.2s ease-out">
+            <h4 class="font-medium text-sm mb-2 text-white">{{ tooltips.nips.title }}</h4>
+            <p class="text-xs text-gray-300 leading-relaxed">{{ tooltips.nips.description }}</p>
           </div>
-          <VChart
-            v-if="nodeTypeChart"
-            :option="nodeTypeChart"
-            class="w-full"
-            style="height: 320px;"
-            autoresize
-          />
+          <VChart v-if="nipAdoptionChart" :option="nipAdoptionChart" class="w-full" style="height: 340px;" autoresize />
+          <p v-else class="text-sm text-gray-500 text-center py-24">{{ monitorLoading ? monitorPlaceholder : 'NIP data is unavailable right now.' }}</p>
         </div>
 
-        <!-- Top Hosting Providers Pie Chart -->
+        <!-- Relay Access -->
         <div class="bg-white rounded-2xl p-6 shadow-md border border-gray-200 relative">
           <div class="flex items-center justify-between mb-6">
             <div class="flex items-center space-x-3 flex-1">
               <div class="w-10 h-10 bg-cyan-50 rounded-xl flex items-center justify-center">
-                <IconServer class="w-5 h-5 text-cyan-600" />
+                <IconWorld class="w-5 h-5 text-cyan-600" />
               </div>
               <div class="flex-1">
-                <h3 class="text-lg font-semibold text-gray-900 tracking-tight">Top Hosting Providers</h3>
-                <p class="text-sm text-gray-500">Infrastructure providers by node distribution</p>
+                <h3 class="text-lg font-semibold text-gray-900 tracking-tight">Relay Access</h3>
+                <p class="text-sm text-gray-500">Who can publish to online relays</p>
               </div>
             </div>
-            <button
-              @mouseenter="showTooltip('isp')"
-              @mouseleave="hideTooltip"
-              class="p-1 text-gray-400 hover:text-gray-600 transition-colors"
-            >
+            <button @mouseenter="showTooltip('access')" @mouseleave="hideTooltip" aria-label="About relay access" class="p-1 text-gray-400 hover:text-gray-600 transition-colors">
               <IconInfoCircle class="w-5 h-5" />
             </button>
           </div>
-
-          <!-- Tooltip - Responsive -->
-          <div
-            v-if="activeTooltip === 'isp'"
-            class="absolute pointer-events-none z-[9999] w-80 max-w-[calc(100vw-2rem)] p-4 bg-gray-900 text-white rounded-xl shadow-2xl border border-gray-700 top-16 left-1/2 -translate-x-1/2 lg:left-auto lg:translate-x-0 lg:right-4"
-            style="animation: fadeIn 0.2s ease-out"
-          >
-            <h4 class="font-medium text-sm mb-2 text-white">{{ tooltips.isp.title }}</h4>
-            <p class="text-xs text-gray-300 leading-relaxed mb-3">{{ tooltips.isp.description }}</p>
-            <div class="bg-green-900/30 rounded-lg p-3 border border-green-700">
-              <p class="text-xs text-green-300">💡 {{ tooltips.isp.note }}</p>
+          <div v-if="activeTooltip === 'access'" class="absolute pointer-events-none z-[9999] w-80 max-w-[calc(100vw-2rem)] p-4 bg-gray-900 text-white rounded-xl shadow-2xl border border-gray-700 top-16 right-4" style="animation: fadeIn 0.2s ease-out">
+            <h4 class="font-medium text-sm mb-2 text-white">{{ tooltips.access.title }}</h4>
+            <p class="text-xs text-gray-300 leading-relaxed">{{ tooltips.access.description }}</p>
+          </div>
+          <VChart v-if="accessChart" :option="accessChart" class="w-full" style="height: 300px;" autoresize />
+          <p v-else class="text-sm text-gray-500 text-center py-24">{{ monitorPlaceholder }}</p>
+          <div v-if="network" class="grid grid-cols-3 gap-3 mt-2 text-center">
+            <div>
+              <p class="text-lg font-semibold text-gray-900 tabular-nums">{{ fmt(network.authRequired) }}</p>
+              <p class="text-xs text-gray-500">require auth (NIP-42)</p>
+            </div>
+            <div>
+              <p class="text-lg font-semibold text-gray-900 tabular-nums">{{ fmt(network.byNetwork.tor) }}</p>
+              <p class="text-xs text-gray-500">on Tor</p>
+            </div>
+            <div>
+              <p class="text-lg font-semibold text-gray-900 tabular-nums">{{ fmt(network.powRequired) }}</p>
+              <p class="text-xs text-gray-500">require PoW</p>
             </div>
           </div>
-          <VChart
-            v-if="topISPChart"
-            :option="topISPChart"
-            class="w-full"
-            style="height: 320px;"
-            autoresize
-          />
         </div>
       </div>
 
       <!-- Charts Row 2 -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <!-- Top Countries Bar Chart -->
-        <div class="bg-white rounded-2xl p-6 shadow-md border border-gray-200 relative">
-          <div class="flex items-center justify-between mb-6">
-            <div class="flex items-center space-x-3 flex-1">
-              <div class="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center">
-                <IconWorld class="w-5 h-5 text-blue-600" />
-              </div>
-              <div class="flex-1">
-                <h3 class="text-lg font-semibold text-gray-900 tracking-tight">Top Countries</h3>
-                <p class="text-sm text-gray-500">Geographic distribution of Lightning nodes globally</p>
-              </div>
-            </div>
-            <button
-              @mouseenter="showTooltip('topCountries')"
-              @mouseleave="hideTooltip"
-              class="p-1 text-gray-400 hover:text-gray-600 transition-colors"
-            >
-              <IconInfoCircle class="w-5 h-5" />
-            </button>
-          </div>
-
-          <!-- Tooltip - Responsive -->
-          <div
-            v-if="activeTooltip === 'topCountries'"
-            class="absolute pointer-events-none z-[9999] w-80 max-w-[calc(100vw-2rem)] p-4 bg-gray-900 text-white rounded-xl shadow-2xl border border-gray-700 top-16 left-1/2 -translate-x-1/2 md:left-auto md:translate-x-0 md:right-4"
-            style="animation: fadeIn 0.2s ease-out"
-          >
-            <h4 class="font-medium text-sm mb-2 text-white">{{ tooltips.topCountries.title }}</h4>
-            <p class="text-xs text-gray-300 leading-relaxed mb-3">{{ tooltips.topCountries.description }}</p>
-            <div class="bg-green-900/30 rounded-lg p-3 border border-green-700">
-              <p class="text-xs text-green-300">💡 {{ tooltips.topCountries.example }}</p>
-            </div>
-          </div>
-          <VChart
-            v-if="countryDistributionChart"
-            :option="countryDistributionChart"
-            class="w-full"
-            style="height: 320px;"
-            autoresize
-          />
-        </div>
-
-        <!-- Top Nodes by Capacity -->
+        <!-- Fastest relays -->
         <div class="bg-white rounded-2xl p-6 shadow-md border border-gray-200 relative">
           <div class="flex items-center justify-between mb-6">
             <div class="flex items-center space-x-3 flex-1">
               <div class="w-10 h-10 bg-green-50 rounded-xl flex items-center justify-center">
-                <IconTrendingUp class="w-5 h-5 text-green-600" />
+                <IconServer class="w-5 h-5 text-green-600" />
               </div>
               <div class="flex-1">
-                <h3 class="text-lg font-semibold text-gray-900 tracking-tight">Top Nodes by Liquidity</h3>
-                <p class="text-sm text-gray-500">Highest capacity routing nodes on the network</p>
+                <h3 class="text-lg font-semibold text-gray-900 tracking-tight">Fastest Relays</h3>
+                <p class="text-sm text-gray-500">Lowest connect + read time, measured by monitors</p>
               </div>
             </div>
-            <button
-              @mouseenter="showTooltip('topNodesByCapacity')"
-              @mouseleave="hideTooltip"
-              class="p-1 text-gray-400 hover:text-gray-600 transition-colors"
-            >
+            <button @mouseenter="showTooltip('ranking')" @mouseleave="hideTooltip" aria-label="About the ranking" class="p-1 text-gray-400 hover:text-gray-600 transition-colors">
               <IconInfoCircle class="w-5 h-5" />
             </button>
           </div>
-
-          <!-- Tooltip - Responsive -->
-          <div
-            v-if="activeTooltip === 'topNodesByCapacity'"
-            class="absolute pointer-events-none z-[9999] w-80 max-w-[calc(100vw-2rem)] p-4 bg-gray-900 text-white rounded-xl shadow-2xl border border-gray-700 top-16 left-1/2 -translate-x-1/2 md:left-auto md:translate-x-0 md:right-4"
-            style="animation: fadeIn 0.2s ease-out"
-          >
-            <h4 class="font-medium text-sm mb-2 text-white">{{ tooltips.topNodesByCapacity.title }}</h4>
-            <p class="text-xs text-gray-300 leading-relaxed mb-3">{{ tooltips.topNodesByCapacity.description }}</p>
-            <div class="bg-blue-900/30 rounded-lg p-3 border border-blue-700">
-              <p class="text-xs text-blue-300">💡 {{ tooltips.topNodesByCapacity.example }}</p>
-            </div>
+          <div v-if="activeTooltip === 'ranking'" class="absolute pointer-events-none z-[9999] w-80 max-w-[calc(100vw-2rem)] p-4 bg-gray-900 text-white rounded-xl shadow-2xl border border-gray-700 top-16 right-4" style="animation: fadeIn 0.2s ease-out">
+            <h4 class="font-medium text-sm mb-2 text-white">{{ tooltips.ranking.title }}</h4>
+            <p class="text-xs text-gray-300 leading-relaxed">{{ tooltips.ranking.description }}</p>
           </div>
-          <div class="space-y-2 max-h-80 overflow-y-auto">
+          <div v-if="fastestRelays.length" class="space-y-2 max-h-96 overflow-y-auto">
             <div
-              v-for="(node, index) in topNodesByCapacity"
-              :key="node.publicKey"
-              @click="openNodeOnAmboss(node.publicKey)"
-              class="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-orange-50 hover:shadow-sm transition-all cursor-pointer group border border-transparent hover:border-orange-200"
+              v-for="(relay, index) in fastestRelays"
+              :key="relay.url"
+              class="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-orange-50 transition-colors border border-transparent hover:border-orange-200"
             >
               <div class="flex items-center space-x-3 flex-1 min-w-0">
-                <div class="flex-shrink-0 w-8 h-8 bg-gradient-to-br from-orange-500 to-amber-500 rounded-lg flex items-center justify-center text-white font-medium text-sm">
-                  {{ index + 1 }}
-                </div>
+                <div class="flex-shrink-0 w-8 h-8 bg-gradient-to-br from-orange-500 to-amber-500 rounded-lg flex items-center justify-center text-white font-medium text-sm">{{ index + 1 }}</div>
                 <div class="flex-1 min-w-0">
-                  <p class="text-sm font-medium text-gray-900 truncate group-hover:text-orange-600 transition-colors">{{ node.alias }}</p>
-                  <p class="text-xs text-gray-500">{{ node.channels }} channels</p>
-                </div>
-              </div>
-              <div class="flex items-center space-x-2 flex-shrink-0 ml-4">
-                <div class="text-right">
-                  <p class="text-sm font-semibold text-green-600">
-                    {{ lightningNetworkService.formatSats(node.capacity) }}
+                  <p class="text-sm font-medium text-gray-900 truncate">{{ relay.url.replace(/^wss:\/\//, '') }}</p>
+                  <p class="text-xs text-gray-500 truncate">
+                    {{ relay.software || 'unknown software' }}<template v-if="relay.nips.length"> · {{ relay.nips.length }} NIPs</template><template v-if="relay.payment"> · paid</template><template v-else-if="relay.auth"> · auth</template>
                   </p>
                 </div>
-                <IconExternalLink class="w-4 h-4 text-gray-400 group-hover:text-orange-500 transition-colors" />
+              </div>
+              <div class="text-right flex-shrink-0 ml-4">
+                <p class="text-sm font-semibold text-gray-900 tabular-nums">{{ relay.rttOpen }} ms</p>
+                <p class="text-xs text-gray-500 tabular-nums">read {{ relay.rttRead }} ms</p>
               </div>
             </div>
           </div>
+          <p v-else class="text-sm text-gray-500 text-center py-16">{{ monitorPlaceholder }}</p>
+        </div>
+
+        <!-- Live probe + personal health -->
+        <div class="bg-white rounded-2xl p-6 shadow-md border border-gray-200">
+          <div class="flex items-center space-x-3 mb-6">
+            <div class="w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center">
+              <IconBolt class="w-5 h-5 text-amber-600" />
+            </div>
+            <div class="flex-1">
+              <h3 class="text-lg font-semibold text-gray-900 tracking-tight">Live From Your Browser</h3>
+              <p class="text-sm text-gray-500">Popular relays probed just now</p>
+            </div>
+          </div>
+
+          <div v-if="probes" class="space-y-5">
+            <div>
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-sm font-medium text-gray-700">Relays responding</span>
+                <span class="text-sm font-semibold" :class="probeHealthColor === 'emerald' ? 'text-emerald-600' : probeHealthColor === 'amber' ? 'text-amber-600' : 'text-red-600'">
+                  {{ probes.summary.reachable }} / {{ probes.summary.probed }}
+                </span>
+              </div>
+              <div class="w-full bg-gray-200 rounded-full h-3">
+                <div
+                  class="h-3 rounded-full transition-all duration-500"
+                  :class="probeHealthColor === 'emerald' ? 'bg-gradient-to-r from-emerald-400 to-green-500' : probeHealthColor === 'amber' ? 'bg-gradient-to-r from-amber-400 to-orange-500' : 'bg-gradient-to-r from-red-400 to-rose-500'"
+                  :style="{ width: probes.summary.reachablePercentage + '%' }"
+                ></div>
+              </div>
+              <p class="text-xs text-gray-500 mt-1">
+                Median {{ ms(probes.summary.medianConnectMs) }} to connect, {{ ms(probes.summary.medianQueryMs) }} to answer a query
+              </p>
+            </div>
+
+            <ul class="divide-y divide-gray-100 border border-gray-100 rounded-xl max-h-56 overflow-y-auto">
+              <li v-for="relay in probes.relays" :key="relay.url" class="flex items-center justify-between px-3 py-2 text-sm">
+                <span class="flex items-center gap-2 min-w-0">
+                  <span :class="['w-2 h-2 rounded-full flex-shrink-0', relay.ok ? 'bg-emerald-500' : 'bg-red-400']" :aria-label="relay.ok ? 'responding' : 'not responding'"></span>
+                  <span class="truncate text-gray-800">{{ relay.url.replace(/^wss:\/\//, '') }}</span>
+                </span>
+                <span class="text-xs text-gray-500 tabular-nums flex-shrink-0 ml-3">
+                  <template v-if="relay.ok">{{ relay.connectMs }} ms · {{ relay.notesLastMinute }} notes/min</template>
+                  <template v-else>{{ relay.error || 'no response' }}</template>
+                </span>
+              </li>
+            </ul>
+          </div>
+          <p v-else class="text-sm text-gray-500 text-center py-6">Live probe unavailable.</p>
+
+          <!-- Personal relay stats -->
+          <div v-if="personal" class="mt-5 bg-gray-50 rounded-xl p-4 border border-gray-200">
+            <h4 class="text-sm font-semibold text-gray-900 mb-3">Your Relay Connections</h4>
+            <div class="grid grid-cols-3 gap-3 text-center">
+              <div>
+                <p class="text-lg font-semibold text-emerald-600 tabular-nums">{{ personal.connected }}</p>
+                <p class="text-xs text-gray-500">connected</p>
+              </div>
+              <div>
+                <p class="text-lg font-semibold text-amber-600 tabular-nums">{{ personal.disconnected }}</p>
+                <p class="text-xs text-gray-500">disconnected</p>
+              </div>
+              <div>
+                <p class="text-lg font-semibold tabular-nums" :class="personal.healthyPercentage >= 80 ? 'text-emerald-600' : 'text-amber-600'">{{ personal.healthyPercentage }}%</p>
+                <p class="text-xs text-gray-500">healthy</p>
+              </div>
+            </div>
+          </div>
+          <p v-else-if="!hideAuthPrompts" class="mt-5 bg-gray-50 rounded-xl p-4 border border-gray-200 text-sm text-gray-500 text-center">
+            Connect your Nostr account to see your personal relay health
+          </p>
         </div>
       </div>
 
-      <!-- Call to Action -->
+      <p v-if="network?.sources?.length" class="text-xs text-gray-400 text-center">
+        Network data from NIP-66 monitors via {{ network.sources.map(s => s.replace(/^wss:\/\//, '')).join(', ') }}
+      </p>
+
+      <!-- CTA -->
       <div v-if="!hideAuthPrompts" class="bg-white border border-gray-200 rounded-3xl p-12 md:p-16 shadow-sm">
         <div class="max-w-2xl mx-auto text-center">
           <div class="w-14 h-14 bg-gray-50 rounded-2xl flex items-center justify-center mx-auto mb-6">
             <IconZoomIn class="w-7 h-7 text-gray-400" />
           </div>
-          <h2 class="text-3xl md:text-4xl font-semibold text-gray-900 mb-4 tracking-tight">
-            Ready to Track Your Lightning Earnings?
-          </h2>
+          <h2 class="text-3xl md:text-4xl font-semibold text-gray-900 mb-4 tracking-tight">Ready to Explore the Nostr Network?</h2>
           <p class="text-gray-600 text-base mb-10 leading-relaxed max-w-xl mx-auto">
-            Connect your Nostr account to unlock powerful analytics for your zaps, campaigns, and Lightning Network activity.
+            Connect your Nostr account to see your personal relay health and start tracking your zaps.
           </p>
           <div class="flex flex-col sm:flex-row gap-3 justify-center">
             <button
@@ -1044,17 +582,7 @@ onMounted(() => {
               <IconLogin v-else class="w-5 h-5" />
               <span>{{ isLoginLoading ? 'Connecting...' : 'Connect with Nostr' }}</span>
             </button>
-            <button
-              @click="emit('show-help')"
-              class="px-8 py-3.5 bg-white text-gray-700 font-medium rounded-xl hover:bg-gray-50 transition-all duration-200 flex items-center justify-center space-x-2 border border-gray-300"
-            >
-              <IconExternalLink class="w-5 h-5" />
-              <span>How It Works</span>
-            </button>
           </div>
-          <p class="text-gray-400 text-sm mt-8">
-            No sign-up required • Privacy-first • Open protocol
-          </p>
         </div>
       </div>
     </div>

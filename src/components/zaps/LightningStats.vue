@@ -1,121 +1,35 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
-import { IconBolt, IconTrendingUp, IconTrendingDown, IconWorld, IconServer, IconActivity, IconInfoCircle } from '@iconify-prerendered/vue-tabler'
-import { getISPRanking, getNodeRankings, getLightningStatistics, formatSats } from '../../utils/network/lightningStatsService.js'
+import { IconClock, IconActivity, IconInfoCircle, IconNetwork, IconShield, IconPlugConnected } from '@iconify-prerendered/vue-tabler'
+import { nostrNetworkService } from '../../utils/network/nostrNetworkService.js'
 
 const isLoading = ref(true)
 const stats = ref(null)
-const ispData = ref(null)
-const nodeRankings = ref(null)
 const activeTooltip = ref(null)
 
 const tooltips = {
-  networkCapacity: 'The total Bitcoin locked in all Lightning channels. More capacity means the network can handle larger payments.',
-  activeNodes: 'Number of operational Lightning nodes routing payments. Each node strengthens the network.',
-  paymentChannels: 'Direct payment connections between nodes. Think of them as highways for instant Bitcoin transactions.',
-  avgCapacity: 'The typical size of a payment channel. Larger channels can route bigger payments.',
-  clearnetCapacity: 'Bitcoin held in channels on nodes accessible via regular internet.',
-  torCapacity: 'Bitcoin held in channels on privacy-focused Tor nodes.',
-  feeRate: 'Average cost to route payments through the network, measured in parts per million (ppm).',
-  baseFee: 'Flat fee charged per payment routing, measured in millisatoshis (1/1000 of a sat).'
+  onlineRelays: 'Relays that NIP-66 monitors found online in the last 24 hours.',
+  latency: 'Median time for monitors to open a connection to a relay.',
+  throughput: 'Unique notes published in the last minute, counted across popular relays.'
 }
 
-const showTooltip = (key) => {
-  activeTooltip.value = key
-}
-
-const hideTooltip = () => {
-  activeTooltip.value = null
-}
+const showTooltip = (key) => { activeTooltip.value = key }
+const hideTooltip = () => { activeTooltip.value = null }
 
 onMounted(async () => {
-  isLoading.value = true
   try {
-    const [statsData, ispRanking, rankings] = await Promise.all([
-      getLightningStatistics(),
-      getISPRanking(),
-      getNodeRankings()
-    ])
-    stats.value = statsData
-    ispData.value = ispRanking
-    nodeRankings.value = rankings
-  } catch (error) {
-    console.error('Error fetching Lightning data:', error)
+    stats.value = await nostrNetworkService.getGlobalStats()
   } finally {
     isLoading.value = false
   }
 })
 
-const networkCapacity = computed(() => {
-  if (!stats.value?.latest?.total_capacity) return { btc: 'N/A', usd: 'N/A' }
-  const sats = stats.value.latest.total_capacity
-  const btc = (sats / 100000000).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-  const usdPrice = 98000
-  const usd = ((sats / 100000000) * usdPrice).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
-  return { btc, usd, sats }
-})
+const network = computed(() => stats.value?.network || null)
+const probe = computed(() => stats.value?.probes?.summary || null)
+const topNips = computed(() => (stats.value?.nipSupport || []).filter(n => n.percentage >= 20).slice(0, 8))
+const fastest = computed(() => (network.value?.fastestRelays || []).slice(0, 5))
 
-const clearnetCapacity = computed(() => {
-  if (!ispData.value?.clearnetCapacity) return { btc: 'N/A', percentage: 0 }
-  const sats = ispData.value.clearnetCapacity
-  const btc = (sats / 100000000).toFixed(2)
-  const percentage = ((sats / stats.value.latest.total_capacity) * 100).toFixed(1)
-  return { btc, percentage }
-})
-
-const torCapacity = computed(() => {
-  if (!ispData.value?.torCapacity) return { btc: 'N/A', percentage: 0 }
-  const sats = ispData.value.torCapacity
-  const btc = (sats / 100000000).toFixed(2)
-  const percentage = ((sats / stats.value.latest.total_capacity) * 100).toFixed(1)
-  return { btc, percentage }
-})
-
-const unknownCapacity = computed(() => {
-  if (!ispData.value?.unknownCapacity) return { btc: 'N/A', percentage: 0 }
-  const sats = ispData.value.unknownCapacity
-  const btc = (sats / 100000000).toFixed(2)
-  const percentage = ((sats / stats.value.latest.total_capacity) * 100).toFixed(1)
-  return { btc, percentage }
-})
-
-const avgCapacity = computed(() => {
-  if (!stats.value?.latest) return { sats: 'N/A', btc: 'N/A' }
-  const avg = Math.round(stats.value.latest.total_capacity / stats.value.latest.channel_count)
-  const btc = (avg / 100000000).toFixed(4)
-  return { sats: avg.toLocaleString('en-US'), btc }
-})
-
-const topISPs = computed(() => {
-  if (!ispData.value?.ispRanking) return []
-  return ispData.value.ispRanking.slice(0, 5).map(([asn, name, capacity, channels, nodes], index) => ({
-    rank: index + 1,
-    asn,
-    name: name.length > 25 ? name.substring(0, 25) + '...' : name,
-    capacity,
-    channels,
-    nodes,
-    percentage: ((capacity / ispData.value.clearnetCapacity) * 100).toFixed(1)
-  }))
-})
-
-const topNodesByCapacity = computed(() => {
-  if (!nodeRankings.value?.topByCapacity) return []
-  return nodeRankings.value.topByCapacity.slice(0, 5).map((node, index) => ({
-    ...node,
-    rank: index + 1,
-    alias: node.alias.length > 20 ? node.alias.substring(0, 20) + '...' : node.alias
-  }))
-})
-
-const topNodesByChannels = computed(() => {
-  if (!nodeRankings.value?.topByChannels) return []
-  return nodeRankings.value.topByChannels.slice(0, 5).map((node, index) => ({
-    ...node,
-    rank: index + 1,
-    alias: node.alias.length > 20 ? node.alias.substring(0, 20) + '...' : node.alias
-  }))
-})
+const fmt = (n) => (typeof n === 'number' ? n.toLocaleString() : '—')
 </script>
 
 <template>
@@ -125,305 +39,124 @@ const topNodesByChannels = computed(() => {
       <div class="relative w-16 h-16 mb-4">
         <div class="absolute inset-0 bg-gradient-to-r from-orange-400 to-amber-400 rounded-full opacity-20 animate-pulse"></div>
         <div class="absolute inset-2 bg-gradient-to-r from-orange-500 to-amber-500 rounded-full flex items-center justify-center">
-          <IconBolt class="w-8 h-8 text-white animate-pulse" />
+          <IconNetwork class="w-8 h-8 text-white animate-pulse" />
         </div>
       </div>
-      <p class="text-gray-600 font-medium">Loading Lightning Network data...</p>
+      <p class="text-gray-600 font-medium">Checking the Nostr network…</p>
     </div>
 
     <template v-else>
       <!-- Hero Stats -->
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <!-- Total Capacity -->
-        <div class="bg-gradient-to-br from-orange-500 to-amber-500 rounded-2xl p-6 text-white shadow-md relative group">
+        <div class="bg-gradient-to-br from-orange-500 to-amber-500 rounded-2xl p-6 text-white shadow-md relative">
           <div class="flex items-center justify-between mb-4">
             <div class="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
-              <IconBolt class="w-6 h-6" />
+              <IconPlugConnected class="w-6 h-6" />
             </div>
-            <div class="flex items-center space-x-2">
-              <div class="px-3 py-1 bg-white/20 backdrop-blur-sm rounded-full text-xs font-medium flex items-center space-x-1">
-                <IconTrendingUp class="w-3 h-3" />
-                <span>+0.4%</span>
-              </div>
-              <button
-                @mouseenter="showTooltip('networkCapacity')"
-                @mouseleave="hideTooltip"
-                class="p-1 text-white/60 hover:text-white transition-colors"
-              >
-                <IconInfoCircle class="w-5 h-5" />
-              </button>
-            </div>
+            <button @mouseenter="showTooltip('onlineRelays')" @mouseleave="hideTooltip" aria-label="About online relays" class="p-1 text-white/60 hover:text-white transition-colors">
+              <IconInfoCircle class="w-5 h-5" />
+            </button>
           </div>
-          <p class="text-white/80 text-sm font-medium mb-1">Network Capacity</p>
-          <p class="text-3xl font-semibold mb-1">{{ networkCapacity.btc }} BTC</p>
-          <p class="text-white/90 text-lg font-medium">${{ networkCapacity.usd }}</p>
-
-          <!-- Tooltip -->
-          <div
-            v-if="activeTooltip === 'networkCapacity'"
-            class="absolute z-50 w-72 p-4 bg-gray-900 text-white rounded-xl shadow-2xl border border-gray-700 top-0 left-full ml-4"
-            style="animation: fadeIn 0.2s ease-out"
-          >
-            <div class="absolute w-3 h-3 bg-gray-900 border-l border-t border-gray-700 transform rotate-45 -left-1.5 top-8"></div>
-            <h4 class="font-medium text-sm mb-2 text-white">Network Capacity</h4>
-            <p class="text-xs text-gray-300 leading-relaxed">{{ tooltips.networkCapacity }}</p>
-          </div>
+          <p class="text-white/80 text-sm font-medium mb-1">Online Relays</p>
+          <p class="text-3xl font-semibold mb-1 tabular-nums">{{ fmt(network?.onlineRelays) }}</p>
+          <p class="text-white/90 text-sm">{{ network ? `Seen in the last 24h by ${network.monitors} monitors` : 'Monitor data unavailable' }}</p>
+          <div v-if="activeTooltip === 'onlineRelays'" class="absolute z-50 w-64 p-3 bg-gray-900 text-white rounded-xl shadow-2xl border border-gray-700 top-full mt-2 left-0 text-xs leading-relaxed">{{ tooltips.onlineRelays }}</div>
         </div>
 
-        <!-- Total Nodes -->
-        <div class="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm hover:shadow-md transition-shadow relative">
+        <div class="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm relative">
           <div class="flex items-center justify-between mb-4">
-            <div class="w-12 h-12 bg-orange-50 rounded-xl flex items-center justify-center">
-              <IconServer class="w-6 h-6 text-orange-600" />
+            <div class="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center">
+              <IconClock class="w-6 h-6 text-blue-600" />
             </div>
-            <div class="flex items-center space-x-2">
-              <div class="px-3 py-1 bg-green-50 rounded-full text-xs font-medium text-green-700 flex items-center space-x-1">
-                <IconTrendingUp class="w-3 h-3" />
-                <span>+0.4%</span>
-              </div>
-              <button
-                @mouseenter="showTooltip('activeNodes')"
-                @mouseleave="hideTooltip"
-                class="p-1 text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                <IconInfoCircle class="w-5 h-5" />
-              </button>
-            </div>
+            <button @mouseenter="showTooltip('latency')" @mouseleave="hideTooltip" aria-label="About latency" class="p-1 text-gray-400 hover:text-gray-600 transition-colors">
+              <IconInfoCircle class="w-5 h-5" />
+            </button>
           </div>
-          <p class="text-gray-600 text-sm font-medium mb-1">Active Nodes</p>
-          <p class="text-3xl font-semibold text-gray-900">{{ stats?.latest?.node_count?.toLocaleString() || 'N/A' }}</p>
-          <p class="text-gray-500 text-sm mt-1">Running worldwide</p>
-
-          <!-- Tooltip -->
-          <div
-            v-if="activeTooltip === 'activeNodes'"
-            class="absolute z-50 w-72 p-4 bg-gray-900 text-white rounded-xl shadow-2xl border border-gray-700 top-0 left-full ml-4"
-            style="animation: fadeIn 0.2s ease-out"
-          >
-            <div class="absolute w-3 h-3 bg-gray-900 border-l border-t border-gray-700 transform rotate-45 -left-1.5 top-8"></div>
-            <h4 class="font-medium text-sm mb-2 text-white">Active Nodes</h4>
-            <p class="text-xs text-gray-300 leading-relaxed">{{ tooltips.activeNodes }}</p>
-          </div>
+          <p class="text-gray-600 text-sm font-medium mb-1">Median Latency</p>
+          <p class="text-3xl font-semibold text-gray-900 tabular-nums">{{ (network?.medianRttOpen ?? probe?.medianConnectMs) ? `${fmt(network?.medianRttOpen ?? probe?.medianConnectMs)} ms` : '—' }}</p>
+          <p class="text-gray-500 text-sm mt-1">to connect to a relay</p>
+          <div v-if="activeTooltip === 'latency'" class="absolute z-50 w-64 p-3 bg-gray-900 text-white rounded-xl shadow-2xl border border-gray-700 top-full mt-2 left-0 text-xs leading-relaxed">{{ tooltips.latency }}</div>
         </div>
 
-        <!-- Total Channels -->
-        <div class="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm hover:shadow-md transition-shadow relative">
+        <div class="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm relative">
           <div class="flex items-center justify-between mb-4">
-            <div class="w-12 h-12 bg-orange-50 rounded-xl flex items-center justify-center">
-              <IconActivity class="w-6 h-6 text-orange-600" />
+            <div class="w-12 h-12 bg-green-50 rounded-xl flex items-center justify-center">
+              <IconActivity class="w-6 h-6 text-green-600" />
             </div>
-            <div class="flex items-center space-x-2">
-              <div class="px-3 py-1 bg-green-50 rounded-full text-xs font-medium text-green-700 flex items-center space-x-1">
-                <IconTrendingUp class="w-3 h-3" />
-                <span>+0.4%</span>
-              </div>
-              <button
-                @mouseenter="showTooltip('paymentChannels')"
-                @mouseleave="hideTooltip"
-                class="p-1 text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                <IconInfoCircle class="w-5 h-5" />
-              </button>
-            </div>
+            <button @mouseenter="showTooltip('throughput')" @mouseleave="hideTooltip" aria-label="About notes per minute" class="p-1 text-gray-400 hover:text-gray-600 transition-colors">
+              <IconInfoCircle class="w-5 h-5" />
+            </button>
           </div>
-          <p class="text-gray-600 text-sm font-medium mb-1">Payment Channels</p>
-          <p class="text-3xl font-semibold text-gray-900">{{ stats?.latest?.channel_count?.toLocaleString() || 'N/A' }}</p>
-          <p class="text-gray-500 text-sm mt-1">Open connections</p>
-
-          <!-- Tooltip -->
-          <div
-            v-if="activeTooltip === 'paymentChannels'"
-            class="absolute z-50 w-72 p-4 bg-gray-900 text-white rounded-xl shadow-2xl border border-gray-700 top-0 left-full ml-4"
-            style="animation: fadeIn 0.2s ease-out"
-          >
-            <div class="absolute w-3 h-3 bg-gray-900 border-l border-t border-gray-700 transform rotate-45 -left-1.5 top-8"></div>
-            <h4 class="font-medium text-sm mb-2 text-white">Payment Channels</h4>
-            <p class="text-xs text-gray-300 leading-relaxed">{{ tooltips.paymentChannels }}</p>
-          </div>
+          <p class="text-gray-600 text-sm font-medium mb-1">Notes per Minute</p>
+          <p class="text-3xl font-semibold text-gray-900 tabular-nums">{{ fmt(probe?.notesLastMinute) }}</p>
+          <p class="text-gray-500 text-sm mt-1">{{ probe?.reachable ? `across ${probe.reachable} popular relays` : 'Live probe unavailable' }}</p>
+          <div v-if="activeTooltip === 'throughput'" class="absolute z-50 w-64 p-3 bg-gray-900 text-white rounded-xl shadow-2xl border border-gray-700 top-full mt-2 right-0 text-xs leading-relaxed">{{ tooltips.throughput }}</div>
         </div>
       </div>
 
-      <!-- Capacity Distribution -->
-      <div class="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm">
+      <!-- NIP Support -->
+      <div v-if="topNips.length" class="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm">
         <div class="flex items-center justify-between mb-6">
           <div>
-            <h3 class="text-lg font-semibold text-gray-900 tracking-tight">Network Distribution</h3>
-            <p class="text-sm text-gray-600">Capacity by network type</p>
+            <h3 class="text-lg font-semibold text-gray-900 tracking-tight">NIP Adoption</h3>
+            <p class="text-sm text-gray-600">Most widely supported NIPs across {{ fmt(stats.nipSampleSize) }} relays</p>
           </div>
-          <IconWorld class="w-7 h-7 text-orange-500" />
+          <IconShield class="w-7 h-7 text-orange-500" />
         </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div class="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl p-4 border border-blue-100">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div v-for="nip in topNips" :key="nip.nip" class="bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl p-4 border border-orange-100">
             <div class="flex items-center justify-between mb-2">
-              <span class="text-sm font-medium text-blue-900">Clearnet</span>
-              <span class="text-xs font-semibold text-blue-700 bg-blue-100 px-2 py-1 rounded-full">{{ clearnetCapacity.percentage }}%</span>
+              <span class="text-sm font-medium text-orange-900">NIP-{{ nip.nip }}</span>
+              <span class="text-xs font-semibold text-orange-700 bg-orange-100 px-2 py-1 rounded-full">{{ nip.percentage }}%</span>
             </div>
-            <p class="text-2xl font-bold text-blue-900">{{ clearnetCapacity.btc }}</p>
-            <p class="text-xs text-blue-700 mt-1">BTC</p>
-          </div>
-
-          <div class="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-4 border border-purple-100">
-            <div class="flex items-center justify-between mb-2">
-              <span class="text-sm font-medium text-purple-900">Tor</span>
-              <span class="text-xs font-semibold text-purple-700 bg-purple-100 px-2 py-1 rounded-full">{{ torCapacity.percentage }}%</span>
-            </div>
-            <p class="text-2xl font-bold text-purple-900">{{ torCapacity.btc }}</p>
-            <p class="text-xs text-purple-700 mt-1">BTC</p>
-          </div>
-
-          <div class="bg-gradient-to-br from-gray-50 to-slate-50 rounded-xl p-4 border border-gray-200">
-            <div class="flex items-center justify-between mb-2">
-              <span class="text-sm font-medium text-gray-900">Unknown</span>
-              <span class="text-xs font-semibold text-gray-700 bg-gray-200 px-2 py-1 rounded-full">{{ unknownCapacity.percentage }}%</span>
-            </div>
-            <p class="text-2xl font-bold text-gray-900">{{ unknownCapacity.btc }}</p>
-            <p class="text-xs text-gray-700 mt-1">BTC</p>
+            <p class="text-xs text-orange-800 leading-tight">{{ nip.description }}</p>
           </div>
         </div>
       </div>
 
-      <!-- Channel Metrics -->
-      <div class="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm">
-        <h3 class="text-lg font-semibold text-gray-900 mb-6 tracking-tight">Channel Metrics</h3>
+      <!-- Network Features -->
+      <div v-if="network" class="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm">
+        <h3 class="text-lg font-semibold text-gray-900 mb-6 tracking-tight">Network Features</h3>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div>
-            <p class="text-sm text-gray-600 mb-2">Average Capacity</p>
-            <p class="text-2xl font-semibold text-orange-600">{{ avgCapacity.sats }}</p>
-            <p class="text-sm text-gray-500 mt-1">sats ({{ avgCapacity.btc }} BTC)</p>
+            <p class="text-sm text-gray-600 mb-2">Open to everyone</p>
+            <p class="text-2xl font-semibold text-emerald-600 tabular-nums">{{ fmt(network.openAccess) }}</p>
+            <p class="text-sm text-gray-500 mt-1">no auth, payment or PoW</p>
           </div>
           <div>
-            <p class="text-sm text-gray-600 mb-2">Average Fee Rate</p>
-            <p class="text-2xl font-semibold text-orange-600">823</p>
-            <p class="text-sm text-gray-500 mt-1">ppm <span class="text-green-600">+0.7%</span></p>
+            <p class="text-sm text-gray-600 mb-2">Paid relays</p>
+            <p class="text-2xl font-semibold text-amber-600 tabular-nums">{{ fmt(network.paymentRequired) }}</p>
+            <p class="text-sm text-gray-500 mt-1">require payment to write</p>
           </div>
           <div>
-            <p class="text-sm text-gray-600 mb-2">Average Base Fee</p>
-            <p class="text-2xl font-semibold text-orange-600">950</p>
-            <p class="text-sm text-gray-500 mt-1">mSats <span class="text-red-600">-0.1%</span></p>
+            <p class="text-sm text-gray-600 mb-2">NIP-50 search</p>
+            <p class="text-2xl font-semibold text-orange-600 tabular-nums">{{ fmt(stats.searchSupportCount) }}</p>
+            <p class="text-sm text-gray-500 mt-1">relays with full-text search</p>
           </div>
         </div>
       </div>
 
-      <!-- Top ISPs -->
-      <div class="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm">
-        <div class="flex items-center justify-between mb-6">
-          <div>
-            <h3 class="text-lg font-semibold text-gray-900 tracking-tight">Top Internet Service Providers</h3>
-            <p class="text-sm text-gray-600">Largest infrastructure hosting</p>
-          </div>
+      <!-- Fastest Relays -->
+      <div v-if="fastest.length" class="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm">
+        <div class="mb-6">
+          <h3 class="text-lg font-semibold text-gray-900 tracking-tight">Fastest Relays</h3>
+          <p class="text-sm text-gray-600">Lowest connect + read time, measured by monitors</p>
         </div>
-
-        <div class="overflow-x-auto">
-          <table class="w-full">
-            <thead>
-              <tr class="border-b border-gray-200">
-                <th class="text-left py-3 px-2 text-xs font-medium text-gray-600 uppercase">#</th>
-                <th class="text-left py-3 px-4 text-xs font-medium text-gray-600 uppercase">Provider</th>
-                <th class="text-right py-3 px-4 text-xs font-medium text-gray-600 uppercase">Capacity</th>
-                <th class="text-right py-3 px-4 text-xs font-medium text-gray-600 uppercase">Share</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="isp in topISPs" :key="isp.asn" class="border-b border-gray-100 hover:bg-orange-50 transition-colors">
-                <td class="py-3 px-2 text-sm font-medium text-gray-900">{{ isp.rank }}</td>
-                <td class="py-3 px-4">
-                  <p class="text-sm font-medium text-gray-900">{{ isp.name }}</p>
-                </td>
-                <td class="py-3 px-4 text-right">
-                  <p class="text-sm font-medium text-gray-900">{{ (isp.capacity / 100000000).toFixed(2) }} BTC</p>
-                </td>
-                <td class="py-3 px-4 text-right">
-                  <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-700">
-                    {{ isp.percentage }}%
-                  </span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- Rankings Grid -->
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <!-- Top Nodes by Capacity -->
-        <div class="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm">
-          <div class="mb-6">
-            <h3 class="text-lg font-semibold text-gray-900 tracking-tight">Top Nodes by Capacity</h3>
-            <p class="text-sm text-gray-600">Most liquidity</p>
-          </div>
-
-          <div class="space-y-2">
-            <div v-for="node in topNodesByCapacity" :key="node.publicKey"
-              class="flex items-center justify-between p-3 rounded-xl hover:bg-orange-50 transition-colors border border-gray-200 hover:border-orange-200">
-              <div class="flex items-center space-x-3">
-                <div class="w-8 h-8 bg-gradient-to-br from-orange-500 to-amber-500 rounded-lg flex items-center justify-center text-white font-medium text-sm">
-                  {{ node.rank }}
-                </div>
-                <div>
-                  <p class="text-sm font-medium text-gray-900">{{ node.alias }}</p>
-                  <p class="text-xs text-gray-500">{{ (node.capacity / 100000000).toFixed(2) }} BTC</p>
-                </div>
-              </div>
-              <div class="text-right">
-                <p class="text-sm font-semibold text-orange-600">${{ ((node.capacity / 100000000) * 98000).toLocaleString('en-US', { maximumFractionDigits: 0 }) }}</p>
+        <div class="space-y-2">
+          <div v-for="(relay, index) in fastest" :key="relay.url" class="flex items-center justify-between p-3 rounded-xl hover:bg-orange-50 transition-colors border border-gray-200 hover:border-orange-200">
+            <div class="flex items-center space-x-3 flex-1 min-w-0">
+              <div class="w-8 h-8 bg-gradient-to-br from-orange-500 to-amber-500 rounded-lg flex items-center justify-center text-white font-medium text-sm flex-shrink-0">{{ index + 1 }}</div>
+              <div class="min-w-0 flex-1">
+                <p class="text-sm font-medium text-gray-900 truncate">{{ relay.url.replace(/^wss:\/\//, '') }}</p>
+                <p class="text-xs text-gray-500 truncate">{{ relay.software || 'unknown software' }}</p>
               </div>
             </div>
-          </div>
-        </div>
-
-        <!-- Top Nodes by Channels -->
-        <div class="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm">
-          <div class="mb-6">
-            <h3 class="text-lg font-semibold text-gray-900 tracking-tight">Top Nodes by Channels</h3>
-            <p class="text-sm text-gray-600">Most connected</p>
-          </div>
-
-          <div class="space-y-2">
-            <div v-for="node in topNodesByChannels" :key="node.publicKey"
-              class="flex items-center justify-between p-3 rounded-xl hover:bg-orange-50 transition-colors border border-gray-200 hover:border-orange-200">
-              <div class="flex items-center space-x-3">
-                <div class="w-8 h-8 bg-gradient-to-br from-orange-500 to-amber-500 rounded-lg flex items-center justify-center text-white font-medium text-sm">
-                  {{ node.rank }}
-                </div>
-                <div>
-                  <p class="text-sm font-medium text-gray-900">{{ node.alias }}</p>
-                  <p class="text-xs text-gray-500">{{ node.channels.toLocaleString() }} channels</p>
-                </div>
-              </div>
-              <div class="text-right">
-                <p class="text-sm font-semibold text-orange-600">{{ ((node.channels / stats.latest.channel_count) * 100).toFixed(2) }}%</p>
-              </div>
-            </div>
+            <span class="text-sm font-semibold text-gray-900 tabular-nums flex-shrink-0 ml-4">{{ relay.rttOpen }} ms</span>
           </div>
         </div>
       </div>
+
+      <p v-if="!network && !probe?.reachable" class="text-sm text-gray-500 text-center py-6">Couldn’t reach the Nostr network right now.</p>
     </template>
   </div>
 </template>
-
-<style scoped>
-@keyframes pulse-slow {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.7;
-  }
-}
-
-.animate-pulse {
-  animation: pulse-slow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(-8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-</style>
