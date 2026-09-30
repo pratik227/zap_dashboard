@@ -47,6 +47,13 @@ const form = ref({
 const localError = ref('')
 const showPreview = ref(false)
 const isPublishing = ref(false)
+
+// Field touched state for inline validation
+const fieldTouched = ref({
+  title: false,
+  summary: false,
+  goalAmount: false
+})
 const publishSuccess = ref(false)
 const publishedCampaign = ref(null)
 const currentStep = ref(1) // 1: Basics, 2: Details, 3: Preview
@@ -238,8 +245,6 @@ const publishNewCampaign = async () => {
       campaign = await publishCampaign(campaignData)
     }
     
-    console.log(isEditing.value ? 'Campaign edited successfully:' : 'Campaign published successfully:', campaign)
-    
     // Show success state
     publishSuccess.value = true
     publishedCampaign.value = campaign
@@ -287,17 +292,12 @@ const getEndOfDayTimestamp = (dateString) => {
   // Convert to Unix timestamp (seconds)
   const timestamp = Math.floor(endOfDay.getTime() / 1000)
   
-  console.log(`Date string: ${dateString}`)
-  console.log(`Parsed date: ${date.toLocaleString()}`)
-  console.log(`End of day: ${endOfDay.toLocaleString()}`)
-  console.log(`End of day timestamp: ${timestamp} (${new Date(timestamp * 1000).toLocaleString()})`)
-  
   return timestamp
 }
 </script>
 
 <template>
-  <div class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center z-[9999] p-0 sm:p-4">
+  <div class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center z-[9999] p-0 sm:p-4" @click.self="$emit('close')" @keydown.escape="$emit('close')" tabindex="-1">
     <!-- Mobile Bottom Sheet / Desktop Modal -->
     <div class="bg-white w-full sm:max-w-xl rounded-t-3xl sm:rounded-2xl max-h-[92vh] sm:max-h-[88vh] overflow-hidden shadow-xl">
       <!-- Sticky Header -->
@@ -369,9 +369,11 @@ const getEndOfDayTimestamp = (dateString) => {
                 placeholder="e.g., Help me attend Bitcoin Conference 2024"
                 class="w-full px-4 py-3 text-base bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-orange-500 focus:ring-2 focus:ring-orange-100 transition-all placeholder-gray-400"
                 maxlength="80"
+                @blur="fieldTouched.title = true"
               />
               <div class="flex justify-between mt-1.5">
-                <p class="text-xs text-gray-500">Make it clear and compelling</p>
+                <p v-if="!form.title.trim() && fieldTouched.title" class="text-xs text-red-500">Title is required</p>
+                <p v-else class="text-xs text-gray-500">Make it clear and compelling</p>
                 <p class="text-xs text-gray-400">{{ form.title.length }}/80</p>
               </div>
             </div>
@@ -406,12 +408,16 @@ const getEndOfDayTimestamp = (dateString) => {
                   min="1"
                   placeholder="Custom amount"
                   class="w-full px-4 py-3 pr-16 text-base bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-orange-500 focus:ring-2 focus:ring-orange-100 transition-all"
+                  @blur="fieldTouched.goalAmount = true"
                 />
                 <div class="absolute inset-y-0 right-0 flex items-center pr-4">
                   <span class="text-sm font-medium text-gray-500">sats</span>
                 </div>
               </div>
-              <p class="text-xs text-gray-500 mt-1.5">
+              <p v-if="(!form.goalAmount || form.goalAmount <= 0) && fieldTouched.goalAmount" class="text-xs text-red-500 mt-1.5">
+                Goal amount must be greater than 0
+              </p>
+              <p v-else class="text-xs text-gray-500 mt-1.5">
                 Start with a realistic goal you can achieve
               </p>
             </div>
@@ -438,9 +444,11 @@ const getEndOfDayTimestamp = (dateString) => {
                 placeholder="Briefly explain what you're raising funds for and why it matters..."
                 class="w-full px-4 py-3 text-base bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-orange-500 focus:ring-2 focus:ring-orange-100 transition-all resize-none placeholder-gray-400"
                 maxlength="280"
+                @blur="fieldTouched.summary = true"
               ></textarea>
               <div class="flex justify-between mt-1.5">
-                <p class="text-xs text-gray-500">Keep it concise and engaging</p>
+                <p v-if="!form.summary.trim() && fieldTouched.summary" class="text-xs text-red-500">Summary is required</p>
+                <p v-else class="text-xs text-gray-500">Keep it concise and engaging</p>
                 <p class="text-xs text-gray-400">{{ form.summary.length }}/280</p>
               </div>
             </div>

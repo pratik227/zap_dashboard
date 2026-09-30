@@ -1,4 +1,5 @@
 import { ref } from 'vue'
+import { storageService } from '../../services/StorageService.js'
 
 const BTC_PRICE_STORAGE_KEY = 'btc_price_data'
 const REFRESH_INTERVAL = 5 * 60 * 1000 // 5 minutes
@@ -12,26 +13,22 @@ let refreshInterval = null
 let initialized = false
 
 function loadSavedPriceData() {
-  try {
-    const saved = localStorage.getItem(BTC_PRICE_STORAGE_KEY)
-    if (!saved) return false
-    const { price, timestamp } = JSON.parse(saved)
-    if (price && timestamp && (Date.now() - timestamp < 3600000)) {
-      btcPriceUSD.value = price
-      lastFetched.value = new Date(timestamp)
-      return true
-    }
-  } catch { /* ignore */ }
+  const saved = storageService.get(BTC_PRICE_STORAGE_KEY)
+  if (!saved) return false
+  const { price, timestamp } = saved
+  if (price && timestamp && (Date.now() - timestamp < 3600000)) {
+    btcPriceUSD.value = price
+    lastFetched.value = new Date(timestamp)
+    return true
+  }
   return false
 }
 
 function savePriceData() {
-  try {
-    localStorage.setItem(BTC_PRICE_STORAGE_KEY, JSON.stringify({
-      price: btcPriceUSD.value,
-      timestamp: Date.now()
-    }))
-  } catch { /* ignore */ }
+  storageService.set(BTC_PRICE_STORAGE_KEY, {
+    price: btcPriceUSD.value,
+    timestamp: Date.now()
+  })
 }
 
 async function fetchPrice() {
@@ -60,8 +57,15 @@ async function fetchPrice() {
 }
 
 function startAutoRefresh() {
-  if (refreshInterval) return // already running
+  if (refreshInterval) return
   refreshInterval = setInterval(fetchPrice, REFRESH_INTERVAL)
+}
+
+function stopAutoRefresh() {
+  if (refreshInterval) {
+    clearInterval(refreshInterval)
+    refreshInterval = null
+  }
 }
 
 function satsToUSD(sats) {
@@ -92,6 +96,7 @@ export function useBtcPrice() {
     isLoading,
     error,
     fetchPrice,
+    stopAutoRefresh,
     satsToUSD,
     formatUSD
   }

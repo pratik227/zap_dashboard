@@ -7,7 +7,7 @@ import { generateAvatar } from '../../utils/profile/avatarGenerator.js'
 import MediaEmbed from './MediaEmbed.vue'
 import NostrReference from './NostrReference.vue'
 import ProfileHoverCard from '../profile/ProfileHoverCard.vue'
-import * as nip19 from 'nostr-tools/nip19'
+import { nip19 } from '../../services/nostr/nostrImports.js'
 
 const props = defineProps({
   content: { type: String, required: true },

@@ -597,21 +597,24 @@ const summaryStats = computed(() => {
       </div>
     </div>
 
-    <!-- ECharts Loading State -->
+    <!-- ECharts Loading State (skeleton) -->
     <div v-else class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <div class="card p-6">
-        <div class="flex items-center justify-center h-[300px]">
-          <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
+      <div class="bg-white rounded-xl border border-gray-200/60 p-6 animate-pulse">
+        <div class="h-4 bg-gray-200 rounded w-32 mb-4"></div>
+        <div class="h-[260px] bg-gray-100 rounded-lg flex items-end justify-around px-4 pb-4 gap-2">
+          <div v-for="i in 7" :key="'a'+i" class="flex-1 bg-gray-200/80 rounded-t" :style="{ height: `${20 + Math.sin(i) * 30 + 30}%` }"></div>
         </div>
       </div>
-      <div class="card p-6">
-        <div class="flex items-center justify-center h-[300px]">
-          <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
+      <div class="bg-white rounded-xl border border-gray-200/60 p-6 animate-pulse">
+        <div class="h-4 bg-gray-200 rounded w-32 mb-4"></div>
+        <div class="h-[260px] bg-gray-100 rounded-lg flex items-center justify-center">
+          <div class="w-40 h-40 rounded-full border-[24px] border-gray-200/80 bg-gray-50"></div>
         </div>
       </div>
-      <div class="card p-6 lg:col-span-2">
-        <div class="flex items-center justify-center h-[300px]">
-          <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
+      <div class="bg-white rounded-xl border border-gray-200/60 p-6 lg:col-span-2 animate-pulse">
+        <div class="h-4 bg-gray-200 rounded w-40 mb-4"></div>
+        <div class="h-[260px] bg-gray-100 rounded-lg flex items-end justify-around px-6 pb-4 gap-4">
+          <div v-for="i in 5" :key="'b'+i" class="flex-1 bg-gray-200/80 rounded-t" :style="{ height: `${15 + i * 15}%` }"></div>
         </div>
       </div>
     </div>

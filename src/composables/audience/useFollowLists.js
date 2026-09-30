@@ -1,10 +1,15 @@
 import { ref, computed, watch } from 'vue'
 import { useNostrAuth } from '../auth/useNostrAuth.js'
-import { nostrRelayManager } from '../../utils/network/nostrRelayManager.js'
-import { verifyEvent } from 'nostr-tools/pure'
-import { fetchProfile, batchFetchProfiles, profileCache } from '../../utils/profile/profileFetcher.js'
+import { nostrService } from '../../services/nostr/NostrService.js'
+import { signerService } from '../../services/nostr/SignerService.js'
+import { publishService } from '../../services/nostr/PublishService.js'
+import { profileService } from '../../services/nostr/ProfileService.js'
 import { generateAvatar } from '../../utils/profile/avatarGenerator.js'
+import { getFollowedPubkeys } from '../../services/nostr/nostrImports.js'
 import { mergeFollowLists } from '../../utils/profile/followMergeUtils.js'
+import { getUserFriendlyError } from '../../services/nostr/errors.js'
+import { storageService } from '../../services/StorageService.js'
+import { fetchCurrentContactList, publishContactList } from './useAudience.js'
 
 // Global state for follow lists
 const myLists = ref([]) // Lists created by current user
@@ -27,60 +32,44 @@ const PROFILES_STORAGE_KEY = 'follow_lists_profiles'
 const FOLLOW_LIST_KIND = 39089
 
 
-// Load data from localStorage
+// Load data from storage
 const loadFromStorage = () => {
-  try {
-    const storedMyLists = localStorage.getItem(MY_LISTS_STORAGE_KEY)
-    if (storedMyLists) {
-      const parsed = JSON.parse(storedMyLists)
-      // ensure members arrays exist
-      myLists.value = parsed.map(list => ({ ...list, members: (list.members || []) }))
-    }
-    
-    const storedDiscovered = localStorage.getItem(DISCOVERED_LISTS_STORAGE_KEY)
-    if (storedDiscovered) {
-      const parsed = JSON.parse(storedDiscovered)
-      discoveredLists.value = parsed.map(list => ({ ...list, members: (list.members || []) }))
-    }
-    
-    const storedProfiles = localStorage.getItem(PROFILES_STORAGE_KEY)
-    if (storedProfiles) {
-      const profileData = JSON.parse(storedProfiles)
-      Object.entries(profileData).forEach(([pubkey, profile]) => {
-        profileCache.set(pubkey, { profile, timestamp: Date.now() })
-      })
-    }
-    
-    console.log('Loaded follow lists from storage:', {
-      myLists: myLists.value.length,
-      discovered: discoveredLists.value.length,
-      profiles: profileCache.size
-    })
-  } catch (error) {
-    console.error('Failed to load follow lists from storage:', error)
+  const storedMyLists = storageService.get(MY_LISTS_STORAGE_KEY, null)
+  if (storedMyLists) {
+    myLists.value = storedMyLists.map(list => ({ ...list, members: (list.members || []) }))
   }
+
+  const storedDiscovered = storageService.get(DISCOVERED_LISTS_STORAGE_KEY, null)
+  if (storedDiscovered) {
+    discoveredLists.value = storedDiscovered.map(list => ({ ...list, members: (list.members || []) }))
+  }
+
+  const profileData = storageService.get(PROFILES_STORAGE_KEY, null)
+  if (profileData) {
+    Object.entries(profileData).forEach(([pubkey, profile]) => {
+      profileService.seed(pubkey, profile)
+    })
+  }
+
+  // Storage loaded successfully
 }
 
-// Save data to localStorage
+// Save data to storage
 const saveToStorage = () => {
-  try {
-    localStorage.setItem(MY_LISTS_STORAGE_KEY, JSON.stringify(myLists.value))
-    localStorage.setItem(DISCOVERED_LISTS_STORAGE_KEY, JSON.stringify(discoveredLists.value))
-    
-    // Only save profiles that belong to list members (not entire shared cache)
-    const listPubkeys = new Set()
-    ;[...myLists.value, ...discoveredLists.value].forEach(list => {
-      (list.members || []).forEach(m => { if (m.pubkey) listPubkeys.add(m.pubkey) })
-    })
-    const profilesObj = {}
-    listPubkeys.forEach(pubkey => {
-      const cached = profileCache.get(pubkey)
-      if (cached?.profile) profilesObj[pubkey] = cached.profile
-    })
-    localStorage.setItem(PROFILES_STORAGE_KEY, JSON.stringify(profilesObj))
-  } catch (error) {
-    console.error('Failed to save follow lists to storage:', error)
-  }
+  storageService.set(MY_LISTS_STORAGE_KEY, myLists.value)
+  storageService.set(DISCOVERED_LISTS_STORAGE_KEY, discoveredLists.value)
+
+  // Only save profiles that belong to list members (not entire shared cache)
+  const listPubkeys = new Set()
+  ;[...myLists.value, ...discoveredLists.value].forEach(list => {
+    (list.members || []).forEach(m => { if (m.pubkey) listPubkeys.add(m.pubkey) })
+  })
+  const profilesObj = {}
+  listPubkeys.forEach(pubkey => {
+    const cached = profileService.getCached(pubkey)
+    if (cached) profilesObj[pubkey] = cached
+  })
+  storageService.set(PROFILES_STORAGE_KEY, profilesObj)
 }
 
 // Process follow list event according to NIP-39089
@@ -91,10 +80,8 @@ const processFollowListEvent = (event) => {
     const descriptionTag = event.tags.find(tag => tag[0] === 'description')
     const imageTag = event.tags.find(tag => tag[0] === 'image')
     
-    // Extract members from 'p' tags (raw pubkeys)
-    const members = event.tags
-      .filter(tag => tag[0] === 'p' && tag[1])
-      .map(tag => tag[1])
+    // Extract members from 'p' tags using nip02 helper
+    const members = getFollowedPubkeys(event)
 
     const list = {
       id: event.id,
@@ -111,7 +98,7 @@ const processFollowListEvent = (event) => {
     }
 
     // Fetch profiles for all members in batch for efficiency
-    batchFetchProfiles(members) // Removed individual fetchProfile for batch efficiency
+    profileService.batch(members) // Removed individual fetchProfile for batch efficiency
 
     return list
   } catch (error) {
@@ -136,8 +123,8 @@ const _startBackgroundRefresh = async () => {
   if (pubkeys.length === 0) return
 
   try {
-    await nostrRelayManager.ready()
-    batchFetchProfiles(pubkeys)
+    await nostrService.ready()
+    profileService.batch(pubkeys)
   } catch (err) {
     console.warn('Follow lists background profile refresh failed:', err.message)
   }
@@ -145,6 +132,29 @@ const _startBackgroundRefresh = async () => {
 
 // Kick off background refresh without blocking import
 setTimeout(() => { _startBackgroundRefresh().catch(err => console.warn('Background refresh error:', err)) }, 0)
+
+/**
+ * Internal helper: fetch current kind 3 → merge with new pubkeys → validate.
+ * Returns { mergedFollows, currentFollows, existingContent } ready for publishContactList.
+ */
+const _mergeWithCurrentFollows = async (authorPubkey, newPubkeys) => {
+  const currentFollowingEvent = await fetchCurrentContactList(authorPubkey)
+
+  let currentFollows = []
+  const existingContent = currentFollowingEvent?.content || ''
+  if (currentFollowingEvent) {
+    currentFollows = getFollowedPubkeys(currentFollowingEvent)
+  }
+
+  const { mergedFollows } = mergeFollowLists(currentFollows, newPubkeys)
+
+  // Safety check: merged list must not be smaller than current
+  if (mergedFollows.length < currentFollows.length) {
+    throw new Error(`Safety check failed: follow operation would reduce list from ${currentFollows.length} to ${mergedFollows.length}`)
+  }
+
+  return { mergedFollows, currentFollows, existingContent }
+}
 
 export function useFollowLists() {
   const { currentUser, isAuthenticated } = useNostrAuth()
@@ -154,19 +164,17 @@ export function useFollowLists() {
   const discoveredListsCount = computed(() => discoveredLists.value.length)
 
   const getProfile = (pubkey) => {
-    const cached = profileCache.get(pubkey)
-    return cached ? cached.profile : null
+    return profileService.getCached(pubkey) || null
   }
 
   // Fetch user's own follow lists
   const fetchMyLists = async () => {
     if (!isAuthenticated.value || !currentUser.value?.pubkey) {
-      console.log('Not authenticated, cannot fetch my lists')
       return
     }
 
     try {
-      await nostrRelayManager.ready()
+      await nostrService.ready()
     } catch (err) {
       console.warn('[useFollowLists] Relay manager not ready:', err.message)
       return
@@ -178,14 +186,12 @@ export function useFollowLists() {
     syncStatus.value = 'syncing'
 
     try {
-      console.log('Fetching my follow lists...')
-
       // Close existing subscription
       if (myListsSubscription) {
         myListsSubscription.close()
       }
 
-      myListsSubscription = nostrRelayManager.subscribeToEvents([
+      myListsSubscription = nostrService.subscribe([
         {
           kinds: [FOLLOW_LIST_KIND], // Follow lists
           authors: [currentUser.value.pubkey],
@@ -211,12 +217,9 @@ export function useFollowLists() {
               if (existingIndex !== -1) {
                 // Update existing list (newer created_at wins)
                 if (event.created_at > myLists.value[existingIndex].created_at) {
-                  console.log('Updating existing list via subscription:', list.title)
                   myLists.value[existingIndex] = list
                 }
               } else {
-                // Add new list
-                console.log('Adding new list via subscription:', list.title)
                 myLists.value.push(list)
               }
             }
@@ -228,17 +231,13 @@ export function useFollowLists() {
             
             deletedEventIds.forEach(id => {
               const index = myLists.value.findIndex(l => l.id === id)
-              if (index !== -1) {
-                console.log('Removing deleted list:', myLists.value[index].title)
-                myLists.value.splice(index, 1)
-              }
+              if (index !== -1) myLists.value.splice(index, 1)
             })
           }
 
           syncStatus.value = 'idle'
         },
         oneose: () => {
-          console.log('End of stored my lists events — closing subscription')
           isLoading.value = false
           if (syncStatus.value === 'syncing') {
             syncStatus.value = 'idle'
@@ -248,8 +247,7 @@ export function useFollowLists() {
             myListsSubscription = null
           }
         },
-        onclose: (reason) => {
-          console.log('My lists subscription closed:', reason)
+        onclose: () => {
           isLoading.value = false
           myListsSubscription = null
         }
@@ -257,7 +255,7 @@ export function useFollowLists() {
 
     } catch (err) {
       console.error('Failed to fetch my lists:', err)
-      error.value = 'Failed to fetch my lists: ' + err.message
+      error.value = getUserFriendlyError(err)
       syncStatus.value = 'error'
     } finally {
       isLoading.value = false
@@ -267,7 +265,7 @@ export function useFollowLists() {
   // Discover public follow lists from the network
   const discoverLists = async (searchQuery = '', limit = 50) => {
     try {
-      await nostrRelayManager.ready()
+      await nostrService.ready()
     } catch (err) {
       console.warn('[useFollowLists] Relay manager not ready:', err.message)
       return
@@ -277,8 +275,6 @@ export function useFollowLists() {
     error.value = ''
 
     try {
-      console.log('Discovering public follow lists...')
-
       // Close existing subscription
       if (discoveredListsSubscription) {
         discoveredListsSubscription.close()
@@ -291,7 +287,7 @@ export function useFollowLists() {
       }]
 
       // If search query provided, we'll filter client-side since Nostr doesn't support content search
-      discoveredListsSubscription = nostrRelayManager.subscribeToEvents(filters, {
+      discoveredListsSubscription = nostrService.subscribe(filters, {
         onevent: (event) => {
           if (processedEventIds.has(event.id)) return
           processedEventIds.add(event.id)
@@ -319,26 +315,21 @@ export function useFollowLists() {
               // Update existing list
               discoveredLists.value[existingIndex] = list
             } else {
-              // Add new list
               discoveredLists.value.push(list)
-              console.log('Discovered new list:', list.title, 'by', list.creator.substring(0, 8))
             }
           }
         },
         oneose: () => {
-          console.log('End of discovered lists events')
           isLoading.value = false
           // Close subscription after grace period to avoid indefinite relay connection
           setTimeout(() => {
             if (discoveredListsSubscription) {
               discoveredListsSubscription.close()
               discoveredListsSubscription = null
-              console.log('Discover subscription closed after grace period')
             }
           }, 5000)
         },
-        onclose: (reason) => {
-          console.log('Discovered lists subscription closed:', reason)
+        onclose: () => {
           isLoading.value = false
           discoveredListsSubscription = null
         }
@@ -346,7 +337,7 @@ export function useFollowLists() {
 
     } catch (err) {
       console.error('Failed to discover lists:', err)
-      error.value = 'Failed to discover lists: ' + err.message
+      error.value = getUserFriendlyError(err)
     } finally {
       isLoading.value = false
     }
@@ -354,7 +345,7 @@ export function useFollowLists() {
 
   // Create a new follow list according to NIP-39089
   const createFollowPack = async (listData) => {
-    if (!isAuthenticated.value || !window.nostr) {
+    if (!isAuthenticated.value || !signerService.isConnected) {
       throw new Error('Nostr authentication required')
     }
 
@@ -370,8 +361,6 @@ export function useFollowLists() {
     error.value = ''
 
     try {
-      console.log('Creating new follow pack:', listData.title)
-
       // Generate unique identifier for replaceability
       const d = crypto.randomUUID()
       
@@ -405,45 +394,18 @@ export function useFollowLists() {
         content: '' // Usually empty for follow lists
       }
 
-      console.log('Signing follow list event...')
-      
-      // Sign the event
-      const signedEvent = await window.nostr.signEvent(eventTemplate)
-      
-      // Verify the signed event
-      const isValid = verifyEvent(signedEvent)
-      if (!isValid) {
-        throw new Error('Event signature verification failed')
-      }
+      const { event: signedEvent, result } = await publishService.signAndPublish(eventTemplate)
 
-      console.log('Publishing follow list to relays...')
-
-      // Mark this event as processed BEFORE publishing to prevent duplicate processing
+      // Mark this event as processed to prevent duplicate processing via subscription
       processedEventIds.add(signedEvent.id)
-      // Publish to relays
-      const result = await nostrRelayManager.publishEvent(signedEvent)
-      
-      if (result.successful === 0) {
-        throw new Error('Failed to publish to any relays')
-      }
-
-      console.log('✅ Follow list created successfully:', {
-        eventId: signedEvent.id,
-        successfulRelays: result.successful,
-        failedRelays: result.failed
-      })
 
       // Process and add to local state manually (since we marked it as processed)
       const newList = processFollowListEvent(signedEvent)
       if (newList) {
-        // Check if we already have this list (by event ID or d tag)
         const existingIndex = myLists.value.findIndex(l => l.id === newList.id || l.d === newList.d)
-        
         if (existingIndex === -1) {
-          console.log('Adding new pack to local state:', newList.title)
-        myLists.value.push(newList)
+          myLists.value.push(newList)
         } else {
-          console.log('Pack already exists in local state, updating:', newList.title)
           myLists.value[existingIndex] = newList
         }
       }
@@ -451,8 +413,8 @@ export function useFollowLists() {
       return newList
 
     } catch (err) {
-      error.value = 'Failed to create follow pack: ' + err.message
-      console.error('❌ Follow pack creation error:', err)
+      error.value = getUserFriendlyError(err)
+      console.error('Follow pack creation error:', err)
       throw err
     } finally {
       isLoading.value = false
@@ -461,7 +423,7 @@ export function useFollowLists() {
 
   // Update an existing follow list (creates new version due to replaceability)
   const updateFollowPack = async (listId, listData) => {
-    if (!isAuthenticated.value || !window.nostr) {
+    if (!isAuthenticated.value || !signerService.isConnected) {
       throw new Error('Nostr authentication required')
     }
 
@@ -474,8 +436,6 @@ export function useFollowLists() {
     error.value = ''
 
     try {
-      console.log('Updating follow pack:', listData.title)
-
       // Use same 'd' tag for replaceability
       const tags = [
         ['d', existingList.d], // Same identifier for replaceability
@@ -506,45 +466,22 @@ export function useFollowLists() {
         content: ''
       }
 
-      // Sign the event
-      const signedEvent = await window.nostr.signEvent(eventTemplate)
-      
-      // Verify the signed event
-      const isValid = verifyEvent(signedEvent)
-      if (!isValid) {
-        throw new Error('Event signature verification failed')
-      }
+      const { event: signedEvent, result } = await publishService.signAndPublish(eventTemplate)
 
-      // Mark this event as processed BEFORE publishing to prevent duplicate processing
+      // Mark this event as processed to prevent duplicate processing via subscription
       processedEventIds.add(signedEvent.id)
-      // Publish to relays
-      const result = await nostrRelayManager.publishEvent(signedEvent)
-      
-      if (result.successful === 0) {
-        throw new Error('Failed to publish to any relays')
-      }
-
-      console.log('✅ Follow list updated successfully:', {
-        eventId: signedEvent.id,
-        successfulRelays: result.successful,
-        failedRelays: result.failed
-      })
 
       // Process and update local state manually (since we marked it as processed)
       const updatedList = processFollowListEvent(signedEvent)
       if (updatedList) {
         const index = myLists.value.findIndex(l => l.id === listId)
         if (index !== -1) {
-          console.log('Updating pack in local state:', updatedList.title)
           myLists.value[index] = updatedList
         } else {
-          // If not found by old ID, try to find by d tag
           const dIndex = myLists.value.findIndex(l => l.d === updatedList.d)
           if (dIndex !== -1) {
-            console.log('Updating pack by d tag in local state:', updatedList.title)
             myLists.value[dIndex] = updatedList
           } else {
-            console.log('Adding updated pack as new to local state:', updatedList.title)
             myLists.value.push(updatedList)
           }
         }
@@ -553,8 +490,8 @@ export function useFollowLists() {
       return updatedList
 
     } catch (err) {
-      error.value = 'Failed to update follow pack: ' + err.message
-      console.error('❌ Follow pack update error:', err)
+      error.value = getUserFriendlyError(err)
+      console.error('Follow pack update error:', err)
       throw err
     } finally {
       isLoading.value = false
@@ -563,7 +500,7 @@ export function useFollowLists() {
 
   // Delete a follow list (publish kind 5 deletion event)
   const deleteFollowPack = async (listId) => {
-    if (!isAuthenticated.value || !window.nostr) {
+    if (!isAuthenticated.value || !signerService.isConnected) {
       throw new Error('Nostr authentication required')
     }
 
@@ -582,8 +519,6 @@ export function useFollowLists() {
     // Optimistic update: remove from local state immediately
     myLists.value.splice(listIndex, 1)
     try {
-      console.log('Deleting follow pack:', list.title)
-
       // Create deletion event
       const eventTemplate = {
         kind: 5, // Deletion
@@ -592,24 +527,7 @@ export function useFollowLists() {
         content: 'Deleting follow pack'
       }
 
-      // Sign the event
-      const signedEvent = await window.nostr.signEvent(eventTemplate)
-      
-      // Verify the signed event
-      const isValid = verifyEvent(signedEvent)
-      if (!isValid) {
-        throw new Error('Event signature verification failed')
-      }
-
-      // Publish to relays
-      const result = await nostrRelayManager.publishEvent(signedEvent)
-      
-      if (result.successful === 0) {
-        throw new Error('Failed to publish to any relays')
-      }
-
-      console.log('✅ Follow pack deletion published successfully')
-
+      const { result } = await publishService.signAndPublish(eventTemplate)
 
       return true
 
@@ -617,8 +535,8 @@ export function useFollowLists() {
       // Rollback: re-add the list to local state if publishing failed
       myLists.value.splice(listIndex, 0, listBackup)
       
-      error.value = 'Failed to delete follow pack: ' + err.message
-      console.error('❌ Follow pack deletion error:', err)
+      error.value = getUserFriendlyError(err)
+      console.error('Follow pack deletion error:', err)
       throw err
     } finally {
       isLoading.value = false
@@ -627,7 +545,7 @@ export function useFollowLists() {
 
   // Follow all members from a list (merges with existing follows)
   const followEntirePack = async (list) => {
-    if (!isAuthenticated.value || !window.nostr) {
+    if (!isAuthenticated.value || !signerService.isConnected) {
       throw new Error('Nostr authentication required')
     }
 
@@ -644,35 +562,14 @@ export function useFollowLists() {
     error.value = ''
 
     try {
-      console.log('Following entire pack:', list.title, 'with', list.members.length, 'members')
+      // Fetch current contact list and merge
+      const { mergedFollows, currentFollows, existingContent } = await _mergeWithCurrentFollows(
+        currentUser.value.pubkey, list.members
+      )
 
-      // Get current following list from Nostr to ensure we have the latest data
-      console.log('Fetching current following list before bulk follow...')
-      const kind3Filters = { kinds: [3], authors: [currentUser.value.pubkey], limit: 1 }
-      const currentFollowingEvent = await nostrRelayManager.getEvent(kind3Filters)
-
-      // Extract current follows and preserve content (relay preferences)
-      let currentFollows = []
-      const existingContent = currentFollowingEvent?.content || ''
-      if (currentFollowingEvent) {
-        currentFollows = currentFollowingEvent.tags
-          .filter(tag => tag[0] === 'p' && tag[1])
-          .map(tag => tag[1])
-        console.log('Current follows from Nostr:', currentFollows.length)
-      } else {
-        console.log('No existing following list found, starting fresh')
-      }
-
-      // Merge with validation via followMergeUtils
-      const { mergedFollows, stats } = mergeFollowLists(currentFollows, list.members)
-
-      // Safety check: merged list must not be smaller than current
-      if (mergedFollows.length < currentFollows.length) {
-        throw new Error(`Safety check failed: follow operation would reduce list from ${currentFollows.length} to ${mergedFollows.length}`)
-      }
+      const stats = { actuallyNew: mergedFollows.length - currentFollows.length }
 
       if (stats.actuallyNew === 0) {
-        console.log('Already following all members of this pack')
         return {
           success: true,
           newFollows: 0,
@@ -683,45 +580,11 @@ export function useFollowLists() {
         }
       }
 
-      // Create new contact list event with merged follows
-      const contactTags = mergedFollows.map(pubkey => ['p', pubkey])
-
-      const eventTemplate = {
-        kind: 3,
-        created_at: Math.floor(Date.now() / 1000),
-        tags: contactTags,
-        content: existingContent
-      }
-
-      // Sign the event
-      const signedEvent = await window.nostr.signEvent(eventTemplate)
-
-      // Verify the signed event
-      const isValid = verifyEvent(signedEvent)
-      if (!isValid) {
-        throw new Error('Event signature verification failed')
-      }
-
-      // Publish to relays
-      const result = await nostrRelayManager.publishEvent(signedEvent)
-
-      if (result.successful === 0) {
-        throw new Error('Failed to publish to any relays')
-      }
-
-      // Invalidate cached kind 3 so next operation gets fresh data
-      nostrRelayManager.clearEventCache(kind3Filters)
+      // Publish via shared helper
+      await publishContactList(mergedFollows, { existingContent })
 
       const newFollows = mergedFollows.filter(pk => !currentFollows.includes(pk))
-      console.log('Successfully followed entire list:', {
-        listTitle: list.title,
-        newFollows: newFollows.length,
-        totalFollows: mergedFollows.length,
-        successfulRelays: result.successful
-      })
-
-      // Fetch profiles for new follows in batch for efficiency
-      batchFetchProfiles(newFollows)
+      profileService.batch(newFollows)
 
       return {
         success: true,
@@ -734,7 +597,7 @@ export function useFollowLists() {
       }
 
     } catch (err) {
-      error.value = 'Failed to follow pack: ' + err.message
+      error.value = getUserFriendlyError(err)
       console.error('Follow pack error:', err)
       throw err
     } finally {
@@ -744,7 +607,7 @@ export function useFollowLists() {
 
   // Follow selected members from a list
   const followSelectedMembers = async (list, selectedPubkeys) => {
-    if (!isAuthenticated.value || !window.nostr) {
+    if (!isAuthenticated.value || !signerService.isConnected) {
       throw new Error('Nostr authentication required')
     }
 
@@ -761,35 +624,14 @@ export function useFollowLists() {
     error.value = ''
 
     try {
-      console.log('Following selected members from list:', list.title, 'selected:', selectedPubkeys.length)
+      // Fetch current contact list and merge
+      const { mergedFollows, currentFollows, existingContent } = await _mergeWithCurrentFollows(
+        currentUser.value.pubkey, selectedPubkeys
+      )
 
-      // Get current following list from Nostr to ensure we have the latest data
-      console.log('Fetching current following list before selective follow...')
-      const kind3Filters = { kinds: [3], authors: [currentUser.value.pubkey], limit: 1 }
-      const currentFollowingEvent = await nostrRelayManager.getEvent(kind3Filters)
-
-      // Extract current follows and preserve content (relay preferences)
-      let currentFollows = []
-      const existingContent = currentFollowingEvent?.content || ''
-      if (currentFollowingEvent) {
-        currentFollows = currentFollowingEvent.tags
-          .filter(tag => tag[0] === 'p' && tag[1])
-          .map(tag => tag[1])
-        console.log('Current follows from Nostr:', currentFollows.length)
-      } else {
-        console.log('No existing following list found, starting fresh')
-      }
-
-      // Merge with validation via followMergeUtils
-      const { mergedFollows, stats } = mergeFollowLists(currentFollows, selectedPubkeys)
-
-      // Safety check: merged list must not be smaller than current
-      if (mergedFollows.length < currentFollows.length) {
-        throw new Error(`Safety check failed: follow operation would reduce list from ${currentFollows.length} to ${mergedFollows.length}`)
-      }
+      const stats = { actuallyNew: mergedFollows.length - currentFollows.length }
 
       if (stats.actuallyNew === 0) {
-        console.log('Already following all selected members')
         return {
           success: true,
           newFollows: 0,
@@ -800,45 +642,11 @@ export function useFollowLists() {
         }
       }
 
-      // Create new contact list event with merged follows
-      const contactTags = mergedFollows.map(pubkey => ['p', pubkey])
-
-      const eventTemplate = {
-        kind: 3,
-        created_at: Math.floor(Date.now() / 1000),
-        tags: contactTags,
-        content: existingContent
-      }
-
-      // Sign the event
-      const signedEvent = await window.nostr.signEvent(eventTemplate)
-
-      // Verify the signed event
-      const isValid = verifyEvent(signedEvent)
-      if (!isValid) {
-        throw new Error('Event signature verification failed')
-      }
-
-      // Publish to relays
-      const result = await nostrRelayManager.publishEvent(signedEvent)
-
-      if (result.successful === 0) {
-        throw new Error('Failed to publish to any relays')
-      }
-
-      // Invalidate cached kind 3 so next operation gets fresh data
-      nostrRelayManager.clearEventCache(kind3Filters)
+      // Publish via shared helper
+      await publishContactList(mergedFollows, { existingContent })
 
       const newFollows = mergedFollows.filter(pk => !currentFollows.includes(pk))
-      console.log('Successfully followed selected members:', {
-        listTitle: list.title,
-        newFollows: newFollows.length,
-        totalFollows: mergedFollows.length,
-        successfulRelays: result.successful
-      })
-
-      // Fetch profiles for new follows in batch for efficiency
-      batchFetchProfiles(newFollows)
+      profileService.batch(newFollows)
 
       return {
         success: true,
@@ -851,7 +659,7 @@ export function useFollowLists() {
       }
 
     } catch (err) {
-      error.value = 'Failed to follow selected members: ' + err.message
+      error.value = getUserFriendlyError(err)
       console.error('Follow selected members error:', err)
       throw err
     } finally {
@@ -879,18 +687,10 @@ export function useFollowLists() {
     const now = Date.now()
     if (!_cachedFollowSet || now - _cachedFollowTimestamp > FOLLOW_CACHE_TTL) {
       try {
-        const currentFollowingEvent = await nostrRelayManager.getEvent({
-          kinds: [3],
-          authors: [currentUser.value.pubkey],
-          limit: 1
-        })
+        const currentFollowingEvent = await fetchCurrentContactList(currentUser.value.pubkey)
 
         if (currentFollowingEvent) {
-          _cachedFollowSet = new Set(
-            currentFollowingEvent.tags
-              .filter(tag => tag[0] === 'p' && tag[1])
-              .map(tag => tag[1])
-          )
+          _cachedFollowSet = new Set(getFollowedPubkeys(currentFollowingEvent))
         } else {
           _cachedFollowSet = new Set()
         }
@@ -978,7 +778,7 @@ export function useFollowLists() {
     getListById,
     isFollowingMember,
     filterLists,
-    fetchProfile,
+    fetchProfile: (pubkey) => profileService.get(pubkey),
     generateAvatar,
     
     // Constants

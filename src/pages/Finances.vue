@@ -15,7 +15,7 @@ import { IconWallet, IconChartLine, IconRocket } from '@iconify-prerendered/vue-
     
     <div class="bg-white rounded-xl border border-gray-200 p-12 text-center">
       <div class="text-6xl mb-4">
-        <IconWallet class="w-16 h-16 mx-auto text-gray-300" />
+        <IconWallet class="w-16 h-16 mx-auto text-gray-400" />
       </div>
       <h3 class="text-xl font-semibold text-gray-900 mb-2">Financial Dashboard</h3>
       <p class="text-gray-600 mb-6">Track your earnings, expenses, and financial metrics.</p>
@@ -23,10 +23,10 @@ import { IconWallet, IconChartLine, IconRocket } from '@iconify-prerendered/vue-
 <!--        <IconChartLine class="w-4 h-4" />-->
 <!--        View Reports-->
 <!--      </button>-->
-      <button class="btn-primary">
+      <span class="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-500 rounded-lg text-sm font-medium">
         <IconRocket class="w-4 h-4" />
         Coming Soon
-      </button>
+      </span>
     </div>
   </div>
 </template>

@@ -8,11 +8,15 @@ const props = defineProps({
   }
 })
 
+import { ref, onMounted } from 'vue'
+
 const emit = defineEmits(['close', 'confirm'])
+const modalRoot = ref(null)
+onMounted(() => { modalRoot.value?.focus() })
 </script>
 
 <template>
-  <div class="fixed inset-0 bg-black/50 backdrop-blur-lg flex items-center justify-center z-[9999] p-4">
+  <div class="fixed inset-0 bg-black/50 backdrop-blur-lg flex items-center justify-center z-[9999] p-4" @click.self="$emit('close')" @keydown.escape="$emit('close')" tabindex="-1" ref="modalRoot">
     <div class="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl">
       <div class="flex items-center space-x-3 mb-6">
         <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
@@ -71,28 +75,9 @@ const emit = defineEmits(['close', 'confirm'])
 </template>
 
 <style scoped>
-/* Ensure proper touch targets on mobile */
 @media (max-width: 640px) {
   button {
     min-height: 44px;
   }
-}
-
-/* Smooth animations */
-.transition-all {
-  transition-property: all;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 200ms;
-}
-
-/* Shake animation for delete button */
-@keyframes shake {
-  0%, 100% { transform: translateX(0); }
-  25% { transform: translateX(-2px); }
-  75% { transform: translateX(2px); }
-}
-
-button:hover {
-  animation: shake 0.5s ease-in-out;
 }
 </style>

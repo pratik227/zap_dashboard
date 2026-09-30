@@ -32,6 +32,7 @@ const {
 
 // Component state
 const inputRef = ref(null)
+const containerRef = ref(null)
 const showSuggestions = ref(false)
 const selectedIndex = ref(0)
 const searchQuery = ref('')
@@ -60,8 +61,8 @@ const handleInput = async (event) => {
   const value = event.target.value
   searchQuery.value = value
 
-  if (value.length >= 1) {
-    await searchUsers(value, { debounce: 300 })
+  if (value.length >= 2) {
+    await searchUsers(value, { debounce: 400 })
     showSuggestions.value = true
     selectedIndex.value = 0
   } else if (value.length === 0) {
@@ -157,15 +158,13 @@ const clearSearch = () => {
 
 const scrollToSelected = () => {
   nextTick(() => {
-    const selectedElement = document.querySelector('.user-suggestion-selected')
-    if (selectedElement) {
-      selectedElement.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
-    }
+    const el = containerRef.value?.querySelector('.user-suggestion-selected')
+    if (el) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
   })
 }
 
 const handleClickOutside = (event) => {
-  if (!event.target.closest('.user-search-container')) {
+  if (containerRef.value && !containerRef.value.contains(event.target)) {
     showSuggestions.value = false
   }
 }
@@ -182,7 +181,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="user-search-container relative">
+  <div ref="containerRef" class="user-search-container relative">
     <!-- Input row -->
     <div class="flex gap-2">
       <!-- Search Input -->

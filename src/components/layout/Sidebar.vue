@@ -21,7 +21,10 @@ import {
   IconVideo,
   IconMessageCircle,
   IconTrophy,
-  IconPhoto
+  IconPhoto,
+  IconColumns,
+  IconRss,
+  IconFileImport
 } from '@iconify-prerendered/vue-tabler'
 
 const currentPage = inject('currentPage')
@@ -51,7 +54,7 @@ const totalSats = computed(() => {
 
 const checkAndOpenParentMenu = () => {
   const dashboardPages = ['dashboard', 'lightning-explorer']
-  const studioPages = ['content', 'notes', 'campaigns', 'contest']
+  const studioPages = ['content', 'notes', 'content-bridge', 'import', 'campaigns', 'contest']
   const audiencePages = ['audience', 'chat-zaps']
 
   if (dashboardPages.includes(currentPage.value)) {
@@ -84,6 +87,7 @@ const menuItems = [
   { id: 'wallet', label: 'Wallet', icon: IconWallet, requiresAuth: true },
   { id: 'analytics', label: 'Analytics', icon: IconChartBar, requiresAuth: true },
   { id: 'media', label: 'Media', icon: IconPhoto, requiresAuth: true },
+  { id: 'social-desk', label: 'SocialDesk', icon: IconColumns, requiresAuth: true },
   {
     id: 'studio',
     label: 'Studio',
@@ -94,6 +98,8 @@ const menuItems = [
     submenuItems: [
       { id: 'content', label: 'Articles', icon: IconFileText },
       { id: 'notes', label: 'Notes', icon: IconEdit },
+      { id: 'content-bridge', label: 'Content Bridge', icon: IconRss },
+      { id: 'import', label: 'Import', icon: IconFileImport },
       { id: 'campaigns', label: 'Campaigns', icon: IconTarget },
       { id: 'contest', label: 'Contest', icon: IconTrophy }
     ]
@@ -171,19 +177,14 @@ const fetchWalletBalance = async () => {
 
   isLoadingBalance.value = true
   try {
-    console.log('[Sidebar] Fetching wallet balance...')
     const balanceData = await getBalance()
-    console.log('[Sidebar] Balance data received:', balanceData)
 
     if (balanceData && typeof balanceData.balance === 'number') {
       walletBalance.value = balanceData.balance
-      console.log('[Sidebar] Balance set to:', balanceData.balance, 'msats')
     } else {
-      console.warn('[Sidebar] Invalid balance data:', balanceData)
       walletBalance.value = 0
     }
-  } catch (error) {
-    console.error('[Sidebar] Failed to fetch wallet balance:', error)
+  } catch {
     walletBalance.value = 0
   } finally {
     isLoadingBalance.value = false
@@ -217,7 +218,6 @@ watch(isWalletConnected, (connected) => {
 
 watch(activeConnection, (newConnection, oldConnection) => {
   if (newConnection && newConnection !== oldConnection) {
-    console.log('[Sidebar] Active connection changed, refreshing balance...')
     setTimeout(() => {
       fetchWalletBalance()
     }, 1000)
@@ -253,7 +253,7 @@ onMounted(() => {
     </div>
 
     <!-- Navigation -->
-    <nav class="flex-1 px-2.5 py-3 overflow-y-auto overflow-x-hidden">
+    <nav class="flex-1 px-2.5 py-3 overflow-y-auto overflow-x-hidden" aria-label="Main navigation">
       <ul class="space-y-1">
         <li v-for="item in menuItems" :key="item.id">
           <!-- Main Menu Item -->

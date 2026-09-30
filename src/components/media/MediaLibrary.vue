@@ -479,14 +479,14 @@ function formatSize(bytes) {
   align-items: center;
   gap: 0.75rem;
   padding: 0.5rem 0.75rem;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
   font-size: 0.8125rem;
 }
 
 .progress-name {
-  color: var(--color-text);
+  color: #111827;
   max-width: 180px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -497,20 +497,20 @@ function formatSize(bytes) {
 .progress-bar-track {
   flex: 1;
   height: 4px;
-  background: var(--color-border);
+  background: #e5e7eb;
   border-radius: 2px;
   overflow: hidden;
 }
 
 .progress-bar-fill {
   height: 100%;
-  background: var(--color-primary);
+  background: #f97316;
   border-radius: 2px;
   transition: width 0.2s ease;
 }
 
 .progress-pct {
-  color: var(--color-text-muted);
+  color: #6b7280;
   font-size: 0.75rem;
   font-variant-numeric: tabular-nums;
   width: 2.5rem;
@@ -519,7 +519,7 @@ function formatSize(bytes) {
 }
 
 .progress-error {
-  color: var(--color-danger);
+  color: #ef4444;
   font-size: 0.8125rem;
   flex: 1;
 }
@@ -531,16 +531,16 @@ function formatSize(bytes) {
   width: 1.25rem;
   height: 1.25rem;
   border: none;
-  border-radius: var(--radius-sm);
+  border-radius: 0.25rem;
   background: transparent;
-  color: var(--color-text-subtle);
+  color: #9ca3af;
   cursor: pointer;
   flex-shrink: 0;
 }
 
 .progress-dismiss:hover {
-  background: var(--color-surface-hover);
-  color: var(--color-text);
+  background: #f3f4f6;
+  color: #111827;
 }
 
 .progress-dismiss-icon {
@@ -555,7 +555,7 @@ function formatSize(bytes) {
 .state-no-results {
   text-align: center;
   padding: 3rem 1rem;
-  color: var(--color-text-muted);
+  color: #6b7280;
 }
 
 .state-loading p,
@@ -602,9 +602,9 @@ function formatSize(bytes) {
   justify-content: center;
   width: 4.5rem;
   height: 4.5rem;
-  border-radius: var(--radius-full);
-  border: 2px dashed var(--color-border);
-  color: var(--color-text-subtle);
+  border-radius: 9999px;
+  border: 2px dashed #d1d5db;
+  color: #9ca3af;
   animation: pulse-ring 3s ease-in-out infinite;
 }
 
@@ -614,19 +614,19 @@ function formatSize(bytes) {
 }
 
 @keyframes pulse-ring {
-  0%, 100% { border-color: var(--color-border); }
-  50% { border-color: var(--color-primary); }
+  0%, 100% { border-color: #d1d5db; }
+  50% { border-color: #f97316; }
 }
 
 .state-empty h3 {
   margin: 0 0 0.375rem;
-  color: var(--color-text);
+  color: #111827;
   font-size: 1.125rem;
 }
 
 .state-empty p {
   margin: 0 0 1rem;
-  color: var(--color-text-muted);
+  color: #6b7280;
   font-size: 0.875rem;
   max-width: 380px;
   margin-left: auto;
@@ -644,18 +644,18 @@ function formatSize(bytes) {
 
 .tip {
   font-size: 0.75rem;
-  color: var(--color-text-subtle);
+  color: #9ca3af;
   padding: 0.125rem 0.5rem;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-full);
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 9999px;
 }
 
 .tip-dot {
   width: 3px;
   height: 3px;
   border-radius: 50%;
-  background: var(--color-text-subtle);
+  background: #9ca3af;
 }
 
 /* ===================================================================
@@ -664,30 +664,34 @@ function formatSize(bytes) {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  z-index: 900;
-  background: rgba(0, 0, 0, 0.7);
+  z-index: 9999;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .modal-card {
-  background: var(--color-surface-elevated);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 1rem;
   padding: 1.5rem;
   max-width: 400px;
   width: 90%;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
 }
 
 .modal-card h3 {
   margin: 0 0 0.75rem;
-  color: var(--color-text);
+  color: #111827;
+  font-size: 1.125rem;
+  font-weight: 600;
 }
 
 .modal-card p {
   margin: 0 0 1.25rem;
-  color: var(--color-text-muted);
+  color: #6b7280;
   font-size: 0.875rem;
   line-height: 1.5;
 }
@@ -700,44 +704,44 @@ function formatSize(bytes) {
 
 .btn-modal {
   padding: 0.5rem 1rem;
-  border-radius: var(--radius-md);
+  border-radius: 0.5rem;
   font-weight: 500;
   font-size: 0.875rem;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: all 0.15s ease;
   border: none;
 }
 
 .btn-modal--secondary {
-  background: var(--color-surface);
-  color: var(--color-text);
-  border: 1px solid var(--color-border);
+  background: white;
+  color: #374151;
+  border: 1px solid #d1d5db;
 }
 
 .btn-modal--secondary:hover {
-  background: var(--color-surface-hover);
+  background: #f3f4f6;
 }
 
 .btn-modal--primary {
-  background: var(--color-primary);
+  background: #f97316;
   color: white;
 }
 
 .btn-modal--primary:hover {
-  background: var(--color-primary-hover);
+  background: #ea580c;
 }
 
 .btn-modal--danger {
-  background: var(--color-danger);
+  background: #ef4444;
   color: white;
 }
 
 .btn-modal--danger:hover {
-  opacity: 0.9;
+  background: #dc2626;
 }
 
 .modal-error {
-  color: var(--color-danger);
+  color: #ef4444;
   font-size: 0.8125rem;
   margin: -0.5rem 0 0.75rem;
 }
@@ -748,7 +752,7 @@ function formatSize(bytes) {
   justify-content: center;
   gap: 0.5rem;
   padding: 0.5rem 0;
-  color: var(--color-text-muted);
+  color: #6b7280;
   font-size: 0.875rem;
 }
 

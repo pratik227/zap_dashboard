@@ -8,7 +8,7 @@ import {
   NWCDecryptionError,
   LightningAddressError,
   validateLightningAddress
-} from 'nostr-core'
+} from '../../services/nostr/nostrImports.js'
 
 // NWC Client singleton
 let nwcClient = null

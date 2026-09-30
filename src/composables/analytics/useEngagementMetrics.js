@@ -1,6 +1,7 @@
 import { ref, reactive, computed, watch } from 'vue'
 import { useNostrAuth } from '../auth/useNostrAuth.js'
-import { nostrRelayManager } from '../../utils/network/nostrRelayManager.js'
+import { nostrService } from '../../services/nostr/NostrService.js'
+import { storageService } from '../../services/StorageService.js'
 
 const engagementMetrics = reactive(new Map()) 
 const activeSubscriptions = reactive(new Map())
@@ -12,18 +13,13 @@ const batchTimer = ref(null)
 const BATCH_DELAY = 1000
 const MAX_BATCH_SIZE = 50
 
-// Load cached engagement metrics from localStorage immediately
+// Load cached engagement metrics from storage immediately
 const ENGAGEMENT_STORAGE_KEY = 'engagement_metrics_cache'
-try {
-  const cached = localStorage.getItem(ENGAGEMENT_STORAGE_KEY)
-  if (cached) {
-    const parsed = JSON.parse(cached)
-    Object.entries(parsed).forEach(([eventId, metrics]) => {
-      engagementMetrics.set(eventId, metrics)
-    })
-  }
-} catch (e) {
-  console.warn('Failed to load engagement metrics from storage at startup:', e)
+const cachedMetrics = storageService.get(ENGAGEMENT_STORAGE_KEY, null)
+if (cachedMetrics) {
+  Object.entries(cachedMetrics).forEach(([eventId, metrics]) => {
+    engagementMetrics.set(eventId, metrics)
+  })
 }
 
 // Background refresh: once relay manager is initialized, refresh engagement for cached eventIds
@@ -31,7 +27,7 @@ const _startEngagementBackgroundRefresh = async () => {
   const eventIds = Array.from(engagementMetrics.keys())
   if (!eventIds.length) return
   try {
-    await nostrRelayManager.ready()
+    await nostrService.ready()
     for (let i = 0; i < eventIds.length; i += MAX_BATCH_SIZE) {
       fetchEngagementMetricsBatch(eventIds.slice(i, i + MAX_BATCH_SIZE))
     }
@@ -232,7 +228,7 @@ export function useEngagementMetrics() {
       // Rely on relay manager for deduplication
       const subscriptionId = `engagement-batch-${Date.now()}`
 
-      const subscription = nostrRelayManager.subscribeToEvents(filters, {
+      const subscription = nostrService.subscribe(filters, {
         onevent: (event) => {
           processEngagementEvent(event)
         },
@@ -431,7 +427,7 @@ export function useEngagementMetrics() {
         }
       ]
 
-      const subscription = nostrRelayManager.subscribeToEvents(aTagFilters, {
+      const subscription = nostrService.subscribe(aTagFilters, {
         onevent: (event) => {
           processEngagementEvent(event, eventId)
         },

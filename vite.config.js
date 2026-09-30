@@ -1,11 +1,31 @@
 import {defineConfig} from 'vite'
 import vue from '@vitejs/plugin-vue'
 import {VitePWA} from 'vite-plugin-pwa'
+import bridgeProxy from './netlify/functions/bridge-proxy.mjs'
+
+// Serve the Netlify bridge-proxy function during `vite dev`
+const bridgeProxyDev = () => ({
+    name: 'bridge-proxy-dev',
+    configureServer(server) {
+        server.middlewares.use('/.netlify/functions/bridge-proxy', async (req, res) => {
+            const response = await bridgeProxy(new Request(`http://localhost${req.originalUrl}`, {method: req.method}))
+            res.statusCode = response.status
+            response.headers.forEach((value, key) => res.setHeader(key, value))
+            res.end(Buffer.from(await response.arrayBuffer()))
+        })
+    }
+})
 
 // https://vitejs.dev/config/
 export default defineConfig({
+    test: {
+        environment: 'happy-dom',
+        include: ['tests/**/*.test.js'],
+        globals: true,
+    },
     plugins: [
         vue(),
+        bridgeProxyDev(),
         VitePWA({
             registerType: 'autoUpdate',
             includeAssets: ['favicon.svg', 'robots.txt'],
@@ -78,17 +98,24 @@ export default defineConfig({
             }
         })
     ],
-    esbuild: {
-        drop: ['console', 'debugger']
-    },
     build: {
-        rollupOptions: {
+        rolldownOptions: {
             output: {
-                manualChunks: {
-                    'echarts': ['echarts', 'vue-echarts'],
-                    'nostr-tools': ['nostr-tools'],
-                    'dicebear': ['@dicebear/core', '@dicebear/collection'],
-                    'fullcalendar': ['@fullcalendar/core', '@fullcalendar/vue3', '@fullcalendar/daygrid', '@fullcalendar/timegrid', '@fullcalendar/interaction', '@fullcalendar/list']
+                // Strip console/debugger from production bundles (dev keeps its logs)
+                minify: {
+                    compress: {
+                        dropConsole: true,
+                        dropDebugger: true
+                    }
+                },
+                // Vendor chunks, including each library's own dependencies
+                codeSplitting: {
+                    groups: [
+                        {name: 'echarts', test: /node_modules[\\/](echarts|zrender|vue-echarts)[\\/]/},
+                        {name: 'nostr-core', test: /node_modules[\\/](nostr-core|@noble|@scure)[\\/]/},
+                        {name: 'dicebear', test: /node_modules[\\/]@dicebear[\\/]/},
+                        {name: 'fullcalendar', test: /node_modules[\\/](@fullcalendar|preact)[\\/]/}
+                    ]
                 }
             }
         },

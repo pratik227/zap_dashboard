@@ -1,44 +1,99 @@
 <template>
   <Teleport to="body">
     <Transition name="lightbox">
-      <div v-if="file" class="lightbox-overlay" @click.self="$emit('close')">
-        <div class="lightbox-content">
-          <!-- Top bar -->
-          <div class="lightbox-header">
-            <span class="lightbox-info">
-              {{ fileName }} &middot; {{ formatSize(file.size) }}
+      <div v-if="file" class="fixed inset-0 z-[10000] bg-black/95 backdrop-blur-sm flex flex-col" @click.self="$emit('close')">
+
+        <!-- Top bar -->
+        <div class="flex items-center justify-between px-4 sm:px-6 py-3 bg-gradient-to-b from-black/60 to-transparent flex-shrink-0">
+          <div class="flex items-center gap-3 min-w-0">
+            <span class="text-white/70 text-sm font-medium truncate">
+              {{ fileName }}
             </span>
-            <div class="lightbox-actions">
-              <button class="lightbox-btn" title="Copy URL" @click="copyUrl">
-                <IconCheck v-if="copied" class="lightbox-btn-icon" />
-                <IconCopy v-else class="lightbox-btn-icon" />
-              </button>
-              <button class="lightbox-btn" title="Download" @click="$emit('download', file)">
-                <IconDownload class="lightbox-btn-icon" />
-              </button>
-              <button class="lightbox-btn" title="Close" @click="$emit('close')">
-                <IconX class="lightbox-btn-icon" />
-              </button>
+            <span class="text-white/40 text-xs">{{ formatSize(file.size) }}</span>
+            <span v-if="file.type" class="hidden sm:inline-flex px-2 py-0.5 bg-white/10 text-white/60 text-xs font-mono rounded">
+              {{ file.type }}
+            </span>
+          </div>
+          <div class="flex items-center gap-1.5 flex-shrink-0">
+            <button
+              class="flex items-center justify-center w-10 h-10 rounded-xl bg-white/10 text-white hover:bg-white/20 transition-colors"
+              title="Copy URL"
+              @click="copyUrl"
+            >
+              <IconCheck v-if="copied" class="w-4.5 h-4.5 text-green-400" />
+              <IconCopy v-else class="w-4.5 h-4.5" />
+            </button>
+            <button
+              class="flex items-center justify-center w-10 h-10 rounded-xl bg-white/10 text-white hover:bg-white/20 transition-colors"
+              title="Download"
+              @click="$emit('download', file)"
+            >
+              <IconDownload class="w-4.5 h-4.5" />
+            </button>
+            <button
+              class="flex items-center justify-center w-10 h-10 rounded-xl bg-white/10 text-white hover:bg-red-500/30 hover:text-red-300 transition-colors"
+              title="Close"
+              @click="$emit('close')"
+            >
+              <IconX class="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+
+        <!-- Media area -->
+        <div class="flex-1 flex items-center justify-center relative px-4 pb-4 min-h-0" @click.self="$emit('close')">
+          <!-- Prev nav -->
+          <button
+            v-if="hasPrev"
+            class="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 flex items-center justify-center w-12 h-12 rounded-full bg-white/10 text-white hover:bg-white/25 transition-all duration-200 hover:scale-110 z-10"
+            @click.stop="$emit('prev')"
+          >
+            <IconChevronLeft class="w-6 h-6" />
+          </button>
+
+          <!-- Image -->
+          <img
+            v-if="isImage"
+            :src="file.url"
+            :alt="file.hash"
+            class="max-w-full max-h-full object-contain rounded-lg shadow-2xl select-none"
+            draggable="false"
+          />
+          <!-- Video -->
+          <video
+            v-else-if="isVideo"
+            :src="file.url"
+            controls
+            class="max-w-full max-h-full rounded-lg shadow-2xl"
+          />
+          <!-- Audio -->
+          <div v-else-if="isAudio" class="w-full max-w-lg mx-auto bg-white/5 rounded-2xl p-8 text-center">
+            <div class="w-20 h-20 mx-auto mb-4 rounded-full bg-white/10 flex items-center justify-center">
+              <IconPlayerPlay class="w-8 h-8 text-white/60" />
             </div>
+            <audio :src="file.url" controls class="w-full" />
+          </div>
+          <!-- Unknown -->
+          <div v-else class="text-center text-white/50">
+            <IconPhotoOff class="w-16 h-16 mx-auto mb-3 opacity-50" />
+            <p class="text-sm">Preview not available for this file type</p>
           </div>
 
-          <!-- Media -->
-          <div class="lightbox-media">
-            <button v-if="hasPrev" class="lightbox-nav lightbox-nav--prev" @click="$emit('prev')">
-              <IconChevronLeft class="lightbox-nav-icon" />
-            </button>
+          <!-- Next nav -->
+          <button
+            v-if="hasNext"
+            class="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 flex items-center justify-center w-12 h-12 rounded-full bg-white/10 text-white hover:bg-white/25 transition-all duration-200 hover:scale-110 z-10"
+            @click.stop="$emit('next')"
+          >
+            <IconChevronRight class="w-6 h-6" />
+          </button>
+        </div>
 
-            <img v-if="isImage" :src="file.url" :alt="file.hash" class="lightbox-img" />
-            <video v-else-if="isVideo" :src="file.url" controls class="lightbox-video" />
-            <audio v-else-if="isAudio" :src="file.url" controls class="lightbox-audio" />
-            <div v-else class="lightbox-unknown">
-              <IconPhotoOff class="lightbox-unknown-icon" />
-              <p>Preview not available</p>
-            </div>
-
-            <button v-if="hasNext" class="lightbox-nav lightbox-nav--next" @click="$emit('next')">
-              <IconChevronRight class="lightbox-nav-icon" />
-            </button>
+        <!-- Bottom info bar -->
+        <div class="flex-shrink-0 px-4 sm:px-6 py-2 bg-gradient-to-t from-black/40 to-transparent">
+          <div class="flex items-center justify-center gap-4 text-xs text-white/40">
+            <span v-if="hasPrev || hasNext">Use arrow keys to navigate</span>
+            <span>Press Esc to close</span>
           </div>
         </div>
       </div>
@@ -55,7 +110,8 @@ import {
   IconX,
   IconChevronLeft,
   IconChevronRight,
-  IconPhotoOff
+  IconPhotoOff,
+  IconPlayerPlay
 } from '@iconify-prerendered/vue-tabler'
 
 const props = defineProps({
@@ -74,7 +130,7 @@ const isAudio = computed(() => props.file?.type?.startsWith('audio/'))
 
 const fileName = computed(() => {
   if (!props.file) return ''
-  return props.file.hash?.slice(0, 12) + '...'
+  return props.file.hash?.slice(0, 16) + '...'
 })
 
 function copyUrl() {
@@ -104,167 +160,9 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
 </script>
 
 <style scoped>
-.lightbox-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 1000;
-  background: rgba(0, 0, 0, 0.9);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.lightbox-content {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  height: 100%;
-}
-
-.lightbox-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.75rem 1rem;
-  background: rgba(0, 0, 0, 0.5);
-}
-
-.lightbox-info {
-  color: var(--color-text-muted);
-  font-size: 0.875rem;
-}
-
-.lightbox-actions {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.lightbox-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 2rem;
-  height: 2rem;
-  border: none;
-  border-radius: var(--radius-md);
-  background: rgba(255, 255, 255, 0.1);
-  color: white;
-  cursor: pointer;
-  transition: background var(--transition-fast);
-}
-
-.lightbox-btn:hover {
-  background: rgba(255, 255, 255, 0.2);
-}
-
-.lightbox-btn-icon {
-  width: 1rem;
-  height: 1rem;
-}
-
-.lightbox-media {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  padding: 1rem;
-}
-
-.lightbox-img {
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
-  border-radius: var(--radius-md);
-}
-
-.lightbox-video {
-  max-width: 100%;
-  max-height: 100%;
-  border-radius: var(--radius-md);
-}
-
-.lightbox-audio {
-  width: 80%;
-  max-width: 500px;
-}
-
-.lightbox-unknown {
-  text-align: center;
-  color: var(--color-text-muted);
-}
-
-.lightbox-unknown-icon {
-  width: 3rem;
-  height: 3rem;
-}
-
-.lightbox-nav {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 3rem;
-  height: 3rem;
-  border: none;
-  border-radius: var(--radius-full);
-  background: rgba(255, 255, 255, 0.1);
-  color: white;
-  cursor: pointer;
-  transition: background var(--transition-fast);
-}
-
-.lightbox-nav:hover {
-  background: rgba(255, 255, 255, 0.2);
-}
-
-.lightbox-nav-icon {
-  width: 1.5rem;
-  height: 1.5rem;
-}
-
-.lightbox-nav--prev { left: 1rem; }
-.lightbox-nav--next { right: 1rem; }
-
-/* Mobile: larger touch targets, tighter padding */
-@media (max-width: 480px) {
-  .lightbox-btn {
-    width: 2.75rem;
-    height: 2.75rem;
-  }
-
-  .lightbox-btn-icon {
-    width: 1.25rem;
-    height: 1.25rem;
-  }
-
-  .lightbox-nav {
-    width: 2.75rem;
-    height: 2.75rem;
-  }
-
-  .lightbox-nav--prev { left: 0.5rem; }
-  .lightbox-nav--next { right: 0.5rem; }
-
-  .lightbox-media {
-    padding: 0.5rem;
-  }
-
-  .lightbox-header {
-    padding: 0.5rem 0.75rem;
-  }
-
-  .lightbox-info {
-    font-size: 0.75rem;
-  }
-}
-
-/* Transitions */
 .lightbox-enter-active,
 .lightbox-leave-active {
-  transition: opacity 0.2s ease;
+  transition: opacity 0.25s ease;
 }
 
 .lightbox-enter-from,

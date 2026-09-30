@@ -47,6 +47,15 @@ export const NOTES_CLEANUP_INTERVAL = 30_000     // 30s duplicate cleanup
 // ── Publish ──
 export const PUBLISH_TIMEOUT = 10_000            // 10s publish timeout
 
+// ── Outbox model (NIP-65) ──
+export const OUTBOX_RELAY_LIST_TTL = 30 * 60 * 1000  // 30min cache for relay lists
+export const OUTBOX_MAX_RELAYS_PER_PUBKEY = 5         // max relays to use per user for outbox
+export const RELAY_INFO_TTL = 60 * 60 * 1000          // 1h cache for NIP-11 relay info
+
+// ── Persistent relay limits ──
+// Only user-curated + own NIP-65 relays are persisted; outbox/inbox stay ephemeral
+export const MAX_PERSISTENT_RELAYS = 50
+
 // ── Default relay list (single source of truth) ──
 export const DEFAULT_RELAY_URLS = [
   'wss://relay.damus.io',
@@ -122,6 +131,53 @@ export const CHART_TOOLTIP_STYLE = {
 }
 
 // Reusable area gradient for orange line charts
+// ── Storage keys (single source of truth for localStorage keys) ──
+export const STORAGE_KEYS = {
+  // Auth
+  USER: 'nostrUser',
+  RELAYS: 'nostrRelays',
+  SIGNER_TYPE: 'nostr_signer_type',
+  REMOTE_URI: 'nostr_remote_uri',
+
+  // Wallet / NWC
+  CONNECTIONS: 'nostr_connections',
+  ACTIVE_CONNECTION: 'active_connection_id',
+  NWC_URL: 'nwc_url',
+
+  // Notifications
+  NOTIFICATION_SETTINGS: 'notification_settings',
+  LAST_TX_TIMESTAMP: 'last_transaction_timestamp',
+  LAST_BALANCE: 'last_balance',
+  PROCESSED_TX: 'processed_transactions',
+  NOTIFICATIONS_LIST: 'notifications_list',
+
+  // Content
+  CONTENT_ITEMS: 'user_content_items',
+
+  // Campaigns (preserved across logout)
+  CAMPAIGNS: 'user_campaigns',
+  CAMPAIGN_ZAPS: 'campaign_aggregated_zaps',
+
+  // Follow lists (preserved across logout)
+  FOLLOW_LISTS_MY: 'follow_lists_my',
+  FOLLOW_LISTS_DISCOVERED: 'follow_lists_discovered',
+  FOLLOW_LISTS_PROFILES: 'follow_lists_profiles',
+
+  // SocialDesk
+  DESK_COLUMNS: 'socialdesk_columns',
+
+  // Content Bridge (preserved across logout)
+  BRIDGE_FEEDS: 'content_bridge_feeds',
+  BRIDGE_SYNDICATED: 'content_bridge_syndicated',
+  BRIDGE_MEDIA_MAP: 'content_bridge_media_map',
+  IMPORT_HISTORY: 'content_import_history',
+
+  // UI state
+  WELCOME_SEEN: 'zaptracker_welcome_seen',
+  BTC_PRICE: 'btcPriceData',
+  PWA_DISMISSED: 'pwa_install_dismissed',
+}
+
 export function chartAreaGradient(opacity1 = 0.3, opacity2 = 0.02) {
   return {
     type: 'linear', x: 0, y: 0, x2: 0, y2: 1,

@@ -1,5 +1,5 @@
-import { generateSecretKey, finalizeEvent, getPublicKey } from 'nostr-tools/pure'
-import { nip04 } from 'nostr-tools'
+import { generateSecretKey, finalizeEvent, getPublicKey } from '../../services/nostr/nostrImports.js'
+import { nip04 } from '../../services/nostr/nostrImports.js'
 
 // Content encryption utility for paid content
 export class ContentEncryption {

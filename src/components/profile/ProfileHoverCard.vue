@@ -8,12 +8,10 @@ import {
   IconLoader
 } from '@iconify-prerendered/vue-tabler'
 import BadgeList from '../badges/BadgeList.vue'
-import { useBadges } from '../../composables/social/useBadges.js'
 import { generateAvatar } from '../../utils/profile/avatarGenerator.js'
-import { fetchProfile } from '../../utils/profile/profileFetcher.js'
-import * as nip19 from 'nostr-tools/nip19'
+import { profileService } from '../../services/nostr/ProfileService.js'
+import { nip19 } from '../../services/nostr/nostrImports.js'
 
-const { badgeUpdateTrigger } = useBadges()
 
 const props = defineProps({
   pubkey: {
@@ -106,7 +104,7 @@ const updatePosition = () => {
 const loadProfile = async () => {
   isLoadingProfile.value = true
   try {
-    const p = await fetchProfile(props.pubkey)
+    const p = await profileService.get(props.pubkey)
     if (p) {
       profile.value = p
     }
@@ -203,7 +201,7 @@ watch(() => props.anchorEl, () => {
         <!-- Badges -->
         <div class="px-4 pt-2">
           <BadgeList
-            :key="`hover-badges-${pubkey}-${badgeUpdateTrigger}`"
+            :key="`hover-badges-${pubkey}`"
             :pubkey="pubkey"
             size="small"
             :max-display="3"

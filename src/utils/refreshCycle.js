@@ -20,7 +20,6 @@ let activeGroup = null // null = run all
  */
 export function registerRefresh(name, fn, group = 'global') {
   callbacks.set(name, { fn, group })
-  console.log(`[refreshCycle] Registered: ${name} (group: ${group})`)
 }
 
 /**
@@ -29,7 +28,6 @@ export function registerRefresh(name, fn, group = 'global') {
  */
 export function unregisterRefresh(name) {
   callbacks.delete(name)
-  console.log(`[refreshCycle] Unregistered: ${name}`)
 }
 
 /**
@@ -39,7 +37,6 @@ export function unregisterRefresh(name) {
  */
 export function setActiveGroup(group) {
   activeGroup = group
-  console.log(`[refreshCycle] Active group: ${group || 'all'}`)
 }
 
 /**
@@ -53,8 +50,6 @@ async function runCycle() {
   })
   if (entries.length === 0) return
 
-  console.log(`[refreshCycle] Running cycle (${entries.length} callbacks)`)
-
   for (let i = 0; i < entries.length; i++) {
     const [name, { fn }] = entries[i]
 
@@ -65,7 +60,6 @@ async function runCycle() {
 
     try {
       await fn()
-      console.log(`[refreshCycle] ${name} refreshed`)
     } catch (err) {
       console.warn(`[refreshCycle] ${name} failed:`, err.message)
     }
@@ -84,8 +78,6 @@ export function startRefreshCycle() {
     runCycle()
     cycleTimer = setInterval(runCycle, REFRESH_CYCLE_INTERVAL)
   }, REFRESH_WARMUP_DELAY)
-
-  console.log(`[refreshCycle] Started (warmup ${REFRESH_WARMUP_DELAY / 1000}s, interval ${REFRESH_CYCLE_INTERVAL / 1000}s)`)
 }
 
 /**

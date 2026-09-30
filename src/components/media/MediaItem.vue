@@ -1,70 +1,91 @@
 <template>
-  <div class="media-item" :class="{ 'media-item--selected': isSelected }" @click="$emit('preview', file)">
+  <div
+    :class="[
+      'group rounded-xl overflow-hidden bg-white border cursor-pointer transition-all duration-200',
+      isSelected
+        ? 'border-orange-500 ring-1 ring-orange-500'
+        : 'border-gray-200 hover:border-gray-300 hover:shadow-md hover:-translate-y-0.5'
+    ]"
+    @click="$emit('preview', file)"
+  >
     <!-- Thumbnail -->
-    <div class="media-thumb">
+    <div class="relative aspect-square overflow-hidden bg-gray-50">
       <img
         v-if="isImage && !thumbError"
         :src="file.url"
         :alt="file.hash"
         loading="lazy"
+        class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
         @error="thumbError = true"
       />
-      <div v-else-if="isVideo" class="media-thumb-placeholder">
-        <IconPlayerPlay class="placeholder-icon" />
+      <div v-else-if="isVideo" class="flex items-center justify-center w-full h-full text-gray-400">
+        <IconPlayerPlay class="w-8 h-8" />
       </div>
-      <div v-else class="media-thumb-placeholder">
-        <IconPhoto class="placeholder-icon" />
-      </div>
-
-      <!-- File type badge -->
-      <span class="type-badge">{{ fileExtension }}</span>
-
-      <!-- Bottom gradient scrim with info -->
-      <div class="media-scrim">
-        <span class="scrim-size">{{ formatSize(file.size) }}</span>
-        <span v-if="file.created" class="scrim-date">{{ relativeDate(file.created) }}</span>
+      <div v-else class="flex items-center justify-center w-full h-full text-gray-400">
+        <IconPhoto class="w-8 h-8" />
       </div>
 
-      <!-- Server count indicator (top-left, offset to clear checkbox) -->
-      <span v-if="file.servers?.length > 1" class="server-badge" :title="`On ${file.servers.length} servers`">
-        <IconServer2 class="server-badge-icon" />
+      <!-- File type badge (top-right) -->
+      <span class="absolute top-1.5 right-1.5 px-1.5 py-0.5 bg-black/60 text-white/90 text-[10px] font-semibold font-mono rounded backdrop-blur-sm z-[2] leading-tight">
+        {{ fileExtension }}
+      </span>
+
+      <!-- Server count (top-left, offset for checkbox) -->
+      <span
+        v-if="file.servers?.length > 1"
+        class="absolute top-1.5 left-7 flex items-center gap-0.5 px-1.5 py-0.5 bg-black/60 text-white/90 text-[10px] font-semibold rounded backdrop-blur-sm z-[2]"
+        :title="`On ${file.servers.length} servers`"
+      >
+        <IconServer2 class="w-3 h-3" />
         {{ file.servers.length }}
       </span>
 
+      <!-- Bottom gradient scrim -->
+      <div class="absolute bottom-0 left-0 right-0 flex items-end justify-between px-2 pb-1.5 pt-6 bg-gradient-to-t from-black/70 to-transparent text-[11px] text-white/85 z-[1] pointer-events-none">
+        <span class="font-medium tabular-nums">{{ formatSize(file.size) }}</span>
+        <span v-if="file.created" class="opacity-70">{{ relativeDate(file.created) }}</span>
+      </div>
+
       <!-- Hover overlay (desktop) -->
-      <div class="media-overlay" @click.stop>
-        <button class="overlay-btn" title="Copy URL" @click="copyUrl">
-          <IconCheck v-if="copied" class="overlay-btn-icon" />
-          <IconCopy v-else class="overlay-btn-icon" />
+      <div class="absolute inset-0 bg-black/50 flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-[3]" @click.stop>
+        <button class="flex items-center justify-center w-9 h-9 rounded-lg bg-white text-gray-700 hover:bg-gray-100 transition-colors" title="Copy URL" @click="copyUrl">
+          <IconCheck v-if="copied" class="w-4 h-4 text-green-600" />
+          <IconCopy v-else class="w-4 h-4" />
         </button>
-        <button class="overlay-btn" title="Download" @click="$emit('download', file)">
-          <IconDownload class="overlay-btn-icon" />
+        <button class="flex items-center justify-center w-9 h-9 rounded-lg bg-white text-gray-700 hover:bg-gray-100 transition-colors" title="Download" @click="$emit('download', file)">
+          <IconDownload class="w-4 h-4" />
         </button>
-        <button class="overlay-btn" title="Preview" @click="$emit('preview', file)">
-          <IconMaximize class="overlay-btn-icon" />
+        <button class="flex items-center justify-center w-9 h-9 rounded-lg bg-white text-gray-700 hover:bg-gray-100 transition-colors" title="Preview" @click="$emit('preview', file)">
+          <IconMaximize class="w-4 h-4" />
         </button>
-        <button class="overlay-btn overlay-btn--danger" title="Delete" @click="$emit('delete', file.hash)">
-          <IconTrash class="overlay-btn-icon" />
+        <button class="flex items-center justify-center w-9 h-9 rounded-lg bg-white text-red-600 hover:bg-red-50 transition-colors" title="Delete" @click="$emit('delete', file.hash)">
+          <IconTrash class="w-4 h-4" />
         </button>
       </div>
 
       <!-- Selection checkbox -->
-      <label class="media-checkbox" :class="{ 'media-checkbox--visible': isSelected }" @click.stop>
-        <input type="checkbox" :checked="isSelected" @change="$emit('toggle', file.hash)" />
+      <label
+        :class="[
+          'absolute top-1.5 left-1.5 z-[4] transition-opacity duration-150 cursor-pointer',
+          isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+        ]"
+        @click.stop
+      >
+        <input type="checkbox" :checked="isSelected" class="w-4 h-4 accent-orange-500 cursor-pointer rounded" @change="$emit('toggle', file.hash)" />
       </label>
     </div>
 
-    <!-- Action bar (always visible, used on touch + provides clean row below thumb) -->
-    <div class="media-actions-bar">
-      <button class="bar-btn" title="Copy URL" @click.stop="copyUrl">
-        <IconCheck v-if="copied" class="bar-btn-icon" />
-        <IconCopy v-else class="bar-btn-icon" />
+    <!-- Action bar (touch-friendly, always visible) -->
+    <div class="flex items-center justify-end gap-0.5 px-1.5 py-1 border-t border-gray-100 bg-white">
+      <button class="flex items-center justify-center w-7 h-7 rounded text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors" title="Copy URL" @click.stop="copyUrl">
+        <IconCheck v-if="copied" class="w-3.5 h-3.5 text-green-600" />
+        <IconCopy v-else class="w-3.5 h-3.5" />
       </button>
-      <button class="bar-btn" title="Download" @click.stop="$emit('download', file)">
-        <IconDownload class="bar-btn-icon" />
+      <button class="flex items-center justify-center w-7 h-7 rounded text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors" title="Download" @click.stop="$emit('download', file)">
+        <IconDownload class="w-3.5 h-3.5" />
       </button>
-      <button class="bar-btn bar-btn--danger" title="Delete" @click.stop="$emit('delete', file.hash)">
-        <IconTrash class="bar-btn-icon" />
+      <button class="flex items-center justify-center w-7 h-7 rounded text-gray-400 hover:bg-red-50 hover:text-red-600 transition-colors" title="Delete" @click.stop="$emit('delete', file.hash)">
+        <IconTrash class="w-3.5 h-3.5" />
       </button>
     </div>
   </div>
@@ -129,276 +150,26 @@ function relativeDate(timestamp) {
 </script>
 
 <style scoped>
-.media-item {
-  border-radius: var(--radius-md);
-  overflow: hidden;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  cursor: pointer;
-  transition: all var(--transition-normal);
-}
-
-.media-item:hover {
-  border-color: var(--color-border-hover);
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-md);
-}
-
-.media-item--selected,
-.media-item--selected:hover {
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 1px var(--color-primary);
-}
-
-/* Thumbnail container */
-.media-thumb {
-  position: relative;
-  aspect-ratio: 1;
-  overflow: hidden;
-  background: var(--color-bg);
-}
-
-.media-thumb img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  transition: transform var(--transition-normal);
-}
-
-.media-item:hover .media-thumb img {
-  transform: scale(1.05);
-}
-
-.media-thumb-placeholder {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  height: 100%;
-  color: var(--color-text-subtle);
-}
-
-.placeholder-icon {
-  width: 2rem;
-  height: 2rem;
-}
-
-/* Type badge (top-right) */
-.type-badge {
-  position: absolute;
-  top: 0.375rem;
-  right: 0.375rem;
-  padding: 0.125rem 0.375rem;
-  background: rgba(0, 0, 0, 0.65);
-  color: rgba(255, 255, 255, 0.9);
-  font-size: 0.625rem;
-  font-weight: 600;
-  font-family: var(--font-mono);
-  border-radius: var(--radius-sm);
-  letter-spacing: 0.03em;
-  line-height: 1.4;
-  backdrop-filter: blur(4px);
-  z-index: 2;
-}
-
-/* Server count (top-left, offset right to clear checkbox) */
-.server-badge {
-  position: absolute;
-  top: 0.375rem;
-  left: 1.75rem;
-  display: flex;
-  align-items: center;
-  gap: 0.2rem;
-  padding: 0.125rem 0.375rem;
-  background: rgba(0, 0, 0, 0.65);
-  color: rgba(255, 255, 255, 0.9);
-  font-size: 0.625rem;
-  font-weight: 600;
-  border-radius: var(--radius-sm);
-  backdrop-filter: blur(4px);
-  z-index: 2;
-}
-
-.server-badge-icon {
-  width: 0.75rem;
-  height: 0.75rem;
-}
-
-/* Bottom gradient scrim */
-.media-scrim {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  padding: 1.5rem 0.5rem 0.375rem;
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.7) 0%, transparent 100%);
-  font-size: 0.6875rem;
-  color: rgba(255, 255, 255, 0.85);
-  z-index: 1;
-  pointer-events: none;
-}
-
-.scrim-size {
-  font-weight: 500;
-  font-variant-numeric: tabular-nums;
-}
-
-.scrim-date {
-  opacity: 0.7;
-}
-
-/* Hover overlay */
-.media-overlay {
-  position: absolute;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.6);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  opacity: 0;
-  transition: opacity var(--transition-fast);
-  z-index: 3;
-}
-
-.media-item:hover .media-overlay {
-  opacity: 1;
-}
-
-.overlay-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.25rem;
-  height: 2.25rem;
-  border-radius: var(--radius-md);
-  border: none;
-  background: var(--color-surface);
-  color: var(--color-text);
-  cursor: pointer;
-  transition: all var(--transition-fast);
-}
-
-.overlay-btn-icon {
-  width: 1rem;
-  height: 1rem;
-}
-
-.overlay-btn:hover {
-  background: var(--color-surface-hover);
-}
-
-.overlay-btn--danger:hover {
-  background: var(--color-danger-soft);
-  color: var(--color-danger);
-}
-
-/* Selection checkbox */
-.media-checkbox {
-  position: absolute;
-  top: 0.375rem;
-  left: 0.375rem;
-  cursor: pointer;
-  z-index: 4;
-  opacity: 0;
-  transition: opacity var(--transition-fast);
-}
-
-.media-item:hover .media-checkbox,
-.media-checkbox--visible {
-  opacity: 1;
-}
-
-.media-checkbox input {
-  width: 1rem;
-  height: 1rem;
-  accent-color: var(--color-primary);
-  cursor: pointer;
-}
-
-/* ===================================================================
-   Action bar (below thumbnail)
-   =================================================================== */
-.media-actions-bar {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 0.125rem;
-  padding: 0.25rem 0.375rem;
-  border-top: 1px solid var(--color-border);
-  background: var(--color-surface);
-}
-
-.bar-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.75rem;
-  height: 1.75rem;
-  border: none;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--color-text-subtle);
-  cursor: pointer;
-  transition: all var(--transition-fast);
-}
-
-.bar-btn:hover {
-  background: var(--color-surface-hover);
-  color: var(--color-text);
-}
-
-.bar-btn--danger:hover {
-  background: var(--color-danger-soft);
-  color: var(--color-danger);
-}
-
-.bar-btn-icon {
-  width: 0.875rem;
-  height: 0.875rem;
-}
-
 /* Touch devices: disable hover effects, always show controls */
 @media (hover: none) {
-  .media-item:hover {
-    transform: none;
-    box-shadow: none;
-    border-color: var(--color-border);
+  .group:hover {
+    transform: none !important;
+    box-shadow: none !important;
   }
 
-  .media-item--selected:hover {
-    border-color: var(--color-primary);
-    box-shadow: 0 0 0 1px var(--color-primary);
+  .group:hover img {
+    transform: none !important;
   }
 
-  .media-item:hover .media-thumb img {
-    transform: none;
+  /* Hide desktop overlay on touch */
+  .group .absolute.inset-0.bg-black\/50 {
+    display: none;
   }
 
-  .media-scrim {
-    opacity: 1;
-  }
-
-  .media-overlay {
-    opacity: 0;
-    pointer-events: none;
-  }
-
-  .media-checkbox {
-    opacity: 1;
-  }
-
-  .bar-btn {
+  /* Enlarge touch targets */
+  .flex.items-center.justify-center.w-7 {
     width: 2rem;
     height: 2rem;
-  }
-
-  .bar-btn-icon {
-    width: 1rem;
-    height: 1rem;
   }
 }
 </style>

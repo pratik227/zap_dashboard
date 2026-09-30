@@ -1,8 +1,8 @@
 <script setup>
-import { computed, inject, ref, onMounted, watch, defineEmits } from 'vue'
+import { computed, inject, ref, onMounted, onUnmounted, watch, defineEmits } from 'vue'
 
 const emit = defineEmits(['trigger-login', 'change-page'])
-import { IconBolt, IconCurrencyBitcoin, IconUsers, IconChartLine, IconAlertCircle, IconArrowRight, IconWallet } from '@iconify-prerendered/vue-tabler'
+import { IconBolt, IconCurrencyBitcoin, IconUsers, IconChartLine, IconAlertCircle, IconArrowRight, IconWallet, IconRefresh } from '@iconify-prerendered/vue-tabler'
 import { getNWCClient, getBalance, getWalletInfo } from '../utils/wallet/nwcClient.js'
 import { useNostrAuth } from '../composables/auth/useNostrAuth.js'
 import { useBtcPrice } from '../composables/core/useBtcPrice.js'
@@ -41,9 +41,8 @@ onMounted(async () => {
     
     VChart.value = VChartComponent
     isEchartsLoaded.value = true
-  } catch (error) {
-    console.error('Failed to load ECharts:', error)
-    echartsError.value = error.message
+  } catch (err) {
+    echartsError.value = err.message
   }
 })
 
@@ -52,6 +51,19 @@ const combinedZapData = inject('combinedZapData')
 const selectedTimeRange = inject('selectedTimeRange')
 const isWalletConnected = inject('isWalletConnected')
 const isAuthenticated = inject('isAuthenticated')
+const refreshZapData = inject('refreshZapData', null)
+
+// Refresh state
+const isRefreshing = ref(false)
+const handleRefresh = async () => {
+  isRefreshing.value = true
+  try {
+    await fetchWalletData()
+    if (refreshZapData) await refreshZapData()
+  } finally {
+    isRefreshing.value = false
+  }
+}
 
 // Use Nostr authentication to get user profile
 const { userProfile } = useNostrAuth()
@@ -63,6 +75,7 @@ const { btcPriceUSD, satsToUSD, formatUSD } = useBtcPrice()
 const walletBalance = ref(0)
 const walletInfo = ref(null)
 const isLoading = ref(false)
+const walletBalanceFailed = ref(false)
 
 // Computed property for personalized welcome message
 const welcomeMessage = computed(() => {
@@ -122,30 +135,30 @@ const noDataMessage = computed(() => {
   }
 })
 
-// Fetch real wallet data
+// Fetch real wallet data — handles partial failures gracefully
 async function fetchWalletData() {
   const client = getNWCClient()
   if (!client) return
 
   isLoading.value = true
-  try {
-    const [balance, info] = await Promise.all([
-      getBalance(),
-      getWalletInfo()
-    ])
-    
-    if (balance) {
-      walletBalance.value = Math.floor(balance.balance / 1000) // Convert msats to sats
-    }
-    
-    if (info) {
-      walletInfo.value = info
-    }
-  } catch (error) {
-    console.error('Failed to fetch wallet data:', error)
-  } finally {
-    isLoading.value = false
+  walletBalanceFailed.value = false
+
+  const [balanceResult, infoResult] = await Promise.allSettled([
+    getBalance(),
+    getWalletInfo()
+  ])
+
+  if (balanceResult.status === 'fulfilled' && balanceResult.value) {
+    walletBalance.value = Math.floor(balanceResult.value.balance / 1000)
+  } else {
+    walletBalanceFailed.value = true
   }
+
+  if (infoResult.status === 'fulfilled' && infoResult.value) {
+    walletInfo.value = infoResult.value
+  }
+
+  isLoading.value = false
 }
 
 // Watch for zapData changes to refresh wallet data
@@ -159,9 +172,14 @@ onMounted(() => {
   fetchWalletData()
 })
 
+onUnmounted(() => {
+  // Clean up loading state to prevent stale UI on remount
+  isLoading.value = false
+  isRefreshing.value = false
+})
+
 // Dynamic stats based on real data with 30-day comparison
 const stats = computed(() => {
-  console.log('🔍 Computing stats with real data...')
   const allZaps = combinedZapData.value
   
   // Determine which data to use based on connection status
@@ -199,8 +217,6 @@ const stats = computed(() => {
   
   // Get period comparison for 30 days (fixed period like the chart)
   const comparison = getPeriodComparison(zapsToAnalyze, '30d')
-  console.log('📈 Period comparison result:', comparison)
-  
   return {
     totalZaps: comparison.current.totalZaps,
     totalSats: comparison.current.totalSats,
@@ -410,11 +426,9 @@ const formatTimeAgo = (timestamp) => {
 
 // Get percentage change data for a specific metric
 const getPercentageChange = (metricType) => {
-  console.log(`🔍 Getting percentage change for ${metricType}:`, stats.value.changes[metricType])
   const change = stats.value.changes[metricType]
   
   if (!change) {
-    console.warn(`No change data found for metric: ${metricType}`)
     return { percentage: 0, trend: 'neutral', isNew: false }
   }
   
@@ -459,7 +473,7 @@ const getTrendColorClass = (change) => {
   <!-- Dashboard with Data -->
   <div v-else class="space-y-4 sm:space-y-6">
     <!-- Welcome Banner -->
-    <div class="bg-gradient-to-r from-orange-400 via-amber-400 to-yellow-400 text-white p-4 sm:p-6 rounded-xl shadow-lg">
+    <div class="bg-gradient-to-r from-orange-500 to-amber-500 text-white p-4 sm:p-6 rounded-xl shadow-sm">
       <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 class="text-xl sm:text-2xl font-bold mb-2 flex items-center space-x-2">
@@ -486,9 +500,21 @@ const getTrendColorClass = (change) => {
             </span>
           </p>
         </div>
-        <div v-if="isLoading" class="flex items-center space-x-2">
-          <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
-          <span class="text-sm">Loading...</span>
+        <div class="flex items-center space-x-2">
+          <button
+            @click="handleRefresh"
+            :disabled="isRefreshing"
+            class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white text-sm font-medium rounded-lg border border-white/30 hover:border-white/50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Refresh dashboard data"
+            aria-label="Refresh dashboard data"
+          >
+            <IconRefresh :class="['w-4 h-4', isRefreshing ? 'animate-spin' : '']" />
+            <span class="hidden sm:inline">Refresh</span>
+          </button>
+          <div v-if="isLoading" class="flex items-center space-x-2">
+            <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
+            <span class="text-sm">Loading...</span>
+          </div>
         </div>
       </div>
     </div>
@@ -600,9 +626,11 @@ const getTrendColorClass = (change) => {
           <VChart :autoresize="true" :option="chartOption" class="w-full h-full" />
         </div>
         
-        <!-- Loading State -->
-        <div v-else class="h-64 sm:h-80 flex items-center justify-center">
-          <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
+        <!-- Loading State (skeleton) -->
+        <div v-else class="h-64 sm:h-80 animate-pulse">
+          <div class="h-full bg-gray-100 rounded-lg flex items-end justify-around px-4 pb-4 gap-2">
+            <div v-for="i in 12" :key="i" class="flex-1 bg-gray-200/80 rounded-t" :style="{ height: `${20 + Math.sin(i * 0.8) * 30 + 30}%` }"></div>
+          </div>
         </div>
       </div>
 
@@ -643,21 +671,27 @@ const getTrendColorClass = (change) => {
               </p>
               <p class="text-xs text-gray-500">{{ zap.timeAgo }}</p>
             </div>
-            <div class="text-right">
-              <p class="text-sm font-semibold text-orange-600">{{ zap.amount }} sats</p>
-              <p class="text-xs text-gray-500">{{ zap.timeAgo }}</p>
+            <div class="text-right flex-shrink-0">
+              <p class="text-sm font-semibold text-orange-600">{{ zap.amount.toLocaleString() }} sats</p>
             </div>
           </div>
         </div>
       </div>
     </div>
-  </div>
+
+    <!-- Wallet Partial State Warning -->
+    <div v-if="walletBalanceFailed && !isLoading" class="bg-yellow-50 border border-yellow-200 rounded-xl px-4 py-2.5">
+      <div class="flex items-center justify-between">
+        <span class="text-yellow-800 text-sm">Balance unavailable — wallet may be slow to respond</span>
+        <button @click="fetchWalletData" class="text-yellow-700 hover:text-yellow-900 text-sm font-medium px-3 py-1 rounded-lg hover:bg-yellow-100 transition-colors">Retry</button>
+      </div>
+    </div>
 
     <!-- Wallet Balance Card -->
     <button
       v-if="walletBalance > 0"
       @click="emit('change-page', 'wallet')"
-      class="w-full mt-4 p-5 rounded-xl bg-gray-900 hover:bg-gray-850 border border-gray-800 hover:border-gray-700 shadow-md hover:shadow-lg transition-all duration-200 ease-out group cursor-pointer text-left"
+      class="w-full p-5 rounded-xl bg-gray-900 hover:bg-gray-800 border border-gray-800 hover:border-gray-700 shadow-sm hover:shadow-md transition-all duration-200 group cursor-pointer text-left"
     >
       <div class="flex items-center justify-between">
         <div class="flex-1">
@@ -678,4 +712,5 @@ const getTrendColorClass = (change) => {
         </div>
       </div>
     </button>
+  </div>
 </template>

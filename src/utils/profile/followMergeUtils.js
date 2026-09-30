@@ -42,7 +42,7 @@ export const mergeFollowLists = (existingFollows = [], newFollows = []) => {
     invalidFiltered: (existingFollows.length - validExisting.length) + (newFollows.length - validNew.length)
   }
   
-  console.log('Follow list merge completed:', stats)
+  // merge completed
   
   return {
     mergedFollows,

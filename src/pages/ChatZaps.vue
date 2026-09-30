@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, nextTick, watch } from 'vue'
+import { ref, computed, nextTick, watch, onUnmounted } from 'vue'
 import {
   IconPlus,
   IconX,
@@ -16,7 +16,7 @@ import { useNostrChat } from '../composables/social/useNostrChat.js'
 import { useNostrAuth } from '../composables/auth/useNostrAuth.js'
 import { useNostrConnections } from '../composables/core/useNostrConnections.js'
 import { makeInvoice, getUserFriendlyError } from '../utils/wallet/nwcClient.js'
-import * as nip19 from 'nostr-tools/nip19'
+import { nip19 } from '../services/nostr/nostrImports.js'
 import UserProfileModal from '../components/modals/UserProfileModal.vue'
 import ChatConversationList from '../components/chat/ChatConversationList.vue'
 import ChatMessageArea from '../components/chat/ChatMessageArea.vue'
@@ -54,16 +54,28 @@ const messageAreaRef = ref(null)
 const inputBarRef = ref(null)
 const sendError = ref('')
 
+// Inline status for login errors
+const inlineStatus = ref(null)
+let _statusTimer = null
+const showStatus = (message, type = 'error') => {
+  clearTimeout(_statusTimer)
+  inlineStatus.value = { message, type }
+  _statusTimer = setTimeout(() => { inlineStatus.value = null }, 4000)
+}
+
+onUnmounted(() => {
+  clearTimeout(_statusTimer)
+})
+
 // Methods
 const handleNostrLogin = async () => {
   try {
     await login()
-  } catch (error) {
-    console.error('Login failed:', error)
-    if (error.message.includes('No Nostr extension')) {
-      alert('No Nostr Extension Found\n\nPlease install a NIP-07 browser extension like:\n• Alby (getalby.com)\n• nos2x\n• Flamingo\n\nThen refresh this page.')
+  } catch (err) {
+    if (err.message?.includes('No Nostr extension')) {
+      showStatus('No Nostr extension found. Please install a NIP-07 browser extension — we recommend Jump by Buho (from the ZapTracker founders, available for Firefox & Chrome), or Alby, nos2x, or Flamingo — and refresh this page.')
     } else {
-      alert('Login failed: ' + error.message)
+      showStatus(getUserFriendlyError(err))
     }
   }
 }
@@ -171,6 +183,19 @@ watch(activeConversation, (conv) => {
 </script>
 
 <template>
+  <div>
+    <!-- Inline Status Banner -->
+    <transition name="slide-down">
+      <div v-if="inlineStatus" role="status" aria-live="polite" :class="[
+        'mb-4 px-4 py-3 rounded-lg text-sm font-medium',
+        inlineStatus.type === 'error' ? 'bg-red-50 text-red-800 border border-red-200' :
+        inlineStatus.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' :
+        'bg-blue-50 text-blue-800 border border-blue-200'
+      ]">
+        {{ inlineStatus.message }}
+      </div>
+    </transition>
+
   <div class="h-[calc(100vh-160px)] sm:h-[calc(100vh-180px)] lg:h-[calc(100vh-200px)] flex bg-white rounded-xl border border-orange-100/50 shadow-sm overflow-hidden">
 
     <!-- Auth Banner -->
@@ -402,6 +427,7 @@ watch(activeConversation, (conv) => {
       :user-profile-data="selectedProfile"
       @close="showProfileModal = false; selectedProfile = null"
     />
+  </div>
   </div>
 </template>
 

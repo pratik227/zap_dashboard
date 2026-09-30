@@ -1,9 +1,8 @@
 import { ref, computed, watch } from 'vue'
 import { useNostrAuth } from '../auth/useNostrAuth.js'
-import { nostrRelayManager } from '../../utils/network/nostrRelayManager.js'
-import { subscribe } from '../../utils/network/subscribe.js'
+import { nostrService } from '../../services/nostr/NostrService.js'
 import { parseZapReceipt } from '../../utils/zaps/parseZapReceipt.js'
-import { fetchProfile, batchFetchProfiles, profileCache } from '../../utils/profile/profileFetcher.js'
+import { profileService } from '../../services/nostr/ProfileService.js'
 import { generateAvatar } from '../../utils/profile/avatarGenerator.js'
 
 // Module-scope state (shared across all component instances)
@@ -47,7 +46,7 @@ export function useUserZaps() {
 
     try {
       // Phase 1: Historical fetch
-      const rawZapEvents = await subscribe(
+      const rawZapEvents = await nostrService.query(
         [{ kinds: [9735], '#p': [pubkey], limit: 500 }],
         { timeout: 25000, eoseGrace: 3000 }
       )
@@ -71,12 +70,12 @@ export function useUserZaps() {
 
       // Phase 3: Batch fetch profiles for all unique zappers
       const uniquePubkeys = [...new Set(parsedZaps.map(z => z.zapperPubkey))]
-      await batchFetchProfiles(uniquePubkeys)
+      await profileService.batch(uniquePubkeys)
 
       // Phase 4: Enrich zaps with profile data
       const enriched = parsedZaps.map(parsed => {
-        const cached = profileCache.get(parsed.zapperPubkey)
-        return enrichZap(parsed, cached?.profile || null)
+        const cached = profileService.getCached(parsed.zapperPubkey)
+        return enrichZap(parsed, cached || null)
       })
 
       // Sort newest first
@@ -90,7 +89,7 @@ export function useUserZaps() {
       }
 
       const nonce = ++subNonce
-      liveSubscription = nostrRelayManager.subscribeToEvents(
+      liveSubscription = nostrService.subscribe(
         [{ kinds: [9735], '#p': [pubkey], since: Math.floor(Date.now() / 1000) }],
         {
           _nonce: nonce,
@@ -102,7 +101,7 @@ export function useUserZaps() {
             // Fetch profile for the new zapper
             let profile = null
             try {
-              profile = await fetchProfile(parsed.zapperPubkey)
+              profile = await profileService.get(parsed.zapperPubkey)
             } catch { /* use fallback */ }
 
             const enriched = enrichZap(parsed, profile)

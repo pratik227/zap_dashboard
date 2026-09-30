@@ -150,6 +150,21 @@ Media library for uploading, browsing, and managing files via Blossom servers.
 - `useMediaState.js` - Shared media state (files, filters, counts)
 - `useBlossom.js` - Blossom server upload/delete operations
 
+### Content Bridge & Import (`bridge/`, `import/`)
+Bring content from other platforms to Nostr. Both publish long-form posts with the same deterministic d-tag, so an article imported once and later syndicated is never duplicated.
+
+**Content Bridge** (`pages/ContentBridge.vue`) — connect a blog's RSS/Atom feed (Ghost, Substack, Medium, WordPress, Blogger, Discourse) and cross-post or auto-publish new posts while the app is open.
+- `composables/content/useContentBridge.js` - Feeds, syndication history, refresh-cycle checks, auto-publish
+- `services/bridge/bridgeClient.js` - Feed discovery/fetching and Blossom media mirroring via the proxy
+- `utils/bridge/` - Feed parser, HTML → Markdown, NIP-23 / kind 1 event builders
+- `netlify/functions/bridge-proxy.mjs` - CORS proxy for feeds and images (SSRF-guarded); served by a Vite middleware in dev
+
+**Import** (`pages/ImportContent.vue`) — upload a data export (X/Twitter, Instagram, Facebook, TikTok, Substack, Medium, Ghost, WordPress, Blogger) and choose what to publish.
+- `composables/content/useContentImport.js` - Parse, select, sequential import job (pause/cancel), import history
+- `utils/import/zipReader.js` - Random-access ZIP reader over `Blob.slice` + `DecompressionStream` (handles multi-GB archives)
+- `utils/import/socialParsers.js`, `blogParsers.js`, `detectExport.js` - Per-platform parsers and auto-detection
+- `utils/import/importToEvent.js` - Kind 1 notes with NIP-92 `imeta` tags and NIP-10 thread tags
+
 ### Layout (`layout/`)
 Core layout components.
 
@@ -237,12 +252,24 @@ General-purpose utilities used across the application.
 - `timeFilter.js` - Time filtering utilities
 
 ### Network Utilities (`utils/network/`)
-Nostr relay and Lightning Network utilities.
+Lightning Network utilities.
 
 **Files:**
 - `lightningNetworkService.js` - Lightning Network service
 - `lightningStatsService.js` - Lightning stats fetching
-- `nostrRelayManager.js` - Nostr relay connection management
+
+### Nostr Service Layer (`services/nostr/`)
+Centralized Nostr protocol abstraction powered by nostr-core v0.6.0.
+
+**Files:**
+- `NostrService.js` - Relay pool management, subscriptions, publishing, health checks, backoff
+- `nostrImports.js` - Single source of truth for all nostr-core re-exports and compatibility shims
+- `CacheManager.js` - Centralized cache with namespaces (events, profiles, contacts, search, badges)
+- `ProfileService.js` - Profile fetching with dedup, batch support, and cache integration
+- `WalletService.js` - NWC wallet abstraction (connect, pay, balance, transactions)
+- `SignerService.js` - Signer abstraction (NIP-07 extension, encrypt/decrypt)
+- `errors.js` - Typed error classes (RelayError, SignerError, SubscriptionError)
+- `index.js` - Barrel export for all services
 
 ### Core Composables (`composables/core/`)
 Core application-wide composables.

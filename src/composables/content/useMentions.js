@@ -1,9 +1,9 @@
 import { ref, computed } from 'vue'
 import { useNostrAuth } from '../auth/useNostrAuth.js'
-import { nostrRelayManager } from '../../utils/network/nostrRelayManager.js'
-import * as nip19 from 'nostr-tools/nip19'
-import { queryProfile, isNip05 } from 'nostr-tools/nip05'
-import { fetchProfile } from '../../utils/profile/profileFetcher.js'
+import { nostrService } from '../../services/nostr/NostrService.js'
+import { nip19, nip27 } from '../../services/nostr/nostrImports.js'
+import { queryProfile, isNip05 } from '../../services/nostr/nostrImports.js'
+import { profileService } from '../../services/nostr/ProfileService.js'
 
 // Cache for user search results
 const searchCache = new Map() // key: query, value: { results, timestamp }
@@ -41,7 +41,7 @@ export function useMentions() {
     
     try {
       
-      const contactEvent = await nostrRelayManager.getEvent({
+      const contactEvent = await nostrService.queryOne({
         kinds: [3], // Contact list (NIP-02)
         authors: [currentUser.value.pubkey],
         limit: 1
@@ -90,11 +90,11 @@ export function useMentions() {
   }
   
   /**
-   * Fetch a single user profile using shared profileFetcher
+   * Fetch a single user profile using ProfileService
    */
   const fetchUserProfile = async (pubkey) => {
     try {
-      const profile = await fetchProfile(pubkey)
+      const profile = await profileService.get(pubkey)
       if (!profile) return { pubkey }
       return {
         pubkey,
@@ -282,7 +282,7 @@ export function useMentions() {
       const events = []
       
       // Subscribe with NIP-50 search filter
-      const sub = nostrRelayManager.subscribeToEvents([{
+      const sub = nostrService.subscribe([{
         kinds: [0], // Profile metadata
         search: query, // NIP-50 search field
         limit: limit
@@ -330,40 +330,22 @@ export function useMentions() {
   }
   
   /**
-   * Parse mentions from text content
+   * Parse mentions from text content using NIP-27 content references.
    * Returns array of { pubkey, name, startIndex, endIndex }
    */
   const parseMentions = (content) => {
-    const mentions = []
-    
-    // Match nostr: URIs (NIP-21)
-    const nostrUriRegex = /nostr:(npub1[a-z0-9]{58,}|nprofile1[a-z0-9]+)/gi
-    let match
-    
-    while ((match = nostrUriRegex.exec(content)) !== null) {
-      try {
-        const decoded = nip19.decode(match[1])
-        if (decoded.type === 'npub') {
-          mentions.push({
-            pubkey: decoded.data,
-            startIndex: match.index,
-            endIndex: match.index + match[0].length,
-            raw: match[0]
-          })
-        } else if (decoded.type === 'nprofile') {
-          mentions.push({
-            pubkey: decoded.data.pubkey,
-            startIndex: match.index,
-            endIndex: match.index + match[0].length,
-            raw: match[0]
-          })
-        }
-      } catch (err) {
-        // Invalid nostr URI
-      }
-    }
-    
-    return mentions
+    const references = nip27.extractReferences(content)
+
+    return references
+      .filter(ref => ref.decoded.type === 'npub' || ref.decoded.type === 'nprofile')
+      .map(ref => ({
+        pubkey: ref.decoded.type === 'npub'
+          ? ref.decoded.data
+          : ref.decoded.data.pubkey,
+        startIndex: ref.start,
+        endIndex: ref.end,
+        raw: ref.uri
+      }))
   }
   
   /**

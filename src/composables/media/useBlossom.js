@@ -3,6 +3,7 @@
  */
 
 import { onMounted, watch } from 'vue'
+import { signerService } from '../../services/nostr/SignerService.js'
 import { useNostrAuth } from '../auth/useNostrAuth.js'
 import { useMediaState } from './useMediaState.js'
 import {
@@ -24,8 +25,8 @@ export function useBlossom({ autoFetch = true } = {}) {
   }
 
   async function signEvent(unsignedEvent) {
-    if (!window.nostr) return null
-    return window.nostr.signEvent(unsignedEvent)
+    if (!signerService.isConnected) return null
+    return signerService.signEvent(unsignedEvent)
   }
 
   async function refresh() {

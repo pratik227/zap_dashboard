@@ -4,7 +4,7 @@ import { useMentions } from '../../composables/content/useMentions.js'
 import { useAudience } from '../../composables/audience/useAudience.js'
 import { generateAvatar } from '../../utils/profile/avatarGenerator.js'
 import ProfileHoverCard from '../profile/ProfileHoverCard.vue'
-import * as nip19 from 'nostr-tools/nip19'
+import { nip19 } from '../../services/nostr/nostrImports.js'
 
 const props = defineProps({
   content: {

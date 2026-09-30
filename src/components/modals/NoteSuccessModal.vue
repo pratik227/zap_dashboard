@@ -5,6 +5,8 @@
         v-if="show"
         class="fixed inset-0 z-[9999]"
         @click.self="handleBackdropClick"
+        @keydown.escape="$emit('close')"
+        tabindex="-1"
       >
         <!-- Backdrop -->
         <div class="success-modal-backdrop absolute inset-0 bg-black/50 backdrop-blur-sm" @click="handleBackdropClick"></div>
@@ -136,7 +138,7 @@ import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { useNostrAuth } from '../../composables/auth/useNostrAuth.js'
 import { generateAvatar } from '../../utils/profile/avatarGenerator.js'
 import { IconCheck, IconX, IconExternalLink, IconArrowUpRight, IconClock } from '@iconify-prerendered/vue-tabler'
-import { neventEncode, naddrEncode } from 'nostr-tools/nip19'
+import { neventEncode, naddrEncode } from '../../services/nostr/nostrImports.js'
 
 const props = defineProps({
   show: {

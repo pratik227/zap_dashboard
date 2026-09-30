@@ -115,10 +115,22 @@ const closeDetail = () => {
       </div>
     </div>
 
-    <!-- Loading State -->
-    <div v-if="isLoading" class="bg-white rounded-xl p-12 text-center border border-orange-100">
-      <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
-      <p class="text-gray-600">Loading Lightning Network data...</p>
+    <!-- Loading State (skeleton) -->
+    <div v-if="isLoading" class="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-pulse">
+      <div class="lg:col-span-2 bg-white rounded-xl p-6 border border-gray-200/60">
+        <div class="h-4 bg-gray-200 rounded w-48 mb-4"></div>
+        <div class="h-64 bg-gray-100 rounded-lg"></div>
+      </div>
+      <div class="bg-white rounded-xl p-6 border border-gray-200/60">
+        <div class="h-4 bg-gray-200 rounded w-32 mb-4"></div>
+        <div class="space-y-3">
+          <div v-for="i in 6" :key="i" class="flex items-center gap-3">
+            <div class="w-8 h-5 bg-gray-200 rounded"></div>
+            <div class="flex-1 h-3 bg-gray-100 rounded"></div>
+            <div class="w-12 h-3 bg-gray-200 rounded"></div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Map View -->

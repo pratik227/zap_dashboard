@@ -2,11 +2,11 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import {
   IconBolt, IconBell, IconUser, IconRefresh,
-  IconAward, IconExternalLink, IconCheck, IconCopy,
+  IconExternalLink, IconCheck, IconCopy,
   IconPlugConnected, IconShield, IconKey, IconGlobe,
   IconEdit, IconLogout, IconLoader, IconAlertCircle
 } from '@iconify-prerendered/vue-tabler'
-import * as nip19 from 'nostr-tools/nip19'
+import { nip19 } from '../services/nostr/nostrImports.js'
 import SettingsConnections from '../components/settings/SettingsConnections.vue'
 import NotificationSettings from '../components/settings/NotificationSettings.vue'
 import NostrSettings from '../components/settings/NostrSettings.vue'
@@ -25,10 +25,15 @@ const {
   authError,
   isAuthenticated,
   login,
+  loginWithRemote,
   logout,
   refreshUserProfile
 } = useNostrAuth()
-const { getUserBadgeCount, initUserBadges } = useBadges()
+const { initUserBadges, isLoadingPubkey } = useBadges()
+
+const badgesLoading = computed(() =>
+  currentUser.value?.pubkey ? isLoadingPubkey(currentUser.value.pubkey) : false
+)
 
 // Define props to receive the initial tab from parent
 const props = defineProps({
@@ -46,17 +51,16 @@ const activeTab = ref('profile')
 const showBadgeDetailModal = ref(false)
 const selectedBadge = ref(null)
 const copySuccess = ref('')
+const localLoginError = ref('')
 const showProfileEditor = ref(false)
+const showLoginOptions = ref(false)
+const bunkerUri = ref('')
+const loginMode = ref(null) // null | 'extension' | 'remote'
 
 const handleBadgeClick = (badge) => {
   selectedBadge.value = badge
   showBadgeDetailModal.value = true
 }
-
-// Badge count
-const badgeCount = computed(() => {
-  return currentUser.value?.pubkey ? getUserBadgeCount(currentUser.value.pubkey) : 0
-})
 
 // Profile computed
 const displayName = computed(() => {
@@ -95,13 +99,29 @@ const copyToClipboard = async (text) => {
 const handleLogin = async () => {
   try {
     await login()
+    showLoginOptions.value = false
+    loginMode.value = null
   } catch (error) {
     console.error('Login failed:', error)
-    if (error.message.includes('No Nostr extension')) {
-      alert('No Nostr Extension Found\n\nPlease install a NIP-07 browser extension like:\n• Alby (getalby.com)\n• nos2x\n• Flamingo\n\nThen refresh this page.')
-    } else {
-      alert('Login failed: ' + error.message)
-    }
+  }
+}
+
+const handleRemoteLogin = async () => {
+  if (!bunkerUri.value.trim()) return
+  try {
+    await loginWithRemote(bunkerUri.value.trim())
+    showLoginOptions.value = false
+    loginMode.value = null
+    bunkerUri.value = ''
+  } catch (error) {
+    console.error('Remote login failed:', error)
+  }
+}
+
+const selectLoginMode = (mode) => {
+  loginMode.value = mode
+  if (mode === 'extension') {
+    handleLogin()
   }
 }
 
@@ -150,22 +170,22 @@ watch(() => props.initialTab, (newTab) => {
 <template>
   <div class="space-y-6">
     <!-- Elegant Settings Container -->
-    <div class="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
-      <!-- Modern Tab Navigation -->
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-200/60 overflow-hidden">
+      <!-- Tab Navigation -->
       <div class="border-b border-gray-100 bg-gray-50/50">
-        <nav class="flex space-x-2 px-6 py-4 overflow-x-auto scrollbar-hide" aria-label="Settings tabs">
+        <nav class="flex space-x-1 px-4 sm:px-6 py-3 overflow-x-auto scrollbar-hide" aria-label="Settings tabs">
           <button
             v-for="tab in tabs"
             :key="tab.id"
             @click="activeTab = tab.id"
             :class="[
-              'flex items-center gap-2.5 px-5 py-3 font-semibold text-sm whitespace-nowrap transition-all duration-300 rounded-2xl flex-shrink-0',
+              'flex items-center gap-2 px-4 py-2 font-medium text-sm whitespace-nowrap transition-all duration-150 rounded-xl flex-shrink-0',
               activeTab === tab.id
-                ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/30'
+                ? 'bg-orange-500 text-white shadow-sm'
                 : 'text-gray-600 hover:text-gray-900 hover:bg-white'
             ]"
           >
-            <component :is="tab.icon" class="w-5 h-5" />
+            <component :is="tab.icon" class="w-4.5 h-4.5" />
             <span>{{ tab.label }}</span>
           </button>
         </nav>
@@ -177,26 +197,98 @@ watch(() => props.initialTab, (newTab) => {
         <div v-if="activeTab === 'profile'" class="space-y-5">
           <!-- Not Authenticated -->
           <div v-if="!isAuthenticated" class="max-w-md mx-auto">
-            <div class="bg-white rounded-3xl p-10 sm:p-12 text-center shadow-sm border border-gray-100">
+            <div class="bg-white rounded-2xl p-10 sm:p-12 text-center shadow-sm border border-gray-200/60">
               <div class="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 bg-gradient-to-br from-orange-100 to-orange-50">
                 <img src="/nostr-logo/nostr10.png" alt="Nostr Logo" class="w-12 h-12 object-contain" />
               </div>
               <h2 class="text-2xl font-semibold text-gray-900 mb-2">Connect Your Identity</h2>
-              <p class="text-gray-500 text-sm mb-6 leading-relaxed">Sign in with your Nostr identity to unlock social features.</p>
-              <button
-                @click="handleLogin"
-                :disabled="isLoading"
-                class="inline-flex items-center justify-center gap-2 w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl font-medium text-sm hover:shadow-lg hover:shadow-orange-500/20 transition-all duration-200 disabled:opacity-50"
-              >
-                <IconLoader v-if="isLoading" class="w-4 h-4 animate-spin" />
-                <IconUser v-else class="w-4 h-4" />
-                {{ isLoading ? 'Connecting...' : 'Connect with Nostr' }}
-              </button>
-              <div v-if="authError" class="mt-4 bg-red-50 border border-red-100 rounded-xl p-3">
+              <p class="text-gray-500 text-sm mb-6 leading-relaxed">Choose how to sign in to your Nostr identity.</p>
+
+              <!-- Login Method Selection -->
+              <div v-if="loginMode === null" class="space-y-3">
+                <!-- Browser Extension (NIP-07) -->
+                <button
+                  @click="selectLoginMode('extension')"
+                  :disabled="isLoading"
+                  class="w-full flex items-center gap-4 p-4 bg-gray-50 hover:bg-orange-50 border border-gray-200 hover:border-orange-300 rounded-2xl transition-all group"
+                >
+                  <div class="w-12 h-12 bg-orange-100 group-hover:bg-orange-200 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors">
+                    <IconKey class="w-6 h-6 text-orange-600" />
+                  </div>
+                  <div class="text-left flex-1">
+                    <p class="text-sm font-semibold text-gray-900">Browser Extension</p>
+                    <p class="text-xs text-gray-500">Alby, nos2x, Flamingo, or other NIP-07 extension</p>
+                  </div>
+                </button>
+
+                <!-- Remote Signer (NIP-46) -->
+                <button
+                  @click="loginMode = 'remote'"
+                  :disabled="isLoading"
+                  class="w-full flex items-center gap-4 p-4 bg-gray-50 hover:bg-purple-50 border border-gray-200 hover:border-purple-300 rounded-2xl transition-all group"
+                >
+                  <div class="w-12 h-12 bg-purple-100 group-hover:bg-purple-200 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors">
+                    <IconPlugConnected class="w-6 h-6 text-purple-600" />
+                  </div>
+                  <div class="text-left flex-1">
+                    <p class="text-sm font-semibold text-gray-900">Remote Signer (NIP-46)</p>
+                    <p class="text-xs text-gray-500">Amber, nsec.app, or other bunker signer</p>
+                  </div>
+                </button>
+              </div>
+
+              <!-- NIP-46 Remote Signer Input -->
+              <div v-if="loginMode === 'remote'" class="space-y-4">
+                <div class="text-left">
+                  <label class="block text-xs font-medium text-gray-700 mb-1.5">Connection URI</label>
+                  <input
+                    v-model="bunkerUri"
+                    type="text"
+                    placeholder="bunker://... or nostrconnect://..."
+                    class="w-full px-4 py-3 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    @keyup.enter="handleRemoteLogin"
+                  />
+                  <p class="text-xs text-gray-400 mt-1.5">Get this from your signer app (Amber, nsec.app)</p>
+                </div>
+
+                <div class="flex gap-2">
+                  <button
+                    @click="loginMode = null; bunkerUri = ''"
+                    class="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-200 transition-colors"
+                  >
+                    Back
+                  </button>
+                  <button
+                    @click="handleRemoteLogin"
+                    :disabled="isLoading || !bunkerUri.trim()"
+                    class="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-xl text-sm font-medium hover:shadow-lg hover:shadow-purple-500/20 transition-all disabled:opacity-50"
+                  >
+                    <IconLoader v-if="isLoading" class="w-4 h-4 animate-spin" />
+                    <IconPlugConnected v-else class="w-4 h-4" />
+                    {{ isLoading ? 'Connecting...' : 'Connect' }}
+                  </button>
+                </div>
+              </div>
+
+              <!-- Loading state for extension login -->
+              <div v-if="loginMode === 'extension' && isLoading" class="mt-4 flex items-center justify-center gap-2 text-orange-600">
+                <IconLoader class="w-4 h-4 animate-spin" />
+                <span class="text-sm">Connecting to extension...</span>
+              </div>
+
+              <!-- Error display -->
+              <div v-if="authError || localLoginError" class="mt-4 bg-red-50 border border-red-100 rounded-xl p-3">
                 <div class="flex items-center justify-center gap-2 text-sm text-red-600">
                   <IconAlertCircle class="w-4 h-4 flex-shrink-0" />
-                  <span>{{ authError }}</span>
+                  <span>{{ localLoginError || authError }}</span>
                 </div>
+                <button
+                  v-if="loginMode !== null"
+                  @click="loginMode = null; localLoginError = ''"
+                  class="mt-2 text-xs text-red-500 hover:text-red-700 underline"
+                >
+                  Try a different method
+                </button>
               </div>
             </div>
           </div>
@@ -204,7 +296,7 @@ watch(() => props.initialTab, (newTab) => {
           <!-- Authenticated Profile -->
           <template v-else>
             <!-- Profile Card -->
-            <div class="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-200/60 overflow-hidden">
               <!-- Banner -->
               <div class="h-32 sm:h-40 bg-gradient-to-br from-orange-400 via-orange-500 to-orange-600 relative overflow-hidden">
                 <img
@@ -228,9 +320,6 @@ watch(() => props.initialTab, (newTab) => {
                         @error="$event.target.src = generateAvatar(currentUser?.pubkey)"
                       />
                     </div>
-                    <div v-if="badgeCount > 0" class="absolute -bottom-1 -right-1 bg-orange-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center shadow">
-                      {{ badgeCount }}
-                    </div>
                   </div>
 
                   <!-- Desktop Actions -->
@@ -252,6 +341,20 @@ watch(() => props.initialTab, (newTab) => {
                   <h2 class="text-xl font-bold text-gray-900">{{ displayName }}</h2>
                   <p class="text-gray-500 text-xs font-mono mt-0.5">{{ shortNpub }}</p>
                   <p v-if="userProfile?.about" class="text-sm text-gray-600 mt-2 max-w-lg">{{ userProfile.about }}</p>
+                </div>
+
+                <!-- Nostr Badges (NIP-58) -->
+                <div v-if="currentUser?.pubkey" class="mb-4">
+                  <BadgeList
+                    :pubkey="currentUser.pubkey"
+                    :loading="badgesLoading"
+                    :show-count="false"
+                    :show-view-all="false"
+                    layout="grid"
+                    @badge-click="handleBadgeClick"
+                  >
+                    <template #empty></template>
+                  </BadgeList>
                 </div>
 
                 <!-- Status Badges -->
@@ -343,61 +446,6 @@ watch(() => props.initialTab, (newTab) => {
               </div>
             </div>
 
-            <!-- Badges Section -->
-            <div class="space-y-4">
-              <div class="flex items-center justify-between">
-                <div class="flex items-center space-x-2">
-                  <IconAward class="w-5 h-5 text-orange-600" />
-                  <h3 class="text-lg font-semibold text-gray-900">Badges</h3>
-                  <span v-if="badgeCount > 0" class="text-sm text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">{{ badgeCount }}</span>
-                </div>
-              </div>
-
-              <div class="bg-gray-50 rounded-xl p-6">
-                <BadgeList
-                  v-if="currentUser?.pubkey"
-                  :pubkey="currentUser.pubkey"
-                  size="large"
-                  :show-count="false"
-                  :show-view-all="false"
-                  layout="grid"
-                  @badge-click="handleBadgeClick"
-                >
-                  <template #empty>
-                    <div class="text-center py-6">
-                      <IconAward class="w-12 h-12 mx-auto text-gray-300 mb-3" />
-                      <h4 class="text-lg font-medium text-gray-900 mb-2">No Badges Yet</h4>
-                      <p class="text-gray-500 text-sm mb-4">Earn badges from the Nostr community to showcase here.</p>
-                    </div>
-                  </template>
-                </BadgeList>
-              </div>
-            </div>
-
-            <!-- BadgeBox Info -->
-            <div class="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-xl p-5">
-              <div class="flex items-start space-x-4">
-                <div class="w-10 h-10 bg-orange-500 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <IconAward class="w-5 h-5 text-white" />
-                </div>
-                <div class="flex-1">
-                  <h4 class="font-semibold text-gray-900 mb-1">BadgeBox — Nostr Badge Manager</h4>
-                  <p class="text-sm text-gray-700 mb-3">
-                    BadgeBox is a PWA for managing NIP-58 badges on Nostr. Create, issue, and display badges
-                    to recognize community members and build reputation across the network.
-                  </p>
-                  <a
-                    href="https://badgebox.rinbal.de"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="inline-flex items-center space-x-2 px-4 py-2 bg-orange-500 text-white rounded-lg text-sm font-medium hover:bg-orange-600 transition-colors"
-                  >
-                    <IconExternalLink class="w-4 h-4" />
-                    <span>Open BadgeBox</span>
-                  </a>
-                </div>
-              </div>
-            </div>
           </template>
         </div>
 

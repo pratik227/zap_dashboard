@@ -1,10 +1,9 @@
 import { ref, computed, watch } from 'vue'
 import { useNostrAuth } from '../auth/useNostrAuth.js'
-import { nostrRelayManager } from '../../utils/network/nostrRelayManager.js'
-import { nip04, nip44, hexToBytes } from 'nostr-core'
-import { finalizeEvent, verifyEvent } from 'nostr-tools/pure'
-import * as nip19 from 'nostr-tools/nip19'
-import { fetchProfile } from '../../utils/profile/profileFetcher.js'
+import { nostrService } from '../../services/nostr/NostrService.js'
+import { nip19, verifyEvent } from '../../services/nostr/nostrImports.js'
+import { signerService } from '../../services/nostr/SignerService.js'
+import { profileService } from '../../services/nostr/ProfileService.js'
 import { generateAvatar } from '../../utils/profile/avatarGenerator.js'
 
 /**
@@ -82,22 +81,9 @@ const trackEventId = (id) => {
   return false
 }
 
-// NIP-44 conversation key cache
-const conversationKeyCache = new Map()
-
 // Reactivity version counter — incremented to force computed re-evaluation
 const _version = ref(0)
 const triggerUpdate = () => { _version.value++ }
-
-const getOrCreateConversationKey = (privkeyHex, pubkeyHex) => {
-  if (conversationKeyCache.has(pubkeyHex)) {
-    return conversationKeyCache.get(pubkeyHex)
-  }
-  const privkeyBytes = hexToBytes(privkeyHex)
-  const convKey = nip44.getConversationKey(privkeyBytes, pubkeyHex)
-  conversationKeyCache.set(pubkeyHex, convKey)
-  return convKey
-}
 
 // Message structure
 const createMessage = (event, decryptedContent, isOutgoing = false) => {
@@ -131,119 +117,38 @@ const createConversation = (pubkey, profile = null) => {
   }
 }
 
-// Fetch user profile using centralized profileFetcher
+// Fetch user profile using ProfileService
 const fetchUserProfile = async (pubkey) => {
-  const profile = await fetchProfile(pubkey, { ttl: 3600000 })
+  const profile = await profileService.get(pubkey)
   if (profile && !profile.picture) {
     profile.picture = generateAvatar(pubkey)
   }
   return profile
 }
 
-// Unified encrypt helper — prefers NIP-44, falls back to NIP-04
-const encryptMessage = async (content, recipientPubkey, currentUser) => {
-  if (window.nostr?.nip44?.encrypt) {
-    try {
-      return await window.nostr.nip44.encrypt(recipientPubkey, content)
-    } catch (e) {
-      console.warn('NIP-44 extension encrypt failed, trying fallback:', e.message)
-    }
+// Unified encrypt helper — delegates to SignerService
+// Prefers NIP-44 (modern), falls back to NIP-04 (legacy)
+// Returns { ciphertext, nip } so callers know which version was used
+const encryptMessage = async (content, recipientPubkey) => {
+  const result = await signerService.encrypt(recipientPubkey, content, 'nip44')
+  if (result.nip !== 'nip44') {
+    console.warn(`Chat: encrypted with ${result.nip} (NIP-44 unavailable) for ${recipientPubkey.slice(0, 8)}`)
   }
-  if (currentUser.privkey) {
-    try {
-      const convKey = getOrCreateConversationKey(currentUser.privkey, recipientPubkey)
-      return nip44.encrypt(content, convKey)
-    } catch (e) {
-      console.warn('NIP-44 local encrypt failed, trying NIP-04:', e.message)
-    }
-  }
-  if (window.nostr?.nip04?.encrypt) {
-    try {
-      return await window.nostr.nip04.encrypt(recipientPubkey, content)
-    } catch (e) {
-      console.warn('NIP-04 extension encrypt failed:', e.message)
-    }
-  }
-  if (currentUser.privkey) {
-    try {
-      return nip04.encrypt(currentUser.privkey, recipientPubkey, content)
-    } catch (e) {
-      console.warn('NIP-04 local encrypt failed:', e.message)
-    }
-  }
-  throw new Error('No encryption method available')
+  return result
 }
 
-// Detect NIP-04 content format: <base64>?iv=<base64>
-const isNip04Content = (content) => {
-  return typeof content === 'string' && content.includes('?iv=')
-}
-
-// NIP-04 only decrypt chain (extension → local)
-const decryptNip04 = async (content, counterpartyPubkey, currentUser) => {
-  if (window.nostr?.nip04?.decrypt) {
-    try {
-      return await window.nostr.nip04.decrypt(counterpartyPubkey, content)
-    } catch (e) {
-      console.warn('NIP-04 extension decrypt failed:', e.message)
-    }
-  }
-  if (currentUser.privkey) {
-    try {
-      return nip04.decrypt(currentUser.privkey, counterpartyPubkey, content)
-    } catch (e) {
-      console.warn('NIP-04 local decrypt failed:', e.message)
-    }
-  }
-  return null
-}
-
-// NIP-44 only decrypt chain (extension → local)
-const decryptNip44 = async (content, counterpartyPubkey, currentUser) => {
-  if (window.nostr?.nip44?.decrypt) {
-    try {
-      return await window.nostr.nip44.decrypt(counterpartyPubkey, content)
-    } catch (e) {
-      console.warn('NIP-44 extension decrypt failed:', e.message)
-    }
-  }
-  if (currentUser.privkey) {
-    try {
-      const convKey = getOrCreateConversationKey(currentUser.privkey, counterpartyPubkey)
-      return nip44.decrypt(content, convKey)
-    } catch (e) {
-      console.warn('NIP-44 local decrypt failed:', e.message)
-    }
-  }
-  return null
-}
-
-// Unified decrypt helper — detects format, tries appropriate chain first
-const decryptMessage = async (content, counterpartyPubkey, currentUser) => {
-  // NIP-04 format detected — skip NIP-44 attempts entirely
-  if (isNip04Content(content)) {
-    const result = await decryptNip04(content, counterpartyPubkey, currentUser)
-    if (result !== null) return result
-    throw new Error('No decryption method available for NIP-04 content')
-  }
-
-  // Unknown format — try NIP-44 first, then fall back to NIP-04
-  const nip44Result = await decryptNip44(content, counterpartyPubkey, currentUser)
-  if (nip44Result !== null) return nip44Result
-
-  const nip04Result = await decryptNip04(content, counterpartyPubkey, currentUser)
-  if (nip04Result !== null) return nip04Result
-
-  throw new Error('No decryption method available')
+// Unified decrypt helper — delegates to SignerService
+// Auto-detects NIP-04 vs NIP-44 format
+const decryptMessage = async (content, counterpartyPubkey) => {
+  return signerService.decrypt(counterpartyPubkey, content)
 }
 
 // Unwrap a NIP-17 gift wrap (kind 1059) → seal (kind 13) → rumor (kind 14)
-// Returns { senderPubkey, content, timestamp } or null on failure
-const unwrapGiftWrap = async (event, currentUser) => {
+// Uses SignerService for decryption at each layer
+const unwrapGiftWrap = async (event) => {
   try {
     // Layer 1: Decrypt the gift wrap to get the seal
-    // The gift wrap pubkey is a random throwaway key
-    const sealJson = await decryptNip44(event.content, event.pubkey, currentUser)
+    const sealJson = await signerService.decrypt(event.pubkey, event.content, 'nip44')
     if (!sealJson) return null
 
     const seal = JSON.parse(sealJson)
@@ -253,8 +158,7 @@ const unwrapGiftWrap = async (event, currentUser) => {
     }
 
     // Layer 2: Decrypt the seal to get the rumor (actual message)
-    // The seal pubkey is the real sender
-    const rumorJson = await decryptNip44(seal.content, seal.pubkey, currentUser)
+    const rumorJson = await signerService.decrypt(seal.pubkey, seal.content, 'nip44')
     if (!rumorJson) return null
 
     const rumor = JSON.parse(rumorJson)
@@ -268,7 +172,6 @@ const unwrapGiftWrap = async (event, currentUser) => {
       content: rumor.content,
       timestamp: rumor.created_at,
       tags: rumor.tags || [],
-      // Use the gift wrap event ID for dedup since rumor has no signature
       id: event.id
     }
   } catch (e) {
@@ -333,7 +236,7 @@ export function useNostrChat() {
     }
 
     try {
-      chatSubscription = nostrRelayManager.subscribeToEvents([
+      chatSubscription = nostrService.subscribe([
         {
           kinds: [4],
           '#p': [currentUser.value.pubkey],
@@ -357,12 +260,8 @@ export function useNostrChat() {
             handleIncomingMessage(event)
           }
         },
-        oneose: () => {
-          console.log('End of stored DM events')
-        },
-        onclose: (reason) => {
-          console.log('DM subscription closed:', reason)
-        }
+        oneose: () => {},
+        onclose: () => {}
       })
     } catch (error) {
       console.error('Failed to subscribe to messages:', error)
@@ -385,7 +284,7 @@ export function useNostrChat() {
       // Decrypt
       let decryptedContent
       try {
-        decryptedContent = await decryptMessage(event.content, otherPartyPubkey, currentUser.value)
+        decryptedContent = await decryptMessage(event.content, otherPartyPubkey)
       } catch (decryptError) {
         console.warn('Failed to decrypt message:', decryptError)
         decryptedContent = '[Encrypted message - unable to decrypt]'
@@ -432,7 +331,7 @@ export function useNostrChat() {
     if (trackEventId(event.id)) return
 
     try {
-      const unwrapped = await unwrapGiftWrap(event, currentUser.value)
+      const unwrapped = await unwrapGiftWrap(event)
       if (!unwrapped) return
 
       const isOutgoing = unwrapped.senderPubkey === currentUser.value.pubkey
@@ -500,9 +399,9 @@ export function useNostrChat() {
 
     try {
       // Encrypt the message (NIP-44 preferred, NIP-04 fallback)
-      const encryptedContent = await encryptMessage(content, recipientPubkey, currentUser.value)
+      const { ciphertext: encryptedContent } = await encryptMessage(content, recipientPubkey)
 
-      // Create DM event
+      // Create DM event (kind 4 for backwards compatibility)
       const eventTemplate = {
         kind: 4,
         created_at: Math.floor(Date.now() / 1000),
@@ -510,15 +409,8 @@ export function useNostrChat() {
         content: encryptedContent
       }
 
-      // Sign the event
-      let signedEvent
-      if (currentUser.value.privkey) {
-        signedEvent = finalizeEvent(eventTemplate, currentUser.value.privkey)
-      } else if (window.nostr?.signEvent) {
-        signedEvent = await window.nostr.signEvent(eventTemplate)
-      } else {
-        throw new Error('No signing method available')
-      }
+      // Sign via SignerService (handles all signer types)
+      const signedEvent = await signerService.signEvent(eventTemplate)
 
       if (!verifyEvent(signedEvent)) {
         throw new Error('Event signature verification failed')
@@ -538,8 +430,8 @@ export function useNostrChat() {
         triggerUpdate()
       }
 
-      // Publish the event
-      const result = await nostrRelayManager.publishEvent(signedEvent)
+      // Publish using inbox model — deliver to recipient's read relays
+      const result = await nostrService.publishInbox(signedEvent, [recipientPubkey])
 
       if (result.successful === 0) {
         // Mark as failed
@@ -667,7 +559,6 @@ export function useNostrChat() {
       chatSubscription = null
     }
     processedEventIds.clear()
-    conversationKeyCache.clear()
   }
 
   // Initialize when authenticated

@@ -1,6 +1,7 @@
 import { ref, computed, watch, nextTick } from 'vue'
 import { initializeNWC, fetchTransactions, getWalletInfo, getBalance } from '../../utils/wallet/nwcClient.js'
 import { processTransactions } from '../../utils/core/dataMapper.js'
+import { storageService, STORAGE_KEYS } from '../../services/StorageService.js'
 
 // Global state for Nostr connections
 const connections = ref([])
@@ -8,73 +9,48 @@ const activeConnection = ref(null)
 const isLoadingConnection = ref(false)
 const connectionError = ref('')
 
-// Storage keys
-const CONNECTIONS_STORAGE_KEY = 'nostr_connections'
-const ACTIVE_CONNECTION_STORAGE_KEY = 'active_connection_id'
-const NWC_URL_STORAGE_KEY = 'nwc_url' // For backward compatibility
-
 // Generate unique ID for connections
 const generateId = () => Date.now().toString(36) + Math.random().toString(36).substr(2)
 
 // Enhanced connection loading with better error handling
 const loadConnections = () => {
-  try {
-    console.log('Loading connections from localStorage...')
-    
-    // Load connections array
-    const stored = localStorage.getItem(CONNECTIONS_STORAGE_KEY)
-    if (stored) {
-      const parsedConnections = JSON.parse(stored)
-      connections.value = Array.isArray(parsedConnections) ? parsedConnections : []
-      console.log('Loaded connections:', connections.value.length)
-    }
-    
-    // Load active connection ID
-    const activeId = localStorage.getItem(ACTIVE_CONNECTION_STORAGE_KEY)
-    console.log('Active connection ID from storage:', activeId)
-    
-    if (activeId && connections.value.length > 0) {
-      const active = connections.value.find(conn => conn.id === activeId)
-      if (active) {
-        console.log('Found active connection:', active.name)
-        activeConnection.value = active
-        return true // Indicate we found an active connection
-      }
-    }
-    
-    // Fallback: Check for legacy NWC URL storage
-    const legacyNwcUrl = localStorage.getItem(NWC_URL_STORAGE_KEY)
-    if (legacyNwcUrl && connections.value.length === 0) {
-      console.log('Found legacy NWC URL, migrating...')
-      const migratedConnection = addConnection('Migrated Wallet', legacyNwcUrl)
-      activeConnection.value = migratedConnection
-      localStorage.removeItem(NWC_URL_STORAGE_KEY) // Clean up legacy storage
-      return true
-    }
-    
-    return false
-  } catch (error) {
-    console.error('Failed to load connections from storage:', error)
-    connectionError.value = 'Failed to load saved connections'
-    return false
+  // Load connections array
+  const parsedConnections = storageService.get(STORAGE_KEYS.CONNECTIONS)
+  if (parsedConnections) {
+    connections.value = Array.isArray(parsedConnections) ? parsedConnections : []
   }
+
+  // Load active connection ID
+  const activeId = storageService.getRaw(STORAGE_KEYS.ACTIVE_CONNECTION)
+
+  if (activeId && connections.value.length > 0) {
+    const active = connections.value.find(conn => conn.id === activeId)
+    if (active) {
+      activeConnection.value = active
+      return true // Indicate we found an active connection
+    }
+  }
+
+  // Fallback: Check for legacy NWC URL storage
+  const legacyNwcUrl = storageService.getRaw(STORAGE_KEYS.NWC_URL)
+  if (legacyNwcUrl && connections.value.length === 0) {
+    const migratedConnection = addConnection('Migrated Wallet', legacyNwcUrl)
+    activeConnection.value = migratedConnection
+    storageService.remove(STORAGE_KEYS.NWC_URL) // Clean up legacy storage
+    return true
+  }
+
+  return false
 }
 
 // Enhanced connection saving
 const saveConnections = () => {
-  try {
-    console.log('Saving connections to localStorage...')
-    localStorage.setItem(CONNECTIONS_STORAGE_KEY, JSON.stringify(connections.value))
-    
-    if (activeConnection.value) {
-      localStorage.setItem(ACTIVE_CONNECTION_STORAGE_KEY, activeConnection.value.id)
-      console.log('Saved active connection ID:', activeConnection.value.id)
-    } else {
-      localStorage.removeItem(ACTIVE_CONNECTION_STORAGE_KEY)
-      console.log('Removed active connection ID from storage')
-    }
-  } catch (error) {
-    console.error('Failed to save connections to storage:', error)
+  storageService.set(STORAGE_KEYS.CONNECTIONS, connections.value)
+
+  if (activeConnection.value) {
+    storageService.setRaw(STORAGE_KEYS.ACTIVE_CONNECTION, activeConnection.value.id)
+  } else {
+    storageService.remove(STORAGE_KEYS.ACTIVE_CONNECTION)
   }
 }
 
@@ -134,7 +110,6 @@ const addConnection = (name, nwcUrl) => {
   }
   
   connections.value.push(newConnection)
-  console.log('Added new connection:', newConnection.name)
   return newConnection
 }
 
@@ -191,7 +166,6 @@ const deleteConnection = (id) => {
   }
   
   connections.value.splice(index, 1)
-  console.log('Deleted connection:', connection.name)
   return true
 }
 
@@ -201,7 +175,6 @@ const setActiveConnection = async (idOrNwcUrl) => {
   connectionError.value = ''
   
   try {
-    console.log('Setting active connection:', idOrNwcUrl)
     let connection
     
     // If it's an ID, find existing connection
@@ -228,14 +201,12 @@ const setActiveConnection = async (idOrNwcUrl) => {
       conn.isActive = false
     })
     
-    console.log('Initializing NWC client...')
     // Initialize NWC client
     const client = await initializeNWC(connection.nwcUrl)
     if (!client) {
       throw new Error('Failed to initialize NWC client')
     }
     
-    console.log('Testing connection...')
     // Test the connection with timeout
     const walletInfo = await Promise.race([
       getWalletInfo(),
@@ -248,8 +219,6 @@ const setActiveConnection = async (idOrNwcUrl) => {
     connection.isActive = true
     connection.lastUsed = new Date().toISOString()
     activeConnection.value = connection
-    
-    console.log(`Successfully connected to wallet: ${walletInfo?.alias || connection.name}`)
     
     // Force save to localStorage immediately
     saveConnections()
@@ -285,14 +254,11 @@ const setDefaultConnection = (id) => {
   
   // Set new default
   connection.isDefault = true
-  console.log('Set default connection:', connection.name)
   return connection
 }
 
 // Enhanced connection clearing
 const clearActiveConnection = () => {
-  console.log('Clearing active connection...')
-  
   if (activeConnection.value) {
     const connection = connections.value.find(conn => conn.id === activeConnection.value.id)
     if (connection) {
@@ -313,18 +279,12 @@ const clearActiveConnection = () => {
 // Enhanced data loading with better error handling
 const loadZapData = async () => {
   if (!activeConnection.value) {
-    console.log('No active connection, returning empty data')
     return []
   }
-  
+
   try {
-    console.log('Loading zap data from wallet...')
     const transactions = await fetchTransactions()
-    console.log('Fetched transactions:', transactions.length)
-    
     const processedZaps = processTransactions(transactions)
-    console.log('Processed zaps:', processedZaps.length)
-    
     return processedZaps
   } catch (error) {
     console.error('Failed to load zap data:', error)
@@ -334,12 +294,9 @@ const loadZapData = async () => {
 
 // Auto-reconnect function for page refresh scenarios
 const autoReconnect = async () => {
-  console.log('Attempting auto-reconnect...')
-  
   if (activeConnection.value) {
     try {
       await setActiveConnection(activeConnection.value.id)
-      console.log('Auto-reconnect successful')
       return true
     } catch (error) {
       console.warn('Auto-reconnect failed:', error)
@@ -349,6 +306,66 @@ const autoReconnect = async () => {
   
   return false
 }
+
+// Wallet status: 'connected' | 'connecting' | 'disconnected' | 'reconnecting' | 'error'
+const walletStatus = ref('disconnected')
+const walletStatusMessage = ref('')
+let _reconnectTimer = null
+const RECONNECT_INTERVAL = 60_000 // retry every 60s
+
+// Start background reconnect loop when wallet disconnects
+const startBackgroundReconnect = () => {
+  stopBackgroundReconnect()
+  _reconnectTimer = setInterval(async () => {
+    if (walletStatus.value === 'connected' || walletStatus.value === 'connecting') return
+    if (!activeConnection.value) return
+
+    walletStatus.value = 'reconnecting'
+    walletStatusMessage.value = 'Reconnecting to wallet...'
+    try {
+      await setActiveConnection(activeConnection.value.id)
+      walletStatus.value = 'connected'
+      walletStatusMessage.value = ''
+    } catch {
+      walletStatus.value = 'error'
+      walletStatusMessage.value = 'Wallet unreachable. Retrying...'
+    }
+  }, RECONNECT_INTERVAL)
+}
+
+const stopBackgroundReconnect = () => {
+  if (_reconnectTimer) {
+    clearInterval(_reconnectTimer)
+    _reconnectTimer = null
+  }
+}
+
+// Watch connection state for status updates
+watch(isLoadingConnection, (loading) => {
+  if (loading) {
+    walletStatus.value = 'connecting'
+    walletStatusMessage.value = 'Connecting to wallet...'
+  }
+})
+
+watch(activeConnection, (conn) => {
+  if (conn) {
+    walletStatus.value = 'connected'
+    walletStatusMessage.value = ''
+    stopBackgroundReconnect()
+  } else {
+    walletStatus.value = 'disconnected'
+    walletStatusMessage.value = ''
+  }
+})
+
+watch(connectionError, (err) => {
+  if (err) {
+    walletStatus.value = 'error'
+    walletStatusMessage.value = err
+    startBackgroundReconnect()
+  }
+})
 
 // Computed properties
 const isWalletConnected = computed(() => !!activeConnection.value)
@@ -366,19 +383,16 @@ const sortedConnections = computed(() => {
 })
 
 // Initialize on module load
-console.log('Initializing useNostrConnections...')
 const hasStoredConnection = loadConnections()
 
 // Auto-connect to active connection if available
 if (hasStoredConnection && activeConnection.value) {
-  console.log('Found stored active connection, attempting to reconnect...')
   nextTick(() => {
     autoReconnect().catch(error => {
       console.warn('Failed to auto-reconnect on initialization:', error)
     })
   })
 } else if (!activeConnection.value && defaultConnection.value) {
-  console.log('No active connection, trying default connection...')
   nextTick(() => {
     setActiveConnection(defaultConnection.value.id).catch(error => {
       console.warn('Failed to auto-connect to default connection:', error)
@@ -395,6 +409,8 @@ export function useNostrConnections() {
     connectionError,
     isWalletConnected,
     defaultConnection,
+    walletStatus,
+    walletStatusMessage,
     
     // Actions
     addConnection,

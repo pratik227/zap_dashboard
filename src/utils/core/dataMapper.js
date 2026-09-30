@@ -59,7 +59,6 @@ export function processTransactions(transactions) {
       // Check if we've already processed this payment hash
       const paymentHash = tx.payment_hash || tx.id
       if (paymentHash && processedHashes.has(paymentHash)) {
-        console.log(`Skipping duplicate transaction with hash ${paymentHash?.substring(0, 16)}...`)
         return false
       }
       

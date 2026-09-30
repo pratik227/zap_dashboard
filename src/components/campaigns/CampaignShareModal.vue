@@ -1,5 +1,5 @@
 <template>
-  <div class="fixed inset-0 bg-black/50 z-50 md:flex md:items-center md:justify-center md:p-4" @click="handleBackdropClick">
+  <div class="fixed inset-0 bg-black/50 z-50 md:flex md:items-center md:justify-center md:p-4" @click="handleBackdropClick" @keydown.escape="$emit('close')" tabindex="-1">
     <div class="bg-white w-full max-w-md shadow-xl md:rounded-lg fixed bottom-0 left-0 right-0 md:relative rounded-t-2xl max-h-[90vh] overflow-y-auto" @click.stop>
 
       <!-- Mobile Bottom Sheet Handle -->
@@ -202,9 +202,10 @@ import {
 } from '@iconify-prerendered/vue-tabler'
 import { useNostrAuth } from '../../composables/auth/useNostrAuth.js'
 import { useMentions } from '../../composables/content/useMentions.js'
-import { verifyEvent } from 'nostr-tools/pure'
-import * as nip19 from 'nostr-tools/nip19'
-import { nostrRelayManager } from '../../utils/network/nostrRelayManager.js'
+import { nip19 } from '../../services/nostr/nostrImports.js'
+import { nostrService } from '../../services/nostr/NostrService.js'
+import { signerService } from '../../services/nostr/SignerService.js'
+import { publishService } from '../../services/nostr/PublishService.js'
 import MentionInput from '../content/MentionInput.vue'
 
 const props = defineProps({
@@ -266,7 +267,7 @@ const timeAgoText = computed(() => {
 const viewUrl = computed(() => {
   if (!publishedEventId.value) return ''
   try {
-    const relays = nostrRelayManager.getReadRelays().map(r => r.url).slice(0, 3)
+    const relays = nostrService.getReadRelays().map(r => r.url).slice(0, 3)
     const nevent = nip19.neventEncode({ id: publishedEventId.value, relays })
     return `https://njump.me/${nevent}`
   } catch {
@@ -277,7 +278,7 @@ const viewUrl = computed(() => {
 // ── Actions ────────────────────────────────────────────────────────────────
 
 const handleMentionAdded = (user) => {
-  console.log('Mention added to campaign share:', user)
+  // Mention tracking handled by composable
 }
 
 const copyAndShare = async () => {
@@ -296,8 +297,8 @@ const copyAndShare = async () => {
           text: `Help me reach my goal! ${props.campaign.summary}`,
           url: shareUrl.value
         })
-      } catch (e) {
-        console.log('Share cancelled')
+      } catch {
+        // User cancelled the share dialog
       }
     }
   } catch (error) {
@@ -352,25 +353,11 @@ const shareOnNostr = async () => {
       content
     }
 
-    let signedEvent
-    if (window.nostr?.signEvent) {
-      signedEvent = await window.nostr.signEvent(eventTemplate)
-    } else {
+    if (!signerService.isConnected) {
       throw new Error('Nostr signer not available')
     }
 
-    const isValid = verifyEvent(signedEvent)
-    if (!isValid) {
-      throw new Error('Event signature verification failed')
-    }
-
-    const result = await nostrRelayManager.publishEvent(signedEvent)
-
-    if (result.successful === 0) {
-      throw new Error('Failed to publish to any relay')
-    }
-
-    console.log('Campaign shared successfully:', signedEvent.id)
+    const { event: signedEvent } = await publishService.signAndPublish(eventTemplate)
 
     // Track for cooldown and post-share actions
     publishedEventId.value = signedEvent.id
@@ -382,7 +369,7 @@ const shareOnNostr = async () => {
     shareSuccess.value = true
   } catch (error) {
     console.error('Failed to share campaign:', error)
-    shareError.value = error.message || 'Failed to post'
+    shareError.value = error.userMessage || error.message || 'Failed to post'
   } finally {
     isSharing.value = false
   }
@@ -402,25 +389,13 @@ const deleteSharedPost = async () => {
       content: ''
     }
 
-    const signedEvent = await window.nostr.signEvent(eventTemplate)
-
-    const isValid = verifyEvent(signedEvent)
-    if (!isValid) {
-      throw new Error('Signature verification failed')
-    }
-
-    const result = await nostrRelayManager.publishEvent(signedEvent)
-
-    if (result.successful === 0) {
-      throw new Error('Failed to publish deletion')
-    }
+    await publishService.signAndPublish(eventTemplate)
 
     postDeleted.value = true
     recentShares.delete(props.campaign.id)
-    console.log('Shared post deleted:', publishedEventId.value)
   } catch (error) {
     console.error('Failed to delete shared post:', error)
-    shareError.value = error.message || 'Failed to remove post'
+    shareError.value = error.userMessage || error.message || 'Failed to remove post'
   } finally {
     isDeleting.value = false
   }

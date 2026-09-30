@@ -1,4 +1,5 @@
 import { ref, computed } from 'vue'
+import { storageService } from '../services/StorageService.js'
 
 const DISMISS_KEY = 'zaptracker-pwa-dismiss'
 const DISMISS_DAYS = 7
@@ -59,7 +60,7 @@ function checkStandalone() {
 
 // --- Dismissal Logic ---
 function checkDismissed() {
-  const raw = localStorage.getItem(DISMISS_KEY)
+  const raw = storageService.getRaw(DISMISS_KEY)
   if (!raw) return false
   const dismissedAt = parseInt(raw, 10)
   const daysSince = (Date.now() - dismissedAt) / (1000 * 60 * 60 * 24)
@@ -67,7 +68,7 @@ function checkDismissed() {
 }
 
 function dismiss() {
-  localStorage.setItem(DISMISS_KEY, Date.now().toString())
+  storageService.setRaw(DISMISS_KEY, Date.now().toString())
   isDismissed.value = true
 }
 

@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, ref, onUnmounted, watch } from 'vue'
-import * as nip19 from 'nostr-tools/nip19'
+import { nip19 } from '../services/nostr/nostrImports.js'
+import { getUserFriendlyError } from '../services/nostr/errors.js'
 import { formatSatsShort } from '../utils/format.js'
 import {
   IconFileText,
@@ -190,6 +191,15 @@ const handleDuplicateContent = async (content) => {
   }
 }
 
+// Inline status for errors and confirmations
+const inlineStatus = ref(null)
+let _statusTimer = null
+const showStatus = (message, type = 'error') => {
+  clearTimeout(_statusTimer)
+  inlineStatus.value = { message, type }
+  _statusTimer = setTimeout(() => { inlineStatus.value = null }, 4000)
+}
+
 const handleShareContent = (content) => {
   // Create share URL for content unlock
   const shareUrl = content.nostrEventId
@@ -197,7 +207,7 @@ const handleShareContent = (content) => {
     : `${window.location.origin}?page=content&id=${content.id}`
 
   navigator.clipboard.writeText(shareUrl).then(() => {
-    alert('Share link copied to clipboard!')
+    showStatus('Share link copied to clipboard!', 'success')
   })
 }
 
@@ -210,7 +220,7 @@ const handlePublishToNostr = async (content) => {
     showSuccessModal.value = true
   } catch (error) {
     console.error('Failed to publish to Nostr:', error)
-    alert('Failed to publish to Nostr: ' + error.message)
+    showStatus(getUserFriendlyError(error))
   }
 }
 
@@ -220,9 +230,9 @@ const handleNostrLogin = async () => {
   } catch (error) {
     console.error('Login failed:', error)
     if (error.message.includes('No Nostr extension')) {
-      alert('No Nostr Extension Found\n\nPlease install a NIP-07 browser extension like:\n• Alby (getalby.com)\n• nos2x\n• Flamingo\n\nThen refresh this page.')
+      showStatus('No Nostr extension found. Please install a NIP-07 browser extension — we recommend Jump by Buho (from the ZapTracker founders, available for Firefox & Chrome), or Alby, nos2x, or Flamingo — and refresh this page.')
     } else {
-      alert('Login failed: ' + error.message)
+      showStatus(getUserFriendlyError(error))
     }
   }
 }
@@ -403,6 +413,7 @@ const handleShowContentPreview = (event) => {
 }
 
 onUnmounted(() => {
+  clearTimeout(_statusTimer)
   document.removeEventListener('click', handleClickOutside)
    document.removeEventListener('show-content-preview', handleShowContentPreview)
 })
@@ -410,6 +421,18 @@ onUnmounted(() => {
 
 <template>
   <div class="space-y-6">
+    <!-- Inline Status Banner -->
+    <transition name="slide-down">
+      <div v-if="inlineStatus" role="status" aria-live="polite" :class="[
+        'mb-4 px-4 py-3 rounded-lg text-sm font-medium',
+        inlineStatus.type === 'error' ? 'bg-red-50 text-red-800 border border-red-200' :
+        inlineStatus.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' :
+        'bg-blue-50 text-blue-800 border border-blue-200'
+      ]">
+        {{ inlineStatus.message }}
+      </div>
+    </transition>
+
     <!-- Authentication Required Banner -->
     <div v-if="!isAuthenticated" class="bg-gradient-to-r from-purple-400 to-pink-400 text-white p-6 rounded-xl shadow-lg">
       <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -864,7 +887,7 @@ onUnmounted(() => {
               <!-- Compact Zap List -->
               <div class="space-y-2 max-h-48 overflow-y-auto">
                 <div v-if="!selectedContent.zaps || selectedContent.zaps.length === 0" class="text-center py-6">
-                  <IconBolt class="w-8 h-8 mx-auto text-gray-300 mb-2" />
+                  <IconBolt class="w-8 h-8 mx-auto text-gray-400 mb-2" />
                   <p class="text-sm text-gray-500">No zaps yet</p>
                 </div>
 

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onUnmounted } from 'vue'
 import { formatMsatsToSats } from '../utils/format.js'
 import {
   IconTarget,
@@ -32,6 +32,7 @@ import {
   IconHeart
 } from '@iconify-prerendered/vue-tabler'
 import { useNostrAuth } from '../composables/auth/useNostrAuth.js'
+import { getUserFriendlyError } from '../services/nostr/errors.js'
 import { useCampaigns } from '../composables/campaigns/useCampaigns.js'
 import CampaignCard from '../components/campaigns/CampaignCard.vue'
 import CampaignCreateModal from '../components/campaigns/CampaignCreateModal.vue'
@@ -115,6 +116,19 @@ const campaignStats = computed(() => {
   return { total, active, completed, expired, totalRaised }
 })
 
+// Inline status for login errors
+const inlineStatus = ref(null)
+let _statusTimer = null
+const showStatus = (message, type = 'error') => {
+  clearTimeout(_statusTimer)
+  inlineStatus.value = { message, type }
+  _statusTimer = setTimeout(() => { inlineStatus.value = null }, 4000)
+}
+
+onUnmounted(() => {
+  clearTimeout(_statusTimer)
+})
+
 // Handle Nostr login
 const handleNostrLogin = async () => {
   try {
@@ -122,9 +136,9 @@ const handleNostrLogin = async () => {
   } catch (error) {
     console.error('Login failed:', error)
     if (error.message.includes('No Nostr extension')) {
-      alert('No Nostr Extension Found\n\nPlease install a NIP-07 browser extension like:\n• Alby (getalby.com)\n• nos2x\n• Flamingo\n\nThen refresh this page.')
+      showStatus('No Nostr extension found. Please install a NIP-07 browser extension — we recommend Jump by Buho (from the ZapTracker founders, available for Firefox & Chrome), or Alby, nos2x, or Flamingo — and refresh this page.')
     } else {
-      alert('Login failed: ' + error.message)
+      showStatus(getUserFriendlyError(error))
     }
   }
 }
@@ -217,6 +231,18 @@ const getDaysRemaining = (closedAt) => {
 
 <template>
   <div class="space-y-6">
+    <!-- Inline Status Banner -->
+    <transition name="slide-down">
+      <div v-if="inlineStatus" role="status" aria-live="polite" :class="[
+        'mb-4 px-4 py-3 rounded-lg text-sm font-medium',
+        inlineStatus.type === 'error' ? 'bg-red-50 text-red-800 border border-red-200' :
+        inlineStatus.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' :
+        'bg-blue-50 text-blue-800 border border-blue-200'
+      ]">
+        {{ inlineStatus.message }}
+      </div>
+    </transition>
+
     <!-- Hero Section with Animated Gradient Background -->
     <div class="relative overflow-hidden rounded-2xl shadow-xl mb-8">
       <div class="absolute inset-0 bg-gradient-to-br from-orange-400 via-amber-300 to-yellow-400 opacity-90"></div>

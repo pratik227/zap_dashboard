@@ -16,7 +16,6 @@ class ContentService {
       storedAt: new Date().toISOString(),
       accessedCount: 0
     })
-    console.log(`Stored full content for event: ${eventId}`)
   }
 
   // Retrieve full content after payment verification
@@ -79,7 +78,6 @@ class ContentService {
       ...paymentProof,
       verifiedAt: new Date().toISOString()
     })
-    console.log(`Stored payment verification for event: ${eventId}`)
   }
 
   // Check if payment was verified for an event
@@ -128,17 +126,9 @@ export const testEncryption = async () => {
   const testContent = "This is a test of the encryption system for paid content."
   const key = contentEncryption.generateEncryptionKey()
   
-  console.log('🔐 Testing encryption...')
-  console.log('Original content:', testContent)
-  
   const encrypted = await contentEncryption.encryptContent(testContent, key)
-  console.log('Encrypted content:', encrypted)
-  
   const decrypted = await contentEncryption.decryptContent(encrypted, key)
-  console.log('Decrypted content:', decrypted)
-  
   const success = testContent === decrypted
-  console.log('✅ Encryption test:', success ? 'PASSED' : 'FAILED')
   
   return success
 } 

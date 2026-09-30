@@ -1,6 +1,8 @@
 <script setup>
-import { ref, onMounted, watch, onUnmounted, computed, inject } from 'vue'
-import { neventEncode, naddrEncode } from 'nostr-tools/nip19'
+import { ref, toRef, onMounted, watch, onUnmounted, computed, inject } from 'vue'
+import { useFocusTrap } from '../../composables/core/useFocusTrap.js'
+import { getUserFriendlyError } from '../../services/nostr/errors.js'
+import { neventEncode, naddrEncode } from '../../services/nostr/nostrImports.js'
 import { generateAvatar } from '../../utils/profile/avatarGenerator.js'
 import { formatSatsShort } from '../../utils/format.js'
 import {
@@ -33,7 +35,7 @@ import {
   IconArrowUpRight,
   IconDots
 } from '@iconify-prerendered/vue-tabler'
-import { nostrRelayManager } from '../../utils/network/nostrRelayManager.js'
+import { nostrService } from '../../services/nostr/NostrService.js'
 import { useNostrAuth } from '../../composables/auth/useNostrAuth.js'
 import { useContentZaps } from '../../composables/content/useContentZaps.js'
 
@@ -54,6 +56,9 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['close'])
+
+const zapModalRoot = ref(null)
+useFocusTrap(toRef(props, 'show'), zapModalRoot)
 
 // State
 const isLoading = ref(false)
@@ -183,9 +188,7 @@ const fetchEvent = async () => {
   specificZap.value = null
 
   try {
-    console.log(`Fetching event: ${props.eventId}`)
-
-    const fetchedEvent = await nostrRelayManager.getEvent({
+    const fetchedEvent = await nostrService.queryOne({
       ids: [props.eventId]
     })
 
@@ -194,15 +197,12 @@ const fetchEvent = async () => {
     }
 
     event.value = fetchedEvent
-    console.log('Event fetched:', fetchedEvent)
 
     await fetchAuthorProfile(fetchedEvent.pubkey)
 
     if (props.specificZapId) {
-      console.log('Looking for specific zap:', props.specificZapId)
       const zap = combinedZapData.value.find(z => z.id === props.specificZapId)
       if (zap) {
-        console.log('Found specific zap:', zap)
         specificZap.value = zap
       } else {
         console.warn('Specific zap not found:', props.specificZapId)
@@ -211,7 +211,7 @@ const fetchEvent = async () => {
 
   } catch (err) {
     console.error('Failed to fetch event:', err)
-    error.value = `Failed to load event: ${err.message}`
+    error.value = getUserFriendlyError(err)
   } finally {
     isLoading.value = false
   }
@@ -220,7 +220,7 @@ const fetchEvent = async () => {
 // Fetch author profile
 const fetchAuthorProfile = async (pubkey) => {
   try {
-    const authorEvent = await nostrRelayManager.getEvent({
+    const authorEvent = await nostrService.queryOne({
       kinds: [0],
       authors: [pubkey],
       limit: 1
@@ -591,7 +591,7 @@ const formatZapperPubkey = (pubkey) => {
 <template>
   <Teleport to="#modal-root">
     <transition name="modal-fade">
-      <div v-if="show" class="fixed inset-0 z-[9999]" @click="handleBackdropClick">
+      <div v-if="show" ref="zapModalRoot" class="fixed inset-0 z-[9999]" @click="handleBackdropClick" @keydown.escape="$emit('close')" tabindex="-1">
         <!-- Elegant Backdrop -->
         <div class="modal-backdrop absolute inset-0 bg-black/40 backdrop-blur-xl transition-all duration-300"></div>
 

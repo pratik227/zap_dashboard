@@ -165,23 +165,23 @@ function removeServer(idx) {
   top: calc(100% + 0.5rem);
   right: 0;
   width: 300px;
-  background: var(--color-surface-elevated);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-xl);
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.75rem;
+  box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1);
   z-index: 50;
   overflow: hidden;
 }
 
 .popover-header {
   padding: 0.75rem 1rem;
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: 1px solid #e5e7eb;
 }
 
 .popover-header h4 {
   margin: 0;
   font-size: 0.875rem;
-  color: var(--color-text);
+  color: #111827;
 }
 
 .popover-list {
@@ -198,18 +198,16 @@ function removeServer(idx) {
   align-items: center;
   justify-content: space-between;
   padding: 0.375rem 0.5rem;
-  border-radius: var(--radius-md);
-  transition: background var(--transition-fast);
+  border-radius: 0.375rem;
+  transition: background 0.15s ease;
 }
 
-.popover-server:hover {
-  background: var(--color-surface-hover);
-}
+.popover-server:hover { background: #f3f4f6; }
 
 .popover-host {
   font-size: 0.8125rem;
-  font-family: var(--font-mono);
-  color: var(--color-text);
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  color: #111827;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -218,9 +216,9 @@ function removeServer(idx) {
 .popover-badge {
   font-size: 0.625rem;
   padding: 0.0625rem 0.375rem;
-  border-radius: var(--radius-full);
-  background: var(--color-primary-soft);
-  color: var(--color-primary);
+  border-radius: 9999px;
+  background: #fff7ed;
+  color: #f97316;
   font-weight: 600;
   flex-shrink: 0;
 }
@@ -232,46 +230,35 @@ function removeServer(idx) {
   width: 1.25rem;
   height: 1.25rem;
   border: none;
-  border-radius: var(--radius-sm);
+  border-radius: 0.25rem;
   background: transparent;
-  color: var(--color-text-subtle);
+  color: #9ca3af;
   cursor: pointer;
   flex-shrink: 0;
 }
 
-.popover-remove:hover {
-  background: var(--color-danger-soft);
-  color: var(--color-danger);
-}
+.popover-remove:hover { background: #fef2f2; color: #ef4444; }
+.popover-remove-icon { width: 0.75rem; height: 0.75rem; }
 
-.popover-remove-icon {
-  width: 0.75rem;
-  height: 0.75rem;
-}
-
-/* Add server row */
 .popover-add {
   display: flex;
   gap: 0.375rem;
   padding: 0.5rem;
-  border-top: 1px solid var(--color-border);
+  border-top: 1px solid #e5e7eb;
 }
 
 .popover-input {
   flex: 1;
   padding: 0.375rem 0.5rem;
-  background: var(--color-bg);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  color: var(--color-text);
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.375rem;
+  color: #111827;
   font-size: 0.8125rem;
   min-width: 0;
 }
 
-.popover-input:focus {
-  outline: none;
-  border-color: var(--color-primary);
-}
+.popover-input:focus { outline: none; border-color: #f97316; box-shadow: 0 0 0 2px rgba(249,115,22,0.15); }
 
 .popover-add-btn {
   display: flex;
@@ -279,37 +266,26 @@ function removeServer(idx) {
   justify-content: center;
   width: 2rem;
   height: 2rem;
-  background: var(--color-primary);
+  background: #f97316;
   color: white;
   border: none;
-  border-radius: var(--radius-md);
+  border-radius: 0.375rem;
   cursor: pointer;
   flex-shrink: 0;
-  transition: all var(--transition-fast);
+  transition: all 0.15s ease;
 }
 
-.popover-add-btn:hover:not(:disabled) {
-  background: var(--color-primary-hover);
-}
-
-.popover-add-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.popover-add-icon {
-  width: 0.75rem;
-  height: 0.75rem;
-}
+.popover-add-btn:hover:not(:disabled) { background: #ea580c; }
+.popover-add-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.popover-add-icon { width: 0.75rem; height: 0.75rem; }
 
 .popover-error {
-  color: var(--color-danger);
+  color: #ef4444;
   font-size: 0.75rem;
   margin: 0;
   padding: 0 0.5rem 0.5rem;
 }
 
-/* Popover transition */
 .popover-enter-active,
 .popover-leave-active {
   transition: opacity 0.15s ease, transform 0.15s ease;
@@ -321,7 +297,6 @@ function removeServer(idx) {
   transform: translateY(-4px);
 }
 
-/* Mobile: full-width popover */
 @media (max-width: 480px) {
   .indicator-popover {
     position: fixed;
@@ -330,7 +305,7 @@ function removeServer(idx) {
     left: 0;
     right: 0;
     width: 100%;
-    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    border-radius: 0.75rem 0.75rem 0 0;
   }
 }
 </style>

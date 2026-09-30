@@ -13,12 +13,36 @@ const {
   isWalletConnected,
   setActiveConnection,
   clearActiveConnection,
-  autoReconnect
+  autoReconnect,
+  walletStatus,
+  walletStatusMessage
 } = useNostrConnections()
 
 const nwcUrl = ref('')
 const showSuccess = ref(false)
 const localError = ref('')
+const connectCountdown = ref(0)
+let _countdownTimer = null
+
+// Countdown timer for connection timeout feedback
+watch(isLoadingConnection, (loading) => {
+  if (loading) {
+    connectCountdown.value = 30
+    _countdownTimer = setInterval(() => {
+      connectCountdown.value--
+      if (connectCountdown.value <= 0) {
+        clearInterval(_countdownTimer)
+        _countdownTimer = null
+      }
+    }, 1000)
+  } else {
+    connectCountdown.value = 0
+    if (_countdownTimer) {
+      clearInterval(_countdownTimer)
+      _countdownTimer = null
+    }
+  }
+})
 
 // Check for stored connection on mount
 onMounted(() => {
@@ -49,10 +73,8 @@ async function connectToWallet() {
   localError.value = ''
 
   try {
-    console.log('Attempting to connect wallet...')
     await setActiveConnection(nwcUrl.value.trim())
-    
-    console.log('Connection successful, showing success message')
+
     showSuccess.value = true
     setTimeout(() => {
       showSuccess.value = false
@@ -71,7 +93,6 @@ async function connectToWallet() {
 }
 
 function disconnect() {
-  console.log('Disconnecting wallet...')
   clearActiveConnection()
   nwcUrl.value = ''
   showSuccess.value = false
@@ -82,7 +103,6 @@ async function refreshConnection() {
   if (!isWalletConnected.value) return
   
   try {
-    console.log('Refreshing connection...')
     await autoReconnect()
     
     showSuccess.value = true
@@ -123,10 +143,16 @@ const displayError = computed(() => {
       <div class="flex items-center space-x-2">
         <div :class="[
           'w-2 h-2 rounded-full transition-all duration-300',
-          isWalletConnected ? 'bg-green-400 animate-pulse' : 'bg-red-400'
+          walletStatus === 'connected' ? 'bg-green-400 animate-pulse' :
+          walletStatus === 'reconnecting' || walletStatus === 'connecting' ? 'bg-yellow-400 animate-pulse' :
+          'bg-red-400'
         ]"></div>
         <span class="text-sm text-gray-600">
-          {{ isWalletConnected ? 'Connected' : 'Disconnected' }}
+          {{ walletStatus === 'connected' ? 'Connected' :
+             walletStatus === 'reconnecting' ? 'Reconnecting...' :
+             walletStatus === 'connecting' ? 'Connecting...' :
+             walletStatus === 'error' ? 'Error — retrying' :
+             'Disconnected' }}
         </span>
       </div>
     </div>
@@ -171,7 +197,7 @@ const displayError = computed(() => {
       >
         <IconRefresh v-if="isLoadingConnection" class="w-4 h-4 animate-spin" />
         <IconBolt v-else class="w-4 h-4" />
-        {{ isLoadingConnection ? 'Connecting...' : 'Connect Wallet' }}
+        {{ isLoadingConnection ? `Connecting... ${connectCountdown > 0 ? `(${connectCountdown}s)` : ''}` : 'Connect Wallet' }}
       </button>
 
       <!-- Error Message -->

@@ -1,208 +1,103 @@
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed } from 'vue'
 import { useBadges } from '../../composables/social/useBadges.js'
 import BadgeDisplay from './BadgeDisplay.vue'
-import { IconAward, IconChevronRight, IconLoader } from '@iconify-prerendered/vue-tabler'
 
 const props = defineProps({
-  pubkey: {
-    type: String,
-    required: true
-  },
-  size: {
-    type: String,
-    default: 'medium',
-    validator: (value) => ['small', 'medium', 'large'].includes(value)
-  },
-  maxDisplay: {
-    type: Number,
-    default: 0 // 0 = show all badges
-  },
-  showCount: {
-    type: Boolean,
-    default: true
-  },
-  showViewAll: {
-    type: Boolean,
-    default: true
-  },
+  pubkey: { type: String, required: true },
+  loading: { type: Boolean, default: false },
+  maxDisplay: { type: Number, default: 0 },
+  showCount: { type: Boolean, default: true },
+  showViewAll: { type: Boolean, default: true },
   layout: {
     type: String,
-    default: 'horizontal', // 'horizontal', 'vertical', 'grid'
-    validator: (value) => ['horizontal', 'vertical', 'grid'].includes(value)
+    default: 'horizontal',
+    validator: (v) => ['horizontal', 'vertical', 'grid'].includes(v)
   }
 })
 
 const emit = defineEmits(['badge-click', 'view-all'])
 
-// Composables
-const { 
-  getUserBadges, 
-  getUserBadgeCount, 
-  initUserBadges, 
-  isLoading 
-} = useBadges()
+const { getUserBadges, getProfileBadgeCount } = useBadges()
 
-// Local state
-const loadingBadges = ref(false)
-
-// Computed properties - reactively get badges from the composable
-const badges = computed(() => {
-  return getUserBadges(props.pubkey)
-})
+const badges = computed(() => getUserBadges(props.pubkey))
 
 const displayBadges = computed(() => {
-  if (props.maxDisplay <= 0) return badges.value // 0 = show all
+  if (props.maxDisplay <= 0) return badges.value
   return badges.value.slice(0, props.maxDisplay)
 })
 
 const remainingCount = computed(() => {
   if (props.maxDisplay <= 0) return 0
-  const total = badges.value.length
-  return total > props.maxDisplay ? total - props.maxDisplay : 0
+  return Math.max(0, badges.value.length - props.maxDisplay)
 })
 
-const hasMoreBadges = computed(() => remainingCount.value > 0)
-
-const containerClasses = computed(() => {
-  const baseClasses = 'flex items-center'
-  
-  const layoutClasses = {
-    horizontal: 'flex-row space-x-2',
-    vertical: 'flex-col space-y-2',
-    grid: 'flex-wrap gap-2'
-  }
-  
-  return `${baseClasses} ${layoutClasses[props.layout] || layoutClasses.horizontal}`
+// Dynamic sizing based on raw profile badge count (stable before definitions load)
+const dynamicSizePx = computed(() => {
+  const count = getProfileBadgeCount(props.pubkey)
+  if (count <= 6) return 48
+  if (count <= 12) return 36
+  return 24
 })
 
-const badgeContainerClasses = computed(() => {
-  const layoutClasses = {
-    horizontal: 'flex items-center space-x-1',
-    vertical: 'flex flex-col space-y-1',
-    grid: 'flex flex-wrap gap-1'
-  }
-  
-  return layoutClasses[props.layout] || layoutClasses.horizontal
+// Gap scales with badge size
+const gapClass = computed(() => {
+  if (dynamicSizePx.value >= 48) return 'gap-3'
+  if (dynamicSizePx.value >= 36) return 'gap-2'
+  return 'gap-1.5'
 })
 
-// Methods
-const loadUserBadges = async () => {
-  if (!props.pubkey) return
-  
-  // Check if badges are already cached - if so, no need to fetch
-  const cachedBadges = getUserBadges(props.pubkey)
-  if (cachedBadges.length > 0) {
-    return // Don't fetch again if we have cached badges
-  }
-  
-  try {
-    loadingBadges.value = true
-    await initUserBadges(props.pubkey)
-    // No need to assign - badges computed property will reactively update
-  } catch (error) {
-    console.error('Error loading user badges:', error)
-  } finally {
-    loadingBadges.value = false
-  }
-}
+const skeletonCount = computed(() => Math.min(getProfileBadgeCount(props.pubkey) || 4, 8))
 
-const handleBadgeClick = (badge) => {
-  emit('badge-click', badge)
-}
-
-const handleViewAll = (event) => {
-  // Stop event propagation to prevent parent click handlers
-  if (event) {
-    event.stopPropagation()
-    event.preventDefault()
-  }
-  emit('view-all', {
-    pubkey: props.pubkey,
-    badges: badges.value,
-    totalCount: badges.value.length
-  })
-}
-
-// Watch for pubkey changes and load badges immediately
-// Using immediate: true to load badges as soon as component is created
-watch(() => props.pubkey, (newPubkey, oldPubkey) => {
-  if (newPubkey) {
-    // Only load if pubkey changed or this is the first load
-    if (newPubkey !== oldPubkey || oldPubkey === undefined) {
-      loadUserBadges()
-    }
-  }
-  // No need to clear badges - computed property handles it automatically
-}, { immediate: true }) // Load immediately on component creation
+const layoutClass = computed(() => ({
+  horizontal: 'flex flex-wrap items-center',
+  vertical: 'flex flex-col items-start',
+  grid: 'flex flex-wrap'
+}[props.layout] || 'flex flex-wrap items-center'))
 </script>
 
 <template>
-  <div v-if="badges.length > 0 || loadingBadges" :class="containerClasses">
-    <!-- Loading State -->
-    <div v-if="loadingBadges" class="flex items-center space-x-2">
-      <IconLoader class="w-4 h-4 animate-spin text-gray-400" />
-      <span class="text-sm text-gray-500">Loading badges...</span>
-    </div>
-    
-    <!-- Badges Display -->
-    <div v-else-if="badges.length > 0" class="flex items-center space-x-3">
-      <!-- Badge Icons -->
-      <div :class="badgeContainerClasses">
-        <BadgeDisplay
-          v-for="badge in displayBadges"
-          :key="`${badge.badgeDefinition}-${badge.badgeAward}`"
-          :badge="badge"
-          :size="size"
-          :clickable="true"
-          @click="handleBadgeClick"
-        />
-        
-        <!-- More Badges Indicator -->
-        <div 
-          v-if="hasMoreBadges && showViewAll"
-          class="relative inline-flex items-center justify-center rounded-full border-2 border-dashed border-gray-300 hover:border-orange-300 cursor-pointer transition-colors"
-          :class="size === 'small' ? 'w-6 h-6' : size === 'medium' ? 'w-8 h-8' : 'w-12 h-12'"
-          @click="handleViewAll"
-          :title="`+${remainingCount} more badges`"
-        >
-          <span 
-            class="text-gray-500 hover:text-orange-600 font-medium"
-            :class="size === 'small' ? 'text-xs' : size === 'medium' ? 'text-sm' : 'text-base'"
-          >
-            +{{ remainingCount }}
-          </span>
-        </div>
-      </div>
-      
-      <!-- Badge Count (optional) -->
-      <div v-if="showCount" class="flex items-center space-x-1 text-sm text-gray-600">
-        <IconAward class="w-4 h-4" />
-        <span>{{ badges.length }}</span>
-        <span class="hidden sm:inline">{{ badges.length === 1 ? 'badge' : 'badges' }}</span>
-      </div>
-      
-      <!-- View All Link (for horizontal layout) -->
-      <button
-        v-if="showViewAll && hasMoreBadges && layout === 'horizontal'"
-        @click="handleViewAll"
-        class="flex items-center space-x-1 text-sm text-orange-600 hover:text-orange-700 transition-colors"
-      >
-        <span>View all</span>
-        <IconChevronRight class="w-3 h-3" />
-      </button>
-    </div>
+  <!-- Skeleton loading -->
+  <div v-if="loading && badges.length === 0" :class="[layoutClass, gapClass]">
+    <div
+      v-for="i in skeletonCount"
+      :key="'skel-' + i"
+      class="bg-gray-200 rounded-lg animate-pulse"
+      :style="{ width: dynamicSizePx + 'px', height: dynamicSizePx + 'px' }"
+    ></div>
   </div>
-  
-  <!-- Empty State (only show if not loading and explicitly requested) -->
-  <div 
-    v-else-if="!loadingBadges && badges.length === 0 && $slots.empty"
-    class="flex items-center space-x-2 text-gray-500"
-  >
-    <slot name="empty">
-      <IconAward class="w-4 h-4 text-gray-400" />
-      <span class="text-sm">No badges</span>
-    </slot>
+
+  <!-- Badges loaded -->
+  <div v-else-if="badges.length > 0" :class="[layoutClass, gapClass]">
+    <BadgeDisplay
+      v-for="badge in displayBadges"
+      :key="`${badge.badgeDefinition}-${badge.badgeAward}`"
+      :badge="badge"
+      :size-pixels="dynamicSizePx"
+      :clickable="true"
+      @click="(b) => emit('badge-click', b)"
+    />
+
+    <!-- +N more indicator -->
+    <div
+      v-if="remainingCount > 0 && showViewAll"
+      class="inline-flex items-center justify-center rounded-lg border-2 border-dashed border-gray-300 hover:border-orange-300 cursor-pointer transition-colors text-gray-500 hover:text-orange-600 font-medium"
+      :style="{ width: dynamicSizePx + 'px', height: dynamicSizePx + 'px', fontSize: (dynamicSizePx >= 36 ? 13 : 11) + 'px' }"
+      @click.stop="emit('view-all', { pubkey, badges: badges, totalCount: badges.length })"
+      :title="`+${remainingCount} more badges`"
+    >
+      +{{ remainingCount }}
+    </div>
+
+    <!-- Count label -->
+    <span
+      v-if="showCount"
+      class="text-xs text-gray-500 ml-1"
+    >{{ badges.length }} {{ badges.length === 1 ? 'badge' : 'badges' }}</span>
+  </div>
+
+  <!-- Empty state (slot) -->
+  <div v-else-if="!loading && $slots.empty">
+    <slot name="empty"></slot>
   </div>
 </template>
-

@@ -1,5 +1,5 @@
 import { ref, computed } from 'vue'
-import * as nip19 from 'nostr-tools/nip19'
+import { nip19 } from '../../services/nostr/nostrImports.js'
 import { generateAvatar } from '../../utils/profile/avatarGenerator.js'
 
 export function useNostrContent() {

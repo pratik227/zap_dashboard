@@ -16,7 +16,7 @@ import {
 } from '@iconify-prerendered/vue-tabler'
 import { useNostrAuth } from '../../composables/auth/useNostrAuth.js'
 import { useAudience } from '../../composables/audience/useAudience.js'
-import { nostrRelayManager } from '../../utils/network/nostrRelayManager.js'
+import { nostrService } from '../../services/nostr/NostrService.js'
 import { generateAvatar } from '../../utils/profile/avatarGenerator.js'
 
 const emit = defineEmits(['profile-click', 'switch-tab'])
@@ -70,7 +70,7 @@ const generateSuggestions = async () => {
     const sampleSize = Math.min(5, following.value.length)
     const contactPromises = following.value.slice(0, sampleSize).map(async (pubkey) => {
       try {
-        const contactEvent = await nostrRelayManager.getEvent({
+        const contactEvent = await nostrService.queryOne({
           kinds: [3],
           authors: [pubkey],
           limit: 1

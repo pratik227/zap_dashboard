@@ -19,6 +19,7 @@ import {
   IconBook,
   IconExternalLink
 } from '@iconify-prerendered/vue-tabler'
+import { storageService, STORAGE_KEYS } from '../../services/StorageService.js'
 
 const props = defineProps({
   autoShow: {
@@ -33,11 +34,11 @@ const currentSlide = ref(0)
 const totalSlides = 12
 
 const hasSeenWelcome = () => {
-  return localStorage.getItem('zaptracker_welcome_seen') === 'true'
+  return storageService.getRaw(STORAGE_KEYS.WELCOME_SEEN) === 'true'
 }
 
 const markWelcomeSeen = () => {
-  localStorage.setItem('zaptracker_welcome_seen', 'true')
+  storageService.setRaw(STORAGE_KEYS.WELCOME_SEEN, 'true')
 }
 
 const slides = [
@@ -232,7 +233,7 @@ const openDocs = () => {
 </script>
 
 <template>
-  <div class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[10000] p-4 animate-fade-in">
+  <div class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[10000] p-4 animate-fade-in" @keydown.escape="$emit('close')" @click.self="$emit('close')" tabindex="-1">
     <div class="bg-white rounded-3xl shadow-xl max-w-5xl w-full max-h-[90vh] overflow-hidden animate-scale-in">
       <!-- Header -->
       <div class="relative p-5 border-b border-gray-200">

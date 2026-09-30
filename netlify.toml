@@ -12,3 +12,10 @@ status = 200
 [build]
 command = "npx vite build"
 publish = "dist"
+
+[build.environment]
+# Vite 8 requires Node 20.19+ or 22.12+
+NODE_VERSION = "22"
+
+[functions]
+directory = "netlify/functions"

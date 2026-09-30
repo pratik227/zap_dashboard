@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { IconX, IconSparkles, IconMessage2, IconCalendarEvent } from '@iconify-prerendered/vue-tabler'
+import { storageService } from '../../services/StorageService.js'
 
 const props = defineProps({
   variant: {
@@ -23,7 +24,7 @@ const showDismissButton = computed(() => {
 })
 
 onMounted(() => {
-  const dismissed = localStorage.getItem(storageKey.value)
+  const dismissed = storageService.getRaw(storageKey.value)
   isDismissed.value = dismissed === 'true'
 
   setTimeout(() => {
@@ -35,7 +36,7 @@ const handleDismiss = () => {
   isVisible.value = false
   setTimeout(() => {
     isDismissed.value = true
-    localStorage.setItem(storageKey.value, 'true')
+    storageService.setRaw(storageKey.value, 'true')
   }, 300)
 }
 

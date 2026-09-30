@@ -144,7 +144,7 @@ const chartOption = computed(() => {
     <!-- Empty state -->
     <div v-if="publishedItems.length === 0" class="flex items-center justify-center h-[250px] lg:h-[300px]">
       <div class="text-center">
-        <IconCalendar class="w-10 h-10 mx-auto text-gray-300 mb-2" />
+        <IconCalendar class="w-10 h-10 mx-auto text-gray-400 mb-2" />
         <h3 class="text-sm font-medium text-gray-900 mb-1">No publishing activity yet</h3>
         <p class="text-xs text-gray-500">Publish content to see your activity timeline.</p>
       </div>
@@ -160,9 +160,11 @@ const chartOption = computed(() => {
     <div v-else-if="isEchartsLoaded && VChart" class="h-[250px] lg:h-[300px]">
       <VChart :autoresize="true" :option="chartOption" class="w-full h-full" />
     </div>
-    <!-- Loading -->
-    <div v-else class="flex items-center justify-center h-[250px] lg:h-[300px]">
-      <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
+    <!-- Loading (skeleton) -->
+    <div v-else class="h-[250px] lg:h-[300px] animate-pulse">
+      <div class="h-full bg-gray-100 rounded-lg flex items-end justify-around px-4 pb-4 gap-2">
+        <div v-for="i in 10" :key="i" class="flex-1 bg-gray-200/80 rounded-t" :style="{ height: `${10 + i * 8}%` }"></div>
+      </div>
     </div>
   </div>
 </template>

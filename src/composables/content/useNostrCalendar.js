@@ -1,10 +1,13 @@
 import { ref, reactive, computed, watch } from 'vue'
 import { useNostrAuth } from '../auth/useNostrAuth.js'
-import { nostrRelayManager } from '../../utils/network/nostrRelayManager.js'
+import { nostrService } from '../../services/nostr/NostrService.js'
+import { signerService } from '../../services/nostr/SignerService.js'
 import { registerRefresh, unregisterRefresh } from '../../utils/refreshCycle.js'
-import { verifyEvent } from 'nostr-tools/pure'
+import { publishService } from '../../services/nostr/PublishService.js'
 import { useNotifications } from '../core/useNotifications.js'
-import { fetchProfile, batchFetchProfiles, profileCache } from '../../utils/profile/profileFetcher.js'
+import { profileService } from '../../services/nostr/ProfileService.js'
+import { getUserFriendlyError } from '../../services/nostr/errors.js'
+import { nip52 } from '../../services/nostr/nostrImports.js'
 
 // NIP-52 Calendar Event Kinds
 const CALENDAR_EVENT_KINDS = {
@@ -68,10 +71,10 @@ export function useNostrCalendar() {
     })
   })
 
-  // Fetch user profile metadata using shared profileFetcher
+  // Fetch user profile metadata using ProfileService
   const fetchUserProfile = async (pubkey) => {
     try {
-      const profile = await fetchProfile(pubkey)
+      const profile = await profileService.get(pubkey)
       if (!profile) return null
       return {
         name: profile.name || profile.display_name,
@@ -84,23 +87,15 @@ export function useNostrCalendar() {
     }
   }
 
-  // Create calendar event data structure
+  // Create calendar event data structure using nip52 parsing
   const createEventData = async (calendarEvent) => {
     try {
       const isTimeBased = calendarEvent.kind === CALENDAR_EVENT_KINDS.TIME_BASED
-      
-      // Extract event data from tags - NIP-52 uses 'name' tag, not 'title'
-      const title = calendarEvent.tags.find(tag => tag[0] === 'name')?.[1] || 'Untitled Event'
-      const description = calendarEvent.content || ''
-      const location = calendarEvent.tags.find(tag => tag[0] === 'location')?.[1] || ''
-      const geohash = calendarEvent.tags.find(tag => tag[0] === 'g')?.[1] || ''
-      
+
+      // Use nip52 parser for core fields (works for time-based kind 31923)
+      // For date-based events, fall back to manual parsing since nip52 only covers time-based
       let eventData = {
         id: calendarEvent.id,
-        title,
-        description,
-        location,
-        geohash,
         type: isTimeBased ? 'time-based' : 'date-based',
         pubkey: calendarEvent.pubkey,
         created_at: calendarEvent.created_at,
@@ -111,26 +106,30 @@ export function useNostrCalendar() {
       }
 
       if (isTimeBased) {
-        // Time-based event (kind 31923)
-        const startTag = calendarEvent.tags.find(tag => tag[0] === 'start')
-        const endTag = calendarEvent.tags.find(tag => tag[0] === 'end')
-        const startTzidTag = calendarEvent.tags.find(tag => tag[0] === 'start_tzid')
-        const endTzidTag = calendarEvent.tags.find(tag => tag[0] === 'end_tzid')
-        
-        eventData.start = startTag ? parseInt(startTag[1]) : null
-        eventData.end = endTag ? parseInt(endTag[1]) : null
-        eventData.start_tzid = startTzidTag ? startTzidTag[1] : ''
-        eventData.end_tzid = endTzidTag ? endTzidTag[1] : ''
+        const parsed = nip52.parseTimeBasedCalendarEvent(calendarEvent)
+        // Map nip52 parsed result to our UI data shape
+        eventData.title = parsed.name || 'Untitled Event'
+        eventData.description = parsed.content || calendarEvent.content || ''
+        eventData.location = parsed.location || ''
+        eventData.geohash = parsed.geohash || ''
+        eventData.start = parsed.start ?? null
+        eventData.end = parsed.end ?? null
+        eventData.start_tzid = parsed.startTzid || ''
+        eventData.end_tzid = parsed.endTzid || ''
       } else {
-        // Date-based event (kind 31922)
+        // Date-based event (kind 31922) — nip52 only covers time-based, parse manually
+        eventData.title = calendarEvent.tags.find(tag => tag[0] === 'name')?.[1] || 'Untitled Event'
+        eventData.description = calendarEvent.content || ''
+        eventData.location = calendarEvent.tags.find(tag => tag[0] === 'location')?.[1] || ''
+        eventData.geohash = calendarEvent.tags.find(tag => tag[0] === 'g')?.[1] || ''
         const startTag = calendarEvent.tags.find(tag => tag[0] === 'start')
         const endTag = calendarEvent.tags.find(tag => tag[0] === 'end')
-        
         eventData.start_date = startTag ? startTag[1] : null
         eventData.end_date = endTag ? endTag[1] : null
       }
 
       // Extract participants (p tags) with relay and role
+      // nip52 may parse participants, but we need relay+role+profile enrichment
       const participantTags = calendarEvent.tags
         .filter(tag => tag[0] === 'p')
         .map(tag => ({
@@ -139,20 +138,20 @@ export function useNostrCalendar() {
           role: tag[3] || ''
         }))
 
-      // Fetch profiles for participants
+      // Batch fetch profiles for all participants at once (instead of one-by-one)
       if (participantTags.length > 0) {
-        const profilePromises = participantTags.map(async (participant) => {
-          const profile = await fetchUserProfile(participant.pubkey)
-          const result = {
+        const pubkeys = participantTags.map(p => p.pubkey)
+        try { await profileService.batch(pubkeys) } catch { /* use fallbacks */ }
+
+        eventData.participants = participantTags.map(participant => {
+          const profile = profileService.getCached(participant.pubkey)
+          return {
             ...participant,
             name: profile?.name,
             picture: profile?.picture,
             nip05: profile?.nip05
           }
-          return result
         })
-        
-        eventData.participants = await Promise.all(profilePromises)
       }
 
       // Extract hashtags (t tags)
@@ -179,7 +178,7 @@ export function useNostrCalendar() {
     }
 
     try {
-      await nostrRelayManager.ready()
+      await nostrService.ready()
     } catch (err) {
       console.warn('[useNostrCalendar] Relay manager not ready:', err.message)
       return
@@ -197,7 +196,7 @@ export function useNostrCalendar() {
 
     try {
       // Subscribe to calendar events (both time-based and date-based)
-      currentSubscription = nostrRelayManager.subscribeToEvents([
+      currentSubscription = nostrService.subscribe([
         {
           // Events created by the user
           kinds: [CALENDAR_EVENT_KINDS.TIME_BASED, CALENDAR_EVENT_KINDS.DATE_BASED],
@@ -296,7 +295,7 @@ export function useNostrCalendar() {
 
     } catch (err) {
       console.error('Failed to fetch calendar events:', err)
-      error.value = 'Failed to fetch calendar events: ' + err.message
+      error.value = getUserFriendlyError(err)
       clearTimeout(loadingTimeout)
       isLoading.value = false
     }
@@ -304,7 +303,7 @@ export function useNostrCalendar() {
 
   // Create calendar event
   const createEvent = async (eventData) => {
-    if (!isAuthenticated.value || !window.nostr) {
+    if (!isAuthenticated.value || !signerService.isConnected) {
       throw new Error('Nostr authentication required')
     }
 
@@ -317,117 +316,127 @@ export function useNostrCalendar() {
 
     try {
       const isTimeBased = eventData.type === 'time-based'
-      const kind = isTimeBased ? CALENDAR_EVENT_KINDS.TIME_BASED : CALENDAR_EVENT_KINDS.DATE_BASED
+      const dTag = Date.now().toString() // UUID/identifier for replaceable events
 
-      // Build tags - NIP-52 uses 'name' tag, not 'title'
-      let tags = [
-        ['d', Date.now().toString()], // UUID/identifier for replaceable events
-        ['name', eventData.title.trim()]
-      ]
+      let eventTemplate
 
       if (isTimeBased) {
-        // Time-based event (kind 31923)
-        if (eventData.start_date && eventData.start_time) {
-          const startDateTime = new Date(`${eventData.start_date}T${eventData.start_time}`)
-          tags.push(['start', Math.floor(startDateTime.getTime() / 1000).toString()])
-        }
-        
-        if (eventData.end_date && eventData.end_time) {
-          const endDateTime = new Date(`${eventData.end_date}T${eventData.end_time}`)
-          tags.push(['end', Math.floor(endDateTime.getTime() / 1000).toString()])
+        // Build nip52 time-based event input
+        const nip52Input = {
+          identifier: dTag,
+          name: eventData.title.trim(),
+          content: eventData.description.trim(),
         }
 
-        // Add timezone tags if provided
+        if (eventData.start_date && eventData.start_time) {
+          const startDateTime = new Date(`${eventData.start_date}T${eventData.start_time}`)
+          nip52Input.start = Math.floor(startDateTime.getTime() / 1000)
+        }
+
+        if (eventData.end_date && eventData.end_time) {
+          const endDateTime = new Date(`${eventData.end_date}T${eventData.end_time}`)
+          nip52Input.end = Math.floor(endDateTime.getTime() / 1000)
+        }
+
         if (eventData.start_tzid?.trim()) {
-          tags.push(['start_tzid', eventData.start_tzid.trim()])
+          nip52Input.startTzid = eventData.start_tzid.trim()
         }
         if (eventData.end_tzid?.trim()) {
-          tags.push(['end_tzid', eventData.end_tzid.trim()])
+          nip52Input.endTzid = eventData.end_tzid.trim()
         }
+        if (eventData.location?.trim()) {
+          nip52Input.location = eventData.location.trim()
+        }
+        if (eventData.geohash?.trim()) {
+          nip52Input.geohash = eventData.geohash.trim()
+        }
+
+        // Build participants array for nip52
+        if (Array.isArray(eventData.participants) && eventData.participants.length > 0) {
+          nip52Input.participants = eventData.participants
+            .map(p => {
+              if (typeof p === 'string' && p.trim()) return { pubkey: p.trim() }
+              if (p?.pubkey?.trim()) return { pubkey: p.pubkey.trim(), relay: p.relay?.trim() || '', role: p.role?.trim() || '' }
+              return null
+            })
+            .filter(Boolean)
+        }
+
+        if (Array.isArray(eventData.tags) && eventData.tags.length > 0) {
+          nip52Input.hashtags = eventData.tags.filter(t => t?.trim()).map(t => t.trim())
+        }
+
+        if (Array.isArray(eventData.references) && eventData.references.length > 0) {
+          nip52Input.references = eventData.references.filter(r => r?.trim()).map(r => r.trim())
+        }
+
+        eventTemplate = nip52.createTimeBasedCalendarEventTemplate(nip52Input)
       } else {
-        // Date-based event (kind 31922) - uses ISO 8601 date format (YYYY-MM-DD)
+        // Date-based event (kind 31922) — nip52 only covers time-based, build manually
+        const kind = CALENDAR_EVENT_KINDS.DATE_BASED
+        let tags = [
+          ['d', dTag],
+          ['name', eventData.title.trim()]
+        ]
+
         if (eventData.start_date) {
           tags.push(['start', eventData.start_date])
         }
-        
         if (eventData.end_date) {
           tags.push(['end', eventData.end_date])
         }
-      }
+        if (eventData.location?.trim()) {
+          tags.push(['location', eventData.location.trim()])
+        }
+        if (eventData.geohash?.trim()) {
+          tags.push(['g', eventData.geohash.trim()])
+        }
 
-      // Add location
-      if (eventData.location?.trim()) {
-        tags.push(['location', eventData.location.trim()])
-      }
-
-      // Add geohash
-      if (eventData.geohash?.trim()) {
-        tags.push(['g', eventData.geohash.trim()])
-      }
-
-      // Add participant tags with optional relay and role
-      if (Array.isArray(eventData.participants)) {
-        eventData.participants.forEach(participant => {
-          if (typeof participant === 'string' && participant.trim()) {
-            // Legacy format: just pubkey
-            tags.push(['p', participant.trim()])
-          } else if (participant?.pubkey?.trim()) {
-            // New format: {pubkey, relay, role}
-            const pTag = ['p', participant.pubkey.trim()]
-            if (participant.relay?.trim()) {
-              pTag.push(participant.relay.trim())
+        // Add participant tags with optional relay and role
+        if (Array.isArray(eventData.participants)) {
+          eventData.participants.forEach(participant => {
+            if (typeof participant === 'string' && participant.trim()) {
+              tags.push(['p', participant.trim()])
+            } else if (participant?.pubkey?.trim()) {
+              const pTag = ['p', participant.pubkey.trim()]
+              if (participant.relay?.trim()) {
+                pTag.push(participant.relay.trim())
+              }
+              if (participant.role?.trim()) {
+                if (pTag.length === 2) pTag.push('')
+                pTag.push(participant.role.trim())
+              }
+              tags.push(pTag)
             }
-            if (participant.role?.trim()) {
-              // Ensure relay is present if role is present
-              if (pTag.length === 2) pTag.push('')
-              pTag.push(participant.role.trim())
+          })
+        }
+
+        if (Array.isArray(eventData.tags)) {
+          eventData.tags.forEach(tag => {
+            if (tag?.trim()) {
+              tags.push(['t', tag.trim()])
             }
-            tags.push(pTag)
-          }
-        })
+          })
+        }
+
+        if (Array.isArray(eventData.references)) {
+          eventData.references.forEach(ref => {
+            if (ref?.trim()) {
+              tags.push(['r', ref.trim()])
+            }
+          })
+        }
+
+        eventTemplate = {
+          kind,
+          created_at: Math.floor(Date.now() / 1000),
+          tags,
+          content: eventData.description.trim()
+        }
       }
 
-      // Add hashtags
-      if (Array.isArray(eventData.tags)) {
-        eventData.tags.forEach(tag => {
-          if (tag?.trim()) {
-            tags.push(['t', tag.trim()])
-          }
-        })
-      }
-
-      // Add reference links
-      if (Array.isArray(eventData.references)) {
-        eventData.references.forEach(ref => {
-          if (ref?.trim()) {
-            tags.push(['r', ref.trim()])
-          }
-        })
-      }
-
-      // Create event template
-      let eventTemplate = {
-        kind,
-        created_at: Math.floor(Date.now() / 1000),
-        tags,
-        content: eventData.description.trim()
-      }
-
-      // Sign the event using the browser extension
-      const signedEvent = await window.nostr.signEvent(eventTemplate)
-      
-      // Verify the signed event
-      const isValid = verifyEvent(signedEvent)
-      if (!isValid) {
-        throw new Error('Event signature verification failed')
-      }
-
-      // Publish to Nostr relays
-      const result = await nostrRelayManager.publishEvent(signedEvent)
-
-      if (result.successful === 0) {
-        throw new Error('Failed to publish to any relays')
-      }
+      // Sign and publish to Nostr relays
+      const { event: signedEvent, result } = await publishService.signAndPublish(eventTemplate)
 
       // Add the event to our local state immediately
       const newEvent = await createEventData(signedEvent)
@@ -464,7 +473,7 @@ export function useNostrCalendar() {
       }
 
     } catch (err) {
-      error.value = 'Failed to create event: ' + err.message
+      error.value = getUserFriendlyError(err)
       console.error('❌ Calendar event creation error:', err)
       throw err
     } finally {
@@ -474,7 +483,7 @@ export function useNostrCalendar() {
 
   // Update calendar event (creates new event and deletes old one)
   const updateEvent = async (eventId, newEventData) => {
-    if (!isAuthenticated.value || !window.nostr) {
+    if (!isAuthenticated.value || !signerService.isConnected) {
       throw new Error('Nostr authentication required')
     }
 
@@ -487,14 +496,14 @@ export function useNostrCalendar() {
       
       return result
     } catch (err) {
-      error.value = 'Failed to update event: ' + err.message
+      error.value = getUserFriendlyError(err)
       throw err
     }
   }
 
   // Delete calendar event
   const deleteEvent = async (eventId) => {
-    if (!isAuthenticated.value || !window.nostr) {
+    if (!isAuthenticated.value || !signerService.isConnected) {
       throw new Error('Nostr authentication required')
     }
 
@@ -507,17 +516,8 @@ export function useNostrCalendar() {
         content: 'Calendar event deleted'
       }
 
-      // Sign the deletion event
-      const signedEvent = await window.nostr.signEvent(deletionEvent)
-      
-      // Verify the signed event
-      const isValid = verifyEvent(signedEvent)
-      if (!isValid) {
-        throw new Error('Deletion event signature verification failed')
-      }
-
-      // Publish to Nostr relays
-      const result = await nostrRelayManager.publishEvent(signedEvent)
+      // Sign and publish deletion event
+      const { event: signedEvent, result } = await publishService.signAndPublish(deletionEvent)
 
       if (result.successful > 0) {
         // Remove from local state
@@ -530,7 +530,7 @@ export function useNostrCalendar() {
       return result
 
     } catch (err) {
-      error.value = 'Failed to delete event: ' + err.message
+      error.value = getUserFriendlyError(err)
       console.error('❌ Calendar event deletion error:', err)
       throw err
     }
@@ -604,7 +604,7 @@ export function useNostrCalendar() {
 
   // Create RSVP for a calendar event
   const createRSVP = async (eventId, eventKind, eventAuthor, status, freebusy, note = '') => {
-    if (!isAuthenticated.value || !window.nostr) {
+    if (!isAuthenticated.value || !signerService.isConnected) {
       throw new Error('Nostr authentication required')
     }
 
@@ -620,43 +620,23 @@ export function useNostrCalendar() {
     error.value = ''
 
     try {
-      // Build tags for RSVP
-      let tags = [
-        ['a', `${eventKind}:${eventAuthor}:${eventId}`],
-        ['d', Date.now().toString()], // UUID for this RSVP
-        ['L', 'status'],
-        ['l', status, 'status']
-      ]
+      // Build RSVP using nip52 helper
+      const rsvpInput = {
+        identifier: Date.now().toString(),
+        eventAddress: `${eventKind}:${eventAuthor}:${eventId}`,
+        status,
+        content: note.trim(),
+      }
 
       // Add freebusy if provided and status is not declined
       if (freebusy && status !== 'declined') {
-        tags.push(['L', 'freebusy'])
-        tags.push(['l', freebusy, 'freebusy'])
+        rsvpInput.freebusy = freebusy
       }
 
-      // Create RSVP event
-      let rsvpEvent = {
-        kind: CALENDAR_EVENT_KINDS.RSVP,
-        created_at: Math.floor(Date.now() / 1000),
-        tags,
-        content: note.trim()
-      }
+      let rsvpEvent = nip52.createCalendarEventRSVPTemplate(rsvpInput)
 
-      // Sign the event
-      const signedEvent = await window.nostr.signEvent(rsvpEvent)
-      
-      // Verify the signed event
-      const isValid = verifyEvent(signedEvent)
-      if (!isValid) {
-        throw new Error('RSVP signature verification failed')
-      }
-
-      // Publish to Nostr relays
-      const result = await nostrRelayManager.publishEvent(signedEvent)
-
-      if (result.successful === 0) {
-        throw new Error('Failed to publish RSVP to any relays')
-      }
+      // Sign and publish RSVP event
+      const { event: signedEvent, result } = await publishService.signAndPublish(rsvpEvent)
 
       // Add to local state
       const rsvpData = {
@@ -684,7 +664,7 @@ export function useNostrCalendar() {
       }
 
     } catch (err) {
-      error.value = 'Failed to create RSVP: ' + err.message
+      error.value = getUserFriendlyError(err)
       console.error('❌ RSVP creation error:', err)
       throw err
     } finally {
@@ -699,7 +679,7 @@ export function useNostrCalendar() {
     }
 
     try {
-      await nostrRelayManager.ready()
+      await nostrService.ready()
     } catch (err) {
       console.warn('[useNostrCalendar] Relay manager not ready for RSVPs:', err.message)
       return
@@ -751,44 +731,39 @@ export function useNostrCalendar() {
 
       const rsvpPubkeysToFetch = new Set()
 
-      rsvpSubscription = nostrRelayManager.subscribeToEvents(filters, {
+      rsvpSubscription = nostrService.subscribe(filters, {
         onevent: async (event) => {
           if (processedRsvpIds.has(event.id)) {
             return
           }
 
           processedRsvpIds.add(event.id)
-          
-          // Parse RSVP data
-          const aTag = event.tags.find(tag => tag[0] === 'a')
-          
-          // Support both NIP-52 standard format and Plektos simplified format
-          // NIP-52: ['l', 'accepted', 'status']
-          // Plektos: ['status', 'accepted']
-          let statusTag = event.tags.find(tag => tag[0] === 'l' && tag[2] === 'status')
-          let statusValue = statusTag ? statusTag[1] : null
-          
-          if (!statusTag) {
-            // Try Plektos format
+
+          // Parse RSVP data using nip52 helper
+          const parsed = nip52.parseCalendarEventRSVP(event)
+
+          // nip52 may not cover Plektos simplified format — fall back if needed
+          let statusValue = parsed?.status ?? null
+          let freebusyValue = parsed?.freebusy ?? null
+
+          if (!statusValue) {
+            // Fallback: try Plektos simplified format ['status', 'accepted']
             const plektosStatusTag = event.tags.find(tag => tag[0] === 'status')
             if (plektosStatusTag) {
               statusValue = plektosStatusTag[1]
             }
           }
-          
-          // Same for freebusy
-          let freebusyTag = event.tags.find(tag => tag[0] === 'l' && tag[2] === 'freebusy')
-          let freebusyValue = freebusyTag ? freebusyTag[1] : null
-          
-          if (!freebusyTag) {
+          if (!freebusyValue) {
             const plektosFreebusyTag = event.tags.find(tag => tag[0] === 'freebusy')
             if (plektosFreebusyTag) {
               freebusyValue = plektosFreebusyTag[1]
             }
           }
-          
-          if (aTag && statusValue) {
-            const [eventKind, eventAuthor, eventId] = aTag[1].split(':')
+
+          const eventAddress = parsed?.eventAddress || event.tags.find(tag => tag[0] === 'a')?.[1]
+
+          if (eventAddress && statusValue) {
+            const [eventKind, eventAuthor, eventId] = eventAddress.split(':')
 
             // Queue pubkey for batch profile fetch after EOSE
             rsvpPubkeysToFetch.add(event.pubkey)
@@ -804,7 +779,7 @@ export function useNostrCalendar() {
               nip05: null,
               status: statusValue,
               freebusy: freebusyValue,
-              note: event.content,
+              note: parsed?.content ?? event.content,
               created_at: event.created_at
             }
 
@@ -820,12 +795,12 @@ export function useNostrCalendar() {
           // Batch fetch all RSVP author profiles, then enrich
           if (rsvpPubkeysToFetch.size > 0) {
             const pubkeys = Array.from(rsvpPubkeysToFetch)
-            batchFetchProfiles(pubkeys).then(() => {
+            profileService.batch(pubkeys).then(() => {
               // Enrich RSVP entries with fetched profiles
               rsvps.value.forEach((rsvp, i) => {
-                const cached = profileCache.get(rsvp.pubkey)
-                if (cached?.profile) {
-                  rsvps.value[i] = { ...rsvp, name: cached.profile.name, picture: cached.profile.picture, nip05: cached.profile.nip05 }
+                const cached = profileService.getCached(rsvp.pubkey)
+                if (cached) {
+                  rsvps.value[i] = { ...rsvp, name: cached.name, picture: cached.picture, nip05: cached.nip05 }
                 }
               })
             }).catch(e => {
@@ -841,7 +816,7 @@ export function useNostrCalendar() {
 
     } catch (err) {
       console.error('Failed to fetch RSVPs:', err)
-      error.value = 'Failed to fetch RSVPs: ' + err.message
+      error.value = getUserFriendlyError(err)
     }
   }
 

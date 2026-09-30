@@ -1,15 +1,17 @@
 import { ref, reactive, computed, watch } from 'vue'
-import { nostrRelayManager } from '../../utils/network/nostrRelayManager.js'
+import { nostrService } from '../../services/nostr/NostrService.js'
 import { useNostrAuth } from '../auth/useNostrAuth.js'
 import { useNotifications } from '../core/useNotifications.js'
 import { generateAvatar } from '../../utils/profile/avatarGenerator.js'
 import { parseZapReceipt } from '../../utils/zaps/parseZapReceipt.js'
-import { fetchProfile } from '../../utils/profile/profileFetcher.js'
+import { profileService } from '../../services/nostr/ProfileService.js'
 import {
   CONTENT_ZAP_CHUNK_SIZE,
   CONTENT_ZAP_RESUBSCRIBE_DEBOUNCE,
   TRACKED_EVENT_IDS_MAX
 } from '../../utils/constants.js'
+import { storageService } from '../../services/StorageService.js'
+import { getPublishedContentEventIds } from './useContent.js'
 
 // Global state for content zaps
 const contentZaps = reactive(new Map()) // Map<eventId, zap[]>
@@ -43,7 +45,7 @@ const createZapData = async (zapEvent) => {
     }
 
     // Fetch profile to enrich sender data before notification
-    const profile = await fetchProfile(parsed.zapperPubkey)
+    const profile = await profileService.get(parsed.zapperPubkey)
     if (profile) {
       zapData.sender = {
         pubkey: parsed.zapperPubkey,
@@ -87,7 +89,7 @@ const openBatchedSubscription = (getNotificationHandler) => {
   }
 
   try {
-    batchedSubscription = nostrRelayManager.subscribeToEvents(filters, {
+    batchedSubscription = nostrService.subscribe(filters, {
       onevent: async (zapEvent) => {
         const zapData = await createZapData(zapEvent)
         if (!zapData || !zapData.eventId) return
@@ -122,7 +124,6 @@ const openBatchedSubscription = (getNotificationHandler) => {
     })
 
     isTrackingZaps.value = true
-    console.log(`[contentZaps] Batched subscription opened for ${allIds.length} event IDs`)
   } catch (error) {
     console.error('[contentZaps] Failed to open batched subscription:', error)
   }
@@ -151,24 +152,12 @@ export function useContentZaps() {
   }
 
   // Initialize zap tracking for all published content
+  // Uses useContent's centralized accessor instead of direct localStorage
   const initializeZapTracking = async () => {
-    try {
-      const contentStorageKey = 'user_content_items'
-      const storedContent = localStorage.getItem(contentStorageKey)
+    const eventIds = getPublishedContentEventIds()
 
-      if (storedContent) {
-        const contentItems = JSON.parse(storedContent)
-        const publishedContent = contentItems.filter(item =>
-          item.status === 'published' && item.nostrEventId
-        )
-
-        if (publishedContent.length > 0) {
-          const eventIds = publishedContent.map(item => item.nostrEventId)
-          await trackMultipleContent(eventIds)
-        }
-      }
-    } catch (error) {
-      console.error('Failed to initialize zap tracking:', error)
+    if (eventIds.length > 0) {
+      await trackMultipleContent(eventIds)
     }
   }
 
