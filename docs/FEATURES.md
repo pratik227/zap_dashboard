@@ -60,7 +60,7 @@ Deep insights into your zap performance. Visualize daily activity, see top suppo
 
 Manage your Bitcoin Lightning wallet directly inside ZapTracker via **Nostr Wallet Connect (NWC)**. Check balances, send and receive payments, generate QR codes, and browse transaction history -- all without leaving the dashboard.
 
-**Supported wallets:** Alby, Buho, Coinos, LNBits, and any NWC-compatible wallet.
+**Supported wallets:** Alby, Buho, Coinos, LNBits, Rizful, and any NWC-compatible wallet.
 
 **Capabilities:**
 - Real-time balance monitoring

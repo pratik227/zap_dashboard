@@ -30,7 +30,7 @@ Before diving in, make sure you have:
 
 1. **A Nostr Identity** - Your cryptographic identity on the Nostr network
 2. **A NIP-07 Browser Extension** - Such as [Alby](https://getalby.com/), [nos2x](https://github.com/fiatjaf/nos2x), or [Flamingo](https://www.getflamingo.org/)
-3. **A NWC-Compatible Wallet** - For Lightning payments (Alby, Coinos, LNBits, etc.)
+3. **A NWC-Compatible Wallet** - For Lightning payments (Alby, Coinos, LNBits, Rizful, etc.)
 
 ### Connecting Your Accounts
 
